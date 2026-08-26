@@ -6,6 +6,18 @@ const DB_VERSION = 1;
 
 export const GENERAL = '__general__';
 
+// No todo lo que se registra es un servicio. El tipo se elige al crear y define
+// como se rotula en las listas y en el reporte.
+export const TIPOS = {
+  servicio:    { nombre: 'Servicio',              icono: '🔧' },
+  laboratorio: { nombre: 'Pruebas de laboratorio', icono: '🧪' },
+  general:     { nombre: 'General',                icono: '📋' },
+};
+
+export function tipoDe(trabajo) {
+  return TIPOS[trabajo && trabajo.tipo] || TIPOS.servicio;
+}
+
 let _db = null;
 
 export function nuevoId() {
@@ -114,12 +126,13 @@ export function servicioNuevo(datos) {
   const ahora = Date.now();
   const servicio = {
     id: nuevoId(),
-    folio:       datos.folio       || '',
+    tipo:        datos.tipo        || 'servicio',
     cliente:     datos.cliente     || '',
     planta:      datos.planta      || '',
-    area:        datos.area        || '',
+    modelo:      datos.modelo      || '',
+    serie:       datos.serie       || '',
     tecnico:     datos.tecnico     || '',
-    descripcion: datos.descripcion || '',
+    descripcion: datos.descripcion || '',   // descripcion de la falla
     estado: 'abierto',
     inicio: ahora,
     fin: null,

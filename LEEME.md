@@ -46,8 +46,12 @@ nueva en segundo plano).
 
 ## Cómo está organizada
 
+Al crear, primero eliges el **tipo**: 🔧 Servicio, 🧪 Pruebas de laboratorio o
+📋 General. De ahí en adelante todo funciona igual.
+
 ```
-Servicio  (cliente, planta, área, folio, técnico)
+Trabajo  (tipo, cliente, planta, modelo y serie de máquina,
+          técnico, descripción de la falla)
 ├─ General          ← lo que no es de un equipo específico
 │  └─ línea de tiempo
 └─ Equipos[]

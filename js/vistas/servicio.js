@@ -130,8 +130,9 @@ export async function render(contenedor, refrescar, params) {
   const resumen = await db.resumenPorEquipo(servicio.id);
   const pestanaGuardada = sessionStorage.getItem('pestana:' + servicio.id) || 'equipos';
 
-  const titulo = servicio.cliente || servicio.planta || 'Servicio';
-  const sub = [servicio.planta, servicio.area].filter(Boolean).join(' · ');
+  const tipo = db.tipoDe(servicio);
+  const titulo = servicio.cliente || servicio.planta || tipo.nombre;
+  const maquina = [servicio.modelo, servicio.serie].filter(Boolean).join(' · ');
 
   const cabecera = h('header.cabecera',
     h('div.cabecera__fila',
@@ -139,14 +140,14 @@ export async function render(contenedor, refrescar, params) {
         onclick: () => { location.hash = '#/'; } }, '←'),
       h('div.cabecera__titulo',
         h('h1', titulo),
-        sub ? h('p', sub) : null
+        h('p', tipo.icono + ' ' + tipo.nombre + (servicio.planta ? ' · ' + servicio.planta : ''))
       ),
-      h('button.icono-btn', { type: 'button', 'aria-label': 'Editar servicio',
+      h('button.icono-btn', { type: 'button', 'aria-label': 'Editar datos',
         onclick: async () => { if (await editarServicio(servicio)) refrescar(); } }, '✎')
     ),
+    maquina ? h('div.cabecera__maquina', '⚙ ' + maquina) : null,
     h('div.cabecera__meta',
       h('span', fecha(servicio.inicio) + ' · ' + hora(servicio.inicio)),
-      servicio.folio ? h('span', '· ' + servicio.folio) : null,
       servicio.tecnico ? h('span', '· ' + servicio.tecnico) : null,
       h('span.crece'),
       h('span', duracion(servicio.inicio, servicio.fin))
