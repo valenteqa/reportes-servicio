@@ -22,24 +22,25 @@ está escrito en PowerShell puro.
 
 ## Instalarla en el teléfono
 
-La app necesita **HTTPS** para instalarse y para usar la cámara. Dos caminos:
+La app ya está publicada en:
 
-**GitHub Pages** — el repo queda público, pero solo contiene el código de la app;
-tus servicios, notas y fotos nunca salen del teléfono.
+### <https://valenteqa.github.io/reportes-servicio/>
 
-```bash
-git init && git add -A && git commit -m "App de reportes de servicio"
-```
+Ábrela en **Chrome de Android** → menú ⋮ → **Instalar aplicación**. Queda un icono
+en la pantalla de inicio y se abre a pantalla completa, sin barra del navegador.
 
-Luego creas el repo en GitHub, haces push, y en *Settings → Pages* eliges la rama
-`main`. Cada push actualiza la app en tu teléfono solo.
-
-**Netlify Drop** — arrastras esta carpeta a <https://app.netlify.com/drop> y listo,
-sin cuenta. Más rápido para probar, menos cómodo para actualizar.
-
-Ya con la URL: ábrela en Chrome de Android → menú ⋮ → **Instalar aplicación**.
 Después toca **Proteger** en el aviso amarillo, para que Android no borre tus datos
 si el teléfono se queda sin espacio.
+
+## Publicar cambios
+
+```bash
+git add -A && git commit -m "que cambio" && git push
+```
+
+En un minuto GitHub Pages reconstruye. El teléfono agarra la versión nueva la
+segunda vez que abras la app (la primera te sirve la versión en caché y baja la
+nueva en segundo plano).
 
 ---
 
