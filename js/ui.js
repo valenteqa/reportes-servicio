@@ -1,0 +1,218 @@
+// Utilidades de interfaz: construccion de DOM, formatos, hojas modales y avisos.
+
+/* ---------------------------------------------------------------- */
+/* Construccion de DOM                                               */
+/* ---------------------------------------------------------------- */
+
+/**
+ * h('div.tarjeta', { onclick }, 'texto', otroNodo)
+ * El primer argumento acepta 'tag.clase1.clase2' o 'tag#id'.
+ */
+export function h(selector, props, ...hijos) {
+  let tag = 'div', clases = [], id = null;
+
+  const m = String(selector).match(/^([a-zA-Z0-9-]*)((?:[.#][^.#]+)*)$/);
+  if (m) {
+    if (m[1]) tag = m[1];
+    const resto = m[2] || '';
+    for (const parte of resto.split(/(?=[.#])/)) {
+      if (!parte) continue;
+      if (parte[0] === '.') clases.push(parte.slice(1));
+      else if (parte[0] === '#') id = parte.slice(1);
+    }
+  } else {
+    tag = selector;
+  }
+
+  const el = document.createElement(tag);
+  if (clases.length) el.className = clases.join(' ');
+  if (id) el.id = id;
+
+  if (props && typeof props === 'object' && !(props instanceof Node) && !Array.isArray(props)) {
+    for (const [clave, valor] of Object.entries(props)) {
+      if (valor === null || valor === undefined || valor === false) continue;
+      if (clave === 'class' || clave === 'className') {
+        el.className = (el.className ? el.className + ' ' : '') + valor;
+      } else if (clave === 'style' && typeof valor === 'object') {
+        Object.assign(el.style, valor);
+      } else if (clave === 'dataset' && typeof valor === 'object') {
+        Object.assign(el.dataset, valor);
+      } else if (clave.startsWith('on') && typeof valor === 'function') {
+        el.addEventListener(clave.slice(2).toLowerCase(), valor);
+      } else if (clave === 'texto') {
+        el.textContent = valor;
+      } else if (clave === 'html') {
+        el.innerHTML = valor;
+      } else if (clave in el && clave !== 'list') {
+        el[clave] = valor;
+      } else {
+        el.setAttribute(clave, valor === true ? '' : valor);
+      }
+    }
+  } else if (props !== null && props !== undefined) {
+    hijos.unshift(props);
+  }
+
+  const agregar = (hijo) => {
+    if (hijo === null || hijo === undefined || hijo === false || hijo === true) return;
+    if (Array.isArray(hijo)) { hijo.forEach(agregar); return; }
+    el.append(hijo instanceof Node ? hijo : document.createTextNode(String(hijo)));
+  };
+  hijos.forEach(agregar);
+
+  return el;
+}
+
+export const $ = (sel, raiz = document) => raiz.querySelector(sel);
+
+export function vaciar(el) {
+  while (el.firstChild) el.removeChild(el.firstChild);
+  return el;
+}
+
+/* ---------------------------------------------------------------- */
+/* Formatos                                                          */
+/* ---------------------------------------------------------------- */
+
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+export function hora(ts) {
+  const d = new Date(ts);
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+
+export function fecha(ts) {
+  const d = new Date(ts);
+  return d.getDate() + ' ' + MESES[d.getMonth()] + ' ' + d.getFullYear();
+}
+
+export function fechaHora(ts) {
+  return fecha(ts) + ' ' + hora(ts);
+}
+
+export function duracion(desde, hasta) {
+  const ms = (hasta || Date.now()) - desde;
+  const min = Math.floor(ms / 60000);
+  if (min < 60) return min + ' min';
+  const hrs = Math.floor(min / 60);
+  const resto = min % 60;
+  return resto ? hrs + ' h ' + resto + ' min' : hrs + ' h';
+}
+
+export function relativo(ts) {
+  if (!ts) return '';
+  const seg = Math.floor((Date.now() - ts) / 1000);
+  if (seg < 60) return 'hace un momento';
+  if (seg < 3600) return 'hace ' + Math.floor(seg / 60) + ' min';
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  if (ts >= hoy.getTime()) return 'hoy ' + hora(ts);
+  const ayer = hoy.getTime() - 86400000;
+  if (ts >= ayer) return 'ayer ' + hora(ts);
+  return fecha(ts);
+}
+
+/* ---------------------------------------------------------------- */
+/* Avisos                                                            */
+/* ---------------------------------------------------------------- */
+
+let contenedorAvisos = null;
+
+export function aviso(texto, tipo = 'info') {
+  if (!contenedorAvisos) {
+    contenedorAvisos = h('div.avisos');
+    document.body.appendChild(contenedorAvisos);
+  }
+  const el = h('div.aviso.aviso--' + tipo, texto);
+  contenedorAvisos.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('aviso--visible'));
+  setTimeout(() => {
+    el.classList.remove('aviso--visible');
+    setTimeout(() => el.remove(), 300);
+  }, tipo === 'error' ? 4500 : 2600);
+}
+
+/* ---------------------------------------------------------------- */
+/* Hoja modal (bottom sheet)                                         */
+/* ---------------------------------------------------------------- */
+
+/**
+ * Abre una hoja desde abajo. `construir(cerrar)` devuelve el contenido.
+ * Resuelve con lo que se pase a cerrar(valor), o null si se descarta.
+ */
+export function hoja(titulo, construir, { altura = 'auto' } = {}) {
+  return new Promise((resolve) => {
+    let resuelto = false;
+
+    const cerrar = (valor = null) => {
+      if (resuelto) return;
+      resuelto = true;
+      fondo.classList.remove('hoja-fondo--visible');
+      panel.classList.remove('hoja--visible');
+      setTimeout(() => { fondo.remove(); document.body.classList.remove('sin-scroll'); }, 240);
+      resolve(valor);
+    };
+
+    const cuerpo = h('div.hoja__cuerpo');
+    const panel = h('div.hoja', { style: altura === 'alta' ? { height: '90vh' } : null },
+      h('div.hoja__asa'),
+      h('header.hoja__titulo',
+        h('h2', titulo),
+        h('button.icono-btn', { type: 'button', 'aria-label': 'Cerrar', onclick: () => cerrar(null) }, '✕')
+      ),
+      cuerpo
+    );
+
+    const fondo = h('div.hoja-fondo', {
+      onclick: (ev) => { if (ev.target === fondo) cerrar(null); }
+    }, panel);
+
+    cuerpo.append(construir(cerrar));
+    document.body.appendChild(fondo);
+    document.body.classList.add('sin-scroll');
+
+    requestAnimationFrame(() => {
+      fondo.classList.add('hoja-fondo--visible');
+      panel.classList.add('hoja--visible');
+      const primero = cuerpo.querySelector('input, textarea');
+      if (primero && !primero.readOnly) setTimeout(() => primero.focus(), 260);
+    });
+
+    document.addEventListener('keydown', function esc(ev) {
+      if (ev.key === 'Escape') { cerrar(null); document.removeEventListener('keydown', esc); }
+      if (resuelto) document.removeEventListener('keydown', esc);
+    });
+  });
+}
+
+export function confirmar(mensaje, { textoOk = 'Eliminar', peligro = true } = {}) {
+  return hoja('Confirmar', (cerrar) => h('div',
+    h('p.parrafo', mensaje),
+    h('div.hoja__acciones',
+      h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(false) }, 'Cancelar'),
+      h('button.btn' + (peligro ? '.btn--peligro' : '.btn--primario'),
+        { type: 'button', onclick: () => cerrar(true) }, textoOk)
+    )
+  )).then(r => r === true);
+}
+
+/* ---------------------------------------------------------------- */
+/* Campos de formulario                                              */
+/* ---------------------------------------------------------------- */
+
+export function campo(etiqueta, props = {}) {
+  const entrada = h('input.campo__entrada', Object.assign({ type: 'text' }, props));
+  const cont = h('label.campo', h('span.campo__etiqueta', etiqueta), entrada);
+  cont.entrada = entrada;
+  return cont;
+}
+
+export function campoArea(etiqueta, props = {}) {
+  const entrada = h('textarea.campo__entrada.campo__entrada--area', Object.assign({ rows: 4 }, props));
+  const cont = h('label.campo', h('span.campo__etiqueta', etiqueta), entrada);
+  cont.entrada = entrada;
+  return cont;
+}
+
+export function vacio(icono, titulo, detalle) {
+  return h('div.vacio', h('div.vacio__icono', icono), h('h3', titulo), detalle ? h('p', detalle) : null);
+}
