@@ -19,6 +19,7 @@
   --primario-vivo: #7deefb;
   --primario-tinta:#041418;   /* texto sobre cian */
   --primario-suave:#0c2830;
+  --primario-borde: rgba(53, 224, 242, .4);
 
   --ok:      #2fd685;
   --aviso:   #f2b63c;
@@ -43,6 +44,51 @@
   --fuente: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
 }
+
+/* ---------------------------------------------------------------- */
+/* Tema claro (para sol directo en planta)                           */
+/* Mismo lenguaje: esquinas afiladas, cortes, mono. El cian electrico */
+/* pasa a teal oscuro porque sobre blanco no se lee.                  */
+/* ---------------------------------------------------------------- */
+
+:root[data-tema="claro"] {
+  color-scheme: light;
+
+  --fondo:        #eef1f4;
+  --superficie:   #ffffff;
+  --superficie-2: #f1f4f8;
+  --tinta:        #131c24;
+  --tinta-suave:  #48596a;
+  --tinta-tenue:  #71808f;
+  --borde:        #dde3ea;
+  --borde-fuerte: #b9c6d3;
+
+  --primario:      #087f94;   /* teal legible sobre claro */
+  --primario-vivo: #0a99b2;
+  --primario-tinta:#ffffff;
+  --primario-suave:#dff2f6;
+  --primario-borde: rgba(8, 127, 148, .45);
+
+  --ok:      #157347;
+  --aviso:   #9a6407;
+  --aviso-bg:#fdf3dd;
+  --peligro: #c0362c;
+
+  --sombra-1: none;
+  --sombra-2: 0 8px 24px rgba(19, 28, 36, .16);
+  --sombra-3: 0 -8px 26px rgba(19, 28, 36, .14);
+  --glow: 0 0 0 3px rgba(8, 127, 148, .15);
+}
+
+:root[data-tema="claro"] #app { background: linear-gradient(180deg, #e6ebf0 0%, var(--fondo) 260px); }
+:root[data-tema="claro"] .cabecera { background: rgba(255, 255, 255, .96); }
+:root[data-tema="claro"] .captura { background: rgba(255, 255, 255, .97); }
+:root[data-tema="claro"] .fab { filter: drop-shadow(0 6px 16px rgba(19, 28, 36, .3)); }
+:root[data-tema="claro"] .pestana--activa { text-shadow: none; }
+:root[data-tema="claro"] .linea__punto { box-shadow: none; }
+:root[data-tema="claro"] .btn--peligro { color: #fff; }
+:root[data-tema="claro"] .banner .btn { color: #fff; }
+:root[data-tema="claro"] .aviso--error { background: #fdeae8; color: #7c150c; }
 
 * { box-sizing: border-box; }
 
@@ -114,7 +160,7 @@ button { font-family: inherit; font-size: inherit; }
 }
 .cabecera::after {
   content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
-  background: linear-gradient(90deg, var(--primario) 0%, rgba(53, 224, 242, 0) 45%);
+  background: linear-gradient(90deg, var(--primario) 0%, transparent 45%);
 }
 
 .cabecera__fila { display: flex; align-items: center; gap: .5rem; min-height: 44px; }
@@ -231,7 +277,7 @@ button { font-family: inherit; font-size: inherit; }
 }
 .etiqueta--abierto {
   background: var(--primario-suave); color: var(--primario);
-  border: 1px solid rgba(53, 224, 242, .4);
+  border: 1px solid var(--primario-borde);
 }
 .etiqueta--cerrado {
   background: transparent; color: var(--tinta-tenue);
@@ -244,14 +290,14 @@ button { font-family: inherit; font-size: inherit; }
   font-size: .7rem; font-weight: 600; color: var(--tinta-suave);
   font-family: var(--mono);
 }
-.tag--grande { margin: 0; font-size: .78rem; padding: .25rem .5rem; color: var(--primario); border-color: rgba(53, 224, 242, .4); }
+.tag--grande { margin: 0; font-size: .78rem; padding: .25rem .5rem; color: var(--primario); border-color: var(--primario-borde); }
 
 .contador { font-size: .78rem; color: var(--tinta-suave); white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 .chip-equipo {
   padding: .12rem .45rem;
   background: var(--primario-suave); color: var(--primario);
-  border: 1px solid rgba(53, 224, 242, .25);
+  border: 1px solid var(--primario-borde);
   font-size: .7rem; font-weight: 650;
   max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -268,7 +314,7 @@ button { font-family: inherit; font-size: inherit; }
   display: inline-block; margin-bottom: .3rem;
   padding: .14rem .5rem;
   background: transparent; color: var(--primario);
-  border: 1px solid rgba(53, 224, 242, .35);
+  border: 1px solid var(--primario-borde);
   font-size: .66rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
 }
 
@@ -496,8 +542,8 @@ button { font-family: inherit; font-size: inherit; }
   display: flex; flex-direction: column;
   padding: .4rem .9rem calc(1rem + var(--inf));
   background: var(--superficie);
-  border-top: 1px solid rgba(53, 224, 242, .5);
-  box-shadow: 0 -1px 0 rgba(53, 224, 242, .12), var(--sombra-3);
+  border-top: 1px solid var(--primario-borde);
+  box-shadow: var(--sombra-3);
   transform: translateY(100%);
   transition: transform .26s cubic-bezier(.32, .72, 0, 1);
 }
@@ -573,7 +619,7 @@ button { font-family: inherit; font-size: inherit; }
   flex: 1; min-height: 42px; border: none;
   background: transparent; color: var(--tinta-suave); font-weight: 600; cursor: pointer;
 }
-.segmentado__op--activa { background: var(--primario-suave); color: var(--primario); box-shadow: inset 0 0 0 1px rgba(53, 224, 242, .4); }
+.segmentado__op--activa { background: var(--primario-suave); color: var(--primario); box-shadow: inset 0 0 0 1px var(--primario-borde); }
 
 /* ---------------------------------------------------------------- */
 /* Editor de tabla                                                   */
@@ -609,7 +655,7 @@ button { font-family: inherit; font-size: inherit; }
 .rejilla th:active { background: var(--primario-suave); }
 .rejilla__th--num { text-align: right; }
 .rejilla__nombre { display: block; font-size: .78rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-.rejilla__unidad { display: block; font-size: .7rem; font-weight: 500; color: rgba(53, 224, 242, .8); font-family: var(--mono); }
+.rejilla__unidad { display: block; font-size: .7rem; font-weight: 500; color: var(--primario); font-family: var(--mono); }
 .rejilla__lapiz {
   position: absolute; top: .3rem; right: .3rem;
   font-size: .62rem; color: var(--tinta-tenue); opacity: .7;

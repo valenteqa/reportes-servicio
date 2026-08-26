@@ -8,6 +8,7 @@
 
 import { h, aviso, vaciar } from './ui.js';
 import * as media from './media.js';
+import { temaActual, aplicarTema } from './tema.js';
 import * as vistaServicios from './vistas/servicios.js';
 import * as vistaServicio  from './vistas/servicio.js';
 import * as vistaEquipo    from './vistas/equipo.js';
@@ -113,6 +114,7 @@ async function registrarServiceWorker() {
 
 window.addEventListener('pagehide', () => media.liberarUrls());
 
+aplicarTema(temaActual());   // sincroniza meta theme-color con lo aplicado al arrancar
 pintar();
 protegerDatos();
 registrarServiceWorker();

@@ -5,8 +5,18 @@
 <title>Reportes de Servicio</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="description" content="Bitacora de servicios de mantenimiento en planta: equipos, notas, tablas y fotos.">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="dark light">
 <meta name="theme-color" content="#07090d">
+<script>
+// Aplicar el tema guardado antes del primer pintado, para que no destelle.
+try {
+  if (localStorage.getItem('tema') === 'claro') {
+    document.documentElement.dataset.tema = 'claro';
+    var m = document.querySelector('meta[name="theme-color"]');
+    if (m) m.content = '#eef1f4';
+  }
+} catch (e) {}
+</script>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">

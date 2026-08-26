@@ -116,6 +116,8 @@ Listo y probado:
   primera columna congelada, guardado automático
 - Visor de fotos a pantalla completa con pie de foto editable
 - Marcar registros como "fuera del reporte"
+- Tema oscuro/claro alternable (☀️/🌙 en la cabecera); el claro es para sol
+  directo en planta
 - Funciona sin señal, instalable
 
 Falta (fase 2):

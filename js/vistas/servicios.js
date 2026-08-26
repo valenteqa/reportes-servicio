@@ -4,6 +4,7 @@ import * as db from '../db.js';
 import { h, campo, campoArea, hoja, aviso, confirmar, fecha, vacio } from '../ui.js';
 import * as media from '../media.js';
 import { APP_VERSION } from '../version.js';
+import { temaActual, alternarTema } from '../tema.js';
 
 async function bannerAlmacenamiento() {
   const info = await db.estadoAlmacenamiento();
@@ -185,6 +186,13 @@ export async function render(contenedor, refrescar) {
   const cabecera = h('header.cabecera',
     h('div.cabecera__fila',
       h('h1', 'Trabajos'),
+      h('button.icono-btn', {
+        type: 'button', 'aria-label': 'Cambiar tema',
+        onclick: (ev) => {
+          const nuevo = alternarTema();
+          ev.currentTarget.textContent = nuevo === 'claro' ? '🌙' : '☀️';
+        }
+      }, temaActual() === 'claro' ? '🌙' : '☀️'),
       h('button.icono-btn', {
         type: 'button', 'aria-label': 'Almacenamiento',
         onclick: async () => {
