@@ -34,13 +34,18 @@ si el teléfono se queda sin espacio.
 
 ## Publicar cambios
 
+1. Subir el número en **dos** lugares: `VERSION` en `sw.js` y `APP_VERSION` en
+   `js/version.js` (deben avanzar juntos en cada publicación).
+2. Luego:
+
 ```bash
 git add -A && git commit -m "que cambio" && git push
 ```
 
-En un minuto GitHub Pages reconstruye. El teléfono agarra la versión nueva la
-segunda vez que abras la app (la primera te sirve la versión en caché y baja la
-nueva en segundo plano).
+En un minuto GitHub Pages reconstruye. Al abrir la app en el teléfono, ella
+misma busca la versión nueva y **se recarga sola** en cuanto la tiene (salvo que
+haya algo a medio escribir, en cuyo caso avisa). La versión activa se ve al pie
+de la lista de trabajos, p. ej. `v2.0` — así se comprueba que llegó.
 
 ---
 

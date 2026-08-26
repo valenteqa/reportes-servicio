@@ -3,6 +3,7 @@
 import * as db from '../db.js';
 import { h, campo, campoArea, hoja, aviso, confirmar, fecha, vacio } from '../ui.js';
 import * as media from '../media.js';
+import { APP_VERSION } from '../version.js';
 
 async function bannerAlmacenamiento() {
   const info = await db.estadoAlmacenamiento();
@@ -194,7 +195,8 @@ export async function render(contenedor, refrescar) {
             h('p.parrafo', i.persistente
               ? '✓ Los datos estan protegidos contra borrado automatico.'
               : '⚠ Los datos NO estan protegidos. Instala la app desde el menu de Chrome y toca "Proteger".'),
-            h('p.pista', 'Todo se guarda unicamente en este telefono.')
+            h('p.pista', 'Todo se guarda unicamente en este telefono.'),
+            h('p.pista', 'Version de la app: ' + APP_VERSION)
           ));
         }
       }, '⛁')
@@ -214,6 +216,8 @@ export async function render(contenedor, refrescar) {
       lista.append(tarjetaTrabajo(t, resumen, refrescar));
     }
   }
+
+  lista.append(h('p.version-pie', 'v' + APP_VERSION));
 
   contenedor.append(
     cabecera,

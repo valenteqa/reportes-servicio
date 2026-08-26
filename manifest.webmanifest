@@ -9,8 +9,8 @@
   "id": "/app-reportes/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#eef1f5",
-  "theme_color": "#0d3b66",
+  "background_color": "#07090d",
+  "theme_color": "#07090d",
   "categories": ["productivity", "utilities"],
   "icons": [
     {

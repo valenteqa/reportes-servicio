@@ -1,14 +1,20 @@
-// Service worker: hace que la app abra sin señal.
+// Service worker: hace que la app abra sin señal y que las actualizaciones
+// publicadas lleguen solas al telefono.
 //
 // Estrategia:
-//   - El "cascaron" (HTML, CSS, JS, iconos) se precachea al instalar y se sirve
-//     desde cache. En una planta sin señal la app abre igual de rapido.
+//   - El "cascaron" (HTML, CSS, JS, iconos) se precachea al instalar, pidiendo
+//     cada archivo con cache:'no-cache' para saltarse el cache HTTP de GitHub
+//     Pages (10 min) y traer siempre lo ultimo publicado.
+//   - En uso normal responde desde cache al instante (rapido y offline) y
+//     refresca en segundo plano bajo ev.waitUntil — sin waitUntil, el navegador
+//     puede matar el worker antes de que termine de guardar la version nueva,
+//     y el telefono se queda con la vieja para siempre.
 //   - Los datos del usuario NO pasan por aqui: viven en IndexedDB.
 //
-// Al cambiar cualquier archivo hay que subir VERSION para que el telefono
-// reemplace el cache viejo.
+// Subir VERSION en cada publicacion (junto con APP_VERSION en js/version.js):
+// eso dispara un re-precacheo completo, que es la via mas confiable.
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE = 'reportes-' + VERSION;
 
 const CASCARON = [
@@ -17,6 +23,7 @@ const CASCARON = [
   'manifest.webmanifest',
   'css/app.css',
   'js/app.js',
+  'js/version.js',
   'js/db.js',
   'js/ui.js',
   'js/media.js',
@@ -32,10 +39,11 @@ const CASCARON = [
 self.addEventListener('install', (ev) => {
   ev.waitUntil(
     caches.open(CACHE)
-      // addAll falla entero si un archivo falta; se agregan uno por uno para
-      // que un icono ausente no deje la app sin cache.
+      // Uno por uno para que un archivo ausente no deje la app sin cache,
+      // y con no-cache para no precachear una copia vieja del cache HTTP.
       .then(cache => Promise.all(CASCARON.map(
-        url => cache.add(url).catch(e => console.warn('[sw] no cacheado:', url, e.message))
+        url => cache.add(new Request(url, { cache: 'no-cache' }))
+          .catch(e => console.warn('[sw] no cacheado:', url, e.message))
       )))
       .then(() => self.skipWaiting())
   );
@@ -58,38 +66,39 @@ self.addEventListener('fetch', (ev) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  // Navegaciones: intentar red, caer al index cacheado si no hay señal.
+  // Navegaciones: red primero, caer al index cacheado si no hay señal.
   if (req.mode === 'navigate') {
-    ev.respondWith(
-      fetch(req)
-        .then(res => {
-          const copia = res.clone();
-          caches.open(CACHE).then(c => c.put('index.html', copia));
-          return res;
-        })
-        .catch(() => caches.match('index.html').then(r => r || caches.match('./')))
-    );
+    ev.respondWith((async () => {
+      try {
+        const res = await fetch(req);
+        const copia = res.clone();
+        ev.waitUntil(caches.open(CACHE).then(c => c.put('index.html', copia)));
+        return res;
+      } catch (e) {
+        const enCache = await caches.match('index.html');
+        return enCache || caches.match('./');
+      }
+    })());
     return;
   }
 
-  // Recursos: se responde al instante desde cache (rapido y funciona sin señal)
-  // y en paralelo se baja la version fresca para la proxima apertura.
-  //
-  // Con cache-primero a secas, una correccion subida al hosting no llegaba nunca
-  // al telefono si se olvidaba subir VERSION. Asi las actualizaciones entran
-  // solas, con un ciclo de retraso, sin depender de que yo me acuerde.
-  ev.respondWith(
-    caches.open(CACHE).then(cache =>
-      cache.match(req).then(enCache => {
-        const desdeRed = fetch(req).then(res => {
-          if (res && res.status === 200 && res.type === 'basic') {
-            cache.put(req, res.clone());
-          }
-          return res;
-        }).catch(() => enCache);
+  // Recursos: cache al instante, refresco en segundo plano para la proxima.
+  ev.respondWith((async () => {
+    const cache = await caches.open(CACHE);
+    const enCache = await cache.match(req);
 
-        return enCache || desdeRed;
+    const refresco = fetch(new Request(req, { cache: 'no-cache' }))
+      .then(res => {
+        if (res && res.status === 200 && res.type === 'basic') {
+          cache.put(req, res.clone());
+        }
+        return res;
       })
-    )
-  );
+      .catch(() => enCache);
+
+    // Mantener vivo el worker hasta que el refresco termine de guardarse.
+    ev.waitUntil(refresco.then(() => {}, () => {}));
+
+    return enCache || refresco;
+  })());
 });

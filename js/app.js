@@ -84,14 +84,27 @@ async function registrarServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   try {
     const reg = await navigator.serviceWorker.register('sw.js');
-    reg.addEventListener('updatefound', () => {
-      const nuevo = reg.installing;
-      if (!nuevo) return;
-      nuevo.addEventListener('statechange', () => {
-        if (nuevo.state === 'installed' && navigator.serviceWorker.controller) {
-          aviso('Hay una version nueva. Cierra y abre la app para actualizar.');
-        }
-      });
+
+    // Android suele "resumir" la app sin recargar la pagina, y ahi nunca se
+    // buscaba la version nueva. Ahora se busca cada vez que la app vuelve a verse.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') reg.update().catch(() => {});
+    });
+
+    // Cuando la version nueva toma el control, recargar para usarla ya —
+    // salvo que haya una hoja abierta o algo a medio escribir.
+    const primeraVez = !navigator.serviceWorker.controller;
+    let recargado = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (primeraVez || recargado) return;
+      recargado = true;
+      const abierto = document.querySelector('.hoja-fondo, .visor');
+      const tag = (document.activeElement || {}).tagName || '';
+      if (abierto || tag === 'INPUT' || tag === 'TEXTAREA') {
+        aviso('Hay una version nueva. Cierra y abre la app para verla.');
+        return;
+      }
+      location.reload();
     });
   } catch (e) {
     console.warn('Service worker no registrado:', e.message);
