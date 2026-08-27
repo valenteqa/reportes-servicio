@@ -212,12 +212,16 @@ function imagenXml(relId, docPrId, anchoPx, altoPx) {
   let cx = anchoPx * porPx;
   let cy = altoPx * porPx;
   if (cx > EMU_MAX) { cy = Math.round(cy * EMU_MAX / cx); cx = EMU_MAX; }
+  // Namespaces declarados inline: el documento de plantilla no declara a:/pic:
+  // en la raiz (Word los pone en cada drawing), asi la imagen es autonoma.
   return '<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="40"/></w:pPr>' +
-    '<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">' +
+    '<w:r><w:drawing>' +
+    '<wp:inline distT="0" distB="0" distL="0" distR="0" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">' +
     '<wp:extent cx="' + cx + '" cy="' + cy + '"/>' +
     '<wp:docPr id="' + docPrId + '" name="Figura ' + docPrId + '"/>' +
-    '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
-    '<pic:pic>' +
+    '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">' +
+    '<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
+    '<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
     '<pic:nvPicPr><pic:cNvPr id="' + docPrId + '" name="img' + docPrId + '"/><pic:cNvPicPr/></pic:nvPicPr>' +
     '<pic:blipFill><a:blip r:embed="' + relId + '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>' +
     '<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' + cx + '" cy="' + cy + '"/></a:xfrm>' +
@@ -282,7 +286,192 @@ const XML_INDICE =
 /* Armado del reporte a partir de los datos del trabajo              */
 /* ---------------------------------------------------------------- */
 
+/* ---------------------------------------------------------------- */
+/* Modo plantilla: se rellena el .docx real de referencia, con sus   */
+/* logos, marca de agua, viñetas y estilos intactos.                 */
+/* ---------------------------------------------------------------- */
+
+// Viñeta personalizada de la plantilla: numId 4 usa la viñeta con imagen.
+function parVineta(texto) {
+  return '<w:p><w:pPr><w:pStyle w:val="ListParagraph"/>' +
+    '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="4"/></w:numPr></w:pPr>' +
+    '<w:r><w:t xml:space="preserve">' + esc(texto) + '</w:t></w:r></w:p>';
+}
+
+let _plantilla = null;
+
+async function cargarPlantilla() {
+  if (_plantilla) return _plantilla;
+  const base = new URL('../plantilla/', import.meta.url);
+  const resp = await fetch(new URL('manifest.json', base));
+  if (!resp.ok) throw new Error('manifest ' + resp.status);
+  const manifest = await resp.json();
+
+  const partes = await Promise.all(manifest.map(async (m) => {
+    const r = await fetch(new URL(m.archivo, base));
+    if (!r.ok) throw new Error(m.archivo + ' ' + r.status);
+    return {
+      zip: m.zip,
+      texto: m.binario ? null : await r.text(),
+      datos: m.binario ? new Uint8Array(await r.arrayBuffer()) : null,
+    };
+  }));
+
+  _plantilla = partes;
+  return partes;
+}
+
+function quitarFilaOpcional(xml, token) {
+  const rx = new RegExp('<w:tr(?:(?!</w:tr>)[\\s\\S])*?\\{\\{' + token + '\\}\\}(?:(?!</w:tr>)[\\s\\S])*?</w:tr>');
+  return xml.replace(rx, '');
+}
+
 export async function generarReporte(servicioId) {
+  try {
+    return await generarConPlantilla(servicioId);
+  } catch (e) {
+    console.warn('Plantilla no disponible, usando generador basico:', e.message);
+    return generarReporteBasico(servicioId);
+  }
+}
+
+async function generarConPlantilla(servicioId) {
+  const partes = await cargarPlantilla();
+  const servicio = await db.servicioLeer(servicioId);
+  if (!servicio) throw new Error('Trabajo no encontrado');
+
+  const actividades = await db.equiposDeServicio(servicioId);
+  const eventos = (await db.eventosDeServicio(servicioId)).filter(e => e.incluir !== false);
+  const porRama = {};
+  for (const ev of eventos) (porRama[ev.equipoId] = porRama[ev.equipoId] || []).push(ev);
+
+  if (!servicio.folio) {
+    servicio.folio = folioDe(servicio);
+    await db.servicioGuardar(servicio);
+  }
+
+  const imagenes = [];
+  let nFigura = 0;
+
+  const eventoXml = async (ev) => {
+    if (ev.tipo === 'nota') return parrafosDe(ev.datos.texto);
+    if (ev.tipo === 'tabla') {
+      const t = ev.datos;
+      let x = '';
+      if (t.titulo) x += par([{ t: t.titulo, b: true }], { esp: [160, 60] });
+      x += tablaXml(t.columnas || [], (t.filas || []).filter(f => f.some(c => String(c).trim() !== '')));
+      x += par('', { esp: [0, 60] });
+      return x;
+    }
+    if (ev.tipo === 'foto') {
+      const foto = await db.fotoLeer(ev.datos.fotoId);
+      if (!foto) return '';
+      nFigura++;
+      const relId = 'rIdImg' + nFigura;
+      imagenes.push({
+        nombre: 'media/imagenapp' + nFigura + '.jpeg',
+        datos: new Uint8Array(await foto.blob.arrayBuffer()),
+        relId,
+      });
+      let x = imagenXml(relId, 9000 + nFigura, foto.ancho, foto.alto);
+      const pie = 'Figura ' + nFigura + (ev.datos.pie ? '. ' + ev.datos.pie : '');
+      x += par([{ t: pie, i: true, sz: 18, color: '595959' }], { jc: 'center', esp: [0, 160] });
+      return x;
+    }
+    if (ev.tipo === 'prueba') {
+      let x = par([{ t: 'Prueba: ', b: true }, { t: ev.datos.descripcion || '' }], { esp: [120, 40] });
+      x += ev.datos.resultado
+        ? par([{ t: 'Resultado: ', b: true }, { t: ev.datos.resultado }], { esp: [0, 120] })
+        : par([{ t: 'Resultado: ', b: true }, { t: '(pendiente de resultado)', i: true, color: '808080' }], { esp: [0, 120] });
+      return x;
+    }
+    return '';
+  };
+
+  // El cuerpo arranca en pagina nueva, despues del indice (como el original).
+  let cuerpo = ['<w:p><w:r><w:br w:type="page"/></w:r></w:p>'];
+
+  if (servicio.descripcion || servicio.titulo) {
+    cuerpo.push(titulo1('Antecedentes'));
+    cuerpo.push(parrafosDe(servicio.descripcion || servicio.titulo));
+  }
+
+  const evGeneral = (porRama[db.GENERAL] || []).filter(e => e.tipo !== 'pendiente');
+  if (evGeneral.length) {
+    cuerpo.push(titulo1('Actividades'));
+    for (const ev of evGeneral) cuerpo.push(await eventoXml(ev));
+  }
+
+  for (const act of actividades) {
+    const evs = (porRama[act.id] || []).filter(e => e.tipo !== 'pendiente');
+    if (!evs.length) continue;
+    cuerpo.push(titulo1(act.nombre));
+    for (const ev of evs) cuerpo.push(await eventoXml(ev));
+  }
+
+  const pendientes = eventos.filter(e => e.tipo === 'pendiente');
+  if (pendientes.length) {
+    cuerpo.push(titulo1('Pendientes'));
+    for (const p of pendientes) cuerpo.push(parVineta((p.datos.texto || '').replace(/\n+/g, ' ')));
+  }
+
+  cuerpo.push(titulo1('Observaciones'));
+  cuerpo.push(par([{ t: '(Redactar observaciones)', i: true, color: '808080' }]));
+  cuerpo.push(titulo1('Recomendaciones'));
+  cuerpo.push(parVineta('(Redactar recomendaciones)'));
+
+  // Rellenar tokens del documento y del encabezado
+  const fecha = fechaLarga(servicio.inicio);
+  const nombreTrabajo = servicio.titulo || servicio.cliente || '';
+  const valores = {
+    FECHA: fecha,
+    CLIENTE: servicio.cliente || nombreTrabajo,
+    PLANTA: servicio.planta || '',
+    MARCA: servicio.marca || '',
+    MODELO: servicio.modelo || '',
+    SERIE: servicio.serie || '',
+    NOMAQUINA: servicio.noMaquina || '',
+    DESCRIPCION: (servicio.descripcion || nombreTrabajo).replace(/\n+/g, ' '),
+    TECNICO: servicio.tecnico || '',
+    FOLIO: servicio.folio,
+  };
+
+  const entradas = [];
+  for (const p of partes) {
+    if (p.zip === 'word/document.xml') {
+      let x = p.texto;
+      if (!valores.PLANTA) x = quitarFilaOpcional(x, 'PLANTA');
+      if (!valores.NOMAQUINA) x = quitarFilaOpcional(x, 'NOMAQUINA');
+      for (const [k, v] of Object.entries(valores)) x = x.split('{{' + k + '}}').join(esc(v));
+      x = x.replace('{{CUERPO}}', cuerpo.join(''));
+      entradas.push({ nombre: p.zip, datos: new TextEncoder().encode(x) });
+    } else if (p.zip === 'word/header2.xml') {
+      let x = p.texto.split('{{FOLIO}}').join(esc(valores.FOLIO)).split('{{FECHA}}').join(esc(fecha));
+      entradas.push({ nombre: p.zip, datos: new TextEncoder().encode(x) });
+    } else if (p.zip === 'word/_rels/document.xml.rels') {
+      const rels = imagenes.map(i =>
+        '<Relationship Id="' + i.relId + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="' + i.nombre + '"/>'
+      ).join('');
+      entradas.push({ nombre: p.zip, datos: new TextEncoder().encode(p.texto.replace('</Relationships>', rels + '</Relationships>')) });
+    } else if (p.texto !== null) {
+      entradas.push({ nombre: p.zip, datos: new TextEncoder().encode(p.texto) });
+    } else {
+      entradas.push({ nombre: p.zip, datos: p.datos });
+    }
+  }
+  for (const i of imagenes) entradas.push({ nombre: 'word/' + i.nombre, datos: i.datos });
+
+  const blob = fabricarZip(entradas);
+  const base = (servicio.cliente || servicio.titulo || 'TRABAJO').toUpperCase()
+    .replace(/[^A-ZÁÉÍÓÚÑ0-9 ]/gi, '').trim();
+  return { blob, nombreArchivo: base + ' REPORTE SERVICIO ' + servicio.folio + '.docx', figuras: nFigura };
+}
+
+/* ---------------------------------------------------------------- */
+/* Modo basico (respaldo si la plantilla no carga)                   */
+/* ---------------------------------------------------------------- */
+
+async function generarReporteBasico(servicioId) {
   const servicio = await db.servicioLeer(servicioId);
   if (!servicio) throw new Error('Trabajo no encontrado');
 

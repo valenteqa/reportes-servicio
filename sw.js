@@ -14,7 +14,7 @@
 // Subir VERSION en cada publicacion (junto con APP_VERSION en js/version.js):
 // eso dispara un re-precacheo completo, que es la via mas confiable.
 
-const VERSION = 'v15';
+const VERSION = 'v16';
 const CACHE = 'reportes-' + VERSION;
 
 const CASCARON = [
@@ -35,6 +35,38 @@ const CASCARON = [
   'js/vistas/tabla.js',
   'icons/icono-192.png',
   'icons/icono-512.png',
+  // Plantilla del reporte Word (logos, estilos, marca de agua): sin esto
+  // el modo plantilla no funciona sin señal.
+  'plantilla/app-props.xml',
+  'plantilla/core.xml',
+  'plantilla/ct.xml',
+  'plantilla/cx-item.xml',
+  'plantilla/cx-props.xml',
+  'plantilla/cx-rels.xml',
+  'plantilla/doc-plantilla.xml',
+  'plantilla/document.xml.rels',
+  'plantilla/endnotes.xml',
+  'plantilla/fontTable.xml',
+  'plantilla/footer1.xml',
+  'plantilla/footer2.xml',
+  'plantilla/footer3.xml',
+  'plantilla/footnotes.xml',
+  'plantilla/header1.xml',
+  'plantilla/header2.xml',
+  'plantilla/header2.xml.rels',
+  'plantilla/header3.xml',
+  'plantilla/logo14.png',
+  'plantilla/logo15.jpeg',
+  'plantilla/logo16.png',
+  'plantilla/manifest.json',
+  'plantilla/numbering.xml',
+  'plantilla/numbering.xml.rels',
+  'plantilla/rels-raiz.xml',
+  'plantilla/settings.xml',
+  'plantilla/styles.xml',
+  'plantilla/theme1.xml',
+  'plantilla/vineta.png',
+  'plantilla/webSettings.xml',
 ];
 
 self.addEventListener('install', (ev) => {
