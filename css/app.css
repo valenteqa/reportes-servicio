@@ -966,7 +966,10 @@ button { font-family: inherit; font-size: inherit; }
 
 .editor__zona {
   flex: 1; display: flex; align-items: center; justify-content: center;
-  overflow: hidden; padding: 8px; min-height: 0;
+  overflow: hidden; min-height: 0;
+  /* Marco de seguridad: las esquinas del recorte quedan lejos del borde de la
+     pantalla para no disparar el gesto "Regresar" de Android. */
+  padding: 14px 34px;
 }
 .editor__lienzo { max-width: 100%; max-height: 100%; touch-action: none; }
 
@@ -986,6 +989,12 @@ button { font-family: inherit; font-size: inherit; }
 .editor__btn--activo {
   background: var(--primario-suave); border-color: var(--primario); color: var(--primario);
 }
+.editor__btn--primario {
+  background: var(--primario); border-color: var(--primario);
+  color: var(--primario-tinta); font-weight: 700;
+}
+.editor__columna { display: flex; flex-direction: column; gap: .35rem; }
+.editor__columna .editor__btn { min-height: 42px; font-size: .82rem; }
 .editor__modos .editor__btn { flex: 1; }
 
 .editor__fino { flex: 1; min-width: 60px; accent-color: var(--primario); }

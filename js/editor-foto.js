@@ -165,8 +165,10 @@ export async function editarFoto(evento, alTerminar) {
   function pintar() {
     const cont = lienzo.parentElement;
     if (!cont) return;
-    const maxW = cont.clientWidth - 16;
-    const maxH = cont.clientHeight - 16;
+    // Respetar el padding real de la zona (marco anti-gesto de Android).
+    const est = getComputedStyle(cont);
+    const maxW = cont.clientWidth - parseFloat(est.paddingLeft) - parseFloat(est.paddingRight);
+    const maxH = cont.clientHeight - parseFloat(est.paddingTop) - parseFloat(est.paddingBottom);
 
     const t = lienzoTransformado(bitmap, ed, 1400);
     let imgW = t.width, imgH = t.height, offX = 0, offY = 0, base = t;
@@ -468,7 +470,14 @@ export async function editarFoto(evento, alTerminar) {
       barraCtrl.replaceChildren(
         h('p.editor__pista', 'Arrastra las esquinas o mueve el recuadro.'),
         h('span.crece'),
-        btn('Quitar recorte', false, () => { ed.recorte = null; pintar(); }),
+        h('div.editor__columna',
+          // Confirmacion del recorte aqui mismo, para no confundir con la
+          // palomita de arriba (esa guarda TODA la edicion).
+          h('button.editor__btn.editor__btn--primario', {
+            type: 'button', onclick: () => cambiarModo('formas'),
+          }, '✓ Aplicar recorte'),
+          btn('Quitar recorte', false, () => { ed.recorte = null; pintar(); }),
+        ),
       );
     } else {
       const slider = h('input.editor__fino', {
