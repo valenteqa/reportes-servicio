@@ -25,12 +25,12 @@ export const EMPRESA = {
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
   'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
-function fechaLarga(ts) {
+export function fechaLarga(ts) {
   const d = new Date(ts);
   return d.getDate() + ' de ' + MESES[d.getMonth()] + ' ' + d.getFullYear();
 }
 
-function folioDe(servicio) {
+export function folioDe(servicio) {
   const d = new Date(servicio.inicio);
   const dd = String(d.getDate()).padStart(2, '0');
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -458,9 +458,13 @@ async function generarConPlantilla(servicioId) {
   }
 
   cuerpo.push(titulo1('Observaciones'));
-  cuerpo.push(par([{ t: '(Redactar observaciones)', i: true, color: '808080' }]));
+  cuerpo.push((servicio.observaciones || '').trim()
+    ? parrafosDe(servicio.observaciones)
+    : par([{ t: '(Redactar observaciones)', i: true, color: '808080' }]));
   cuerpo.push(titulo1('Recomendaciones'));
-  cuerpo.push(parVineta('(Redactar recomendaciones)'));
+  const recos = (servicio.recomendaciones || '').split('\n').map(s => s.trim()).filter(Boolean);
+  if (recos.length) for (const r of recos) cuerpo.push(parVineta(r));
+  else cuerpo.push(parVineta('(Redactar recomendaciones)'));
 
   // Rellenar tokens del documento y del encabezado
   const fecha = fechaLarga(servicio.inicio);
@@ -623,11 +627,15 @@ async function generarReporteBasico(servicioId) {
     }
   }
 
-  // Cierre editable en Word
+  // Cierre: lo capturado en la app, o marcadores editables en Word
   cuerpo.push(titulo1('Observaciones'));
-  cuerpo.push(par([{ t: '(Redactar observaciones)', i: true, color: '808080' }]));
+  cuerpo.push((servicio.observaciones || '').trim()
+    ? parrafosDe(servicio.observaciones)
+    : par([{ t: '(Redactar observaciones)', i: true, color: '808080' }]));
   cuerpo.push(titulo1('Recomendaciones'));
-  cuerpo.push(par([{ t: '(Redactar recomendaciones)', i: true, color: '808080' }]));
+  const recosB = (servicio.recomendaciones || '').split('\n').map(s => s.trim()).filter(Boolean);
+  if (recosB.length) for (const r of recosB) cuerpo.push(par([{ t: '— ', b: true }, { t: r }], { esp: [0, 80] }));
+  else cuerpo.push(par([{ t: '(Redactar recomendaciones)', i: true, color: '808080' }]));
 
   const sectPr =
     '<w:sectPr>' +

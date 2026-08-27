@@ -9,10 +9,11 @@
 
 import * as db from '../db.js';
 import * as media from '../media.js';
-import { h, campo, hoja, aviso, confirmar, fecha, hora, duracion } from '../ui.js';
+import { h, campo, campoArea, hoja, aviso, confirmar, fecha, hora, duracion } from '../ui.js';
 import { lineaDeTiempo, menuAgregar, galeriaDelTrabajo } from './eventos.js';
 import { editarServicio } from './servicios.js';
 import { generarReporte } from '../reporte.js';
+import { vistaPreviaReporte } from './previa.js';
 
 /* ---------------------------------------------------------------- */
 /* Generar el reporte Word y entregarlo (compartir o descargar)      */
@@ -39,13 +40,44 @@ async function hojaReporte(servicio) {
       (!esProc && pruebasAbiertas) ? h('p.pista', '⚠ ' + pruebasAbiertas + ' prueba(s) sin resultado: saldran como "(pendiente de resultado)".') : null,
       h('p.pista', esProc
         ? 'El PowerPoint se genera en el telefono, sin internet: portada + una diapositiva por paso, con su texto y sus fotos (mas de 4 fotos continua en otra diapositiva).'
-        : 'El Word se genera en el telefono, sin internet. El indice se actualiza solo al abrirlo en Word. Observaciones y recomendaciones se redactan al final, ya en Word.')
+        : 'El Word se genera en el telefono, sin internet. El indice se actualiza solo al abrirlo en Word.')
     );
+
+    // Observaciones y recomendaciones: se capturan aqui y salen en el Word.
+    // Se guardan solas mientras escribes; vacias, quedan como marcadores.
+    const cObs = esProc ? null : campoArea('Observaciones', {
+      rows: 3, value: servicio.observaciones || '',
+      placeholder: 'Como quedo la maquina, hallazgos...',
+    });
+    const cRec = esProc ? null : campoArea('Recomendaciones (una por renglon)', {
+      rows: 3, value: servicio.recomendaciones || '',
+      placeholder: 'Cada renglon sale como viñeta',
+    });
+
+    let tmr = null;
+    const guardarTextos = async () => {
+      if (esProc) return;
+      clearTimeout(tmr);
+      const o = cObs.entrada.value.trim();
+      const r = cRec.entrada.value.trim();
+      if (o === (servicio.observaciones || '') && r === (servicio.recomendaciones || '')) return;
+      servicio.observaciones = o;
+      servicio.recomendaciones = r;
+      await db.servicioGuardar(servicio);
+    };
+    if (!esProc) {
+      const alTeclear = () => { clearTimeout(tmr); tmr = setTimeout(guardarTextos, 700); };
+      cObs.entrada.addEventListener('input', alTeclear);
+      cRec.entrada.addEventListener('input', alTeclear);
+      cObs.entrada.addEventListener('change', guardarTextos);
+      cRec.entrada.addEventListener('change', guardarTextos);
+    }
 
     const estado = h('p.pista', '');
 
     const entregar = async (modo) => {
       estado.textContent = 'Generando...';
+      await guardarTextos();
       try {
         const { blob, nombreArchivo } = esProc
           ? await (await import('../presentacion.js')).generarPresentacion(servicio.id)
@@ -73,7 +105,13 @@ async function hojaReporte(servicio) {
     };
 
     return h('div',
-      resumen, estado,
+      resumen, cObs, cRec, estado,
+      esProc ? null : h('div.hoja__acciones',
+        h('button.btn.btn--fantasma.crece', {
+          type: 'button',
+          onclick: async () => { await guardarTextos(); await vistaPreviaReporte(servicio.id); }
+        }, '👁  Vista previa del reporte')
+      ),
       h('div.hoja__acciones',
         h('button.btn.btn--fantasma', { type: 'button', onclick: () => entregar('descargar') }, 'Descargar'),
         h('button.btn.btn--primario', { type: 'button', onclick: () => entregar('compartir') }, 'Compartir  →  OneDrive')

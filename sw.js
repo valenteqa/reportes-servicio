@@ -14,7 +14,7 @@
 // Subir VERSION en cada publicacion (junto con APP_VERSION en js/version.js):
 // eso dispara un re-precacheo completo, que es la via mas confiable.
 
-const VERSION = 'v29';
+const VERSION = 'v30';
 const CACHE = 'reportes-' + VERSION;
 
 const CASCARON = [
@@ -36,6 +36,7 @@ const CASCARON = [
   'js/vistas/servicio.js',
   'js/vistas/eventos.js',
   'js/vistas/tabla.js',
+  'js/vistas/previa.js',
   'icons/icono-192.png',
   'icons/icono-512.png',
   // Plantilla del reporte Word (logos, estilos, marca de agua): sin esto
