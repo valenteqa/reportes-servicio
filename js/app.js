@@ -53,7 +53,7 @@ async function pintar() {
           h('h3', 'Algo fallo al abrir esta pantalla'),
           h('p', String(err && err.message ? err.message : err)),
           h('button.btn.btn--primario', {
-            type: 'button', onclick: () => { location.hash = '#/'; }
+            type: 'button', onclick: () => { location.replace('#/'); }
           }, 'Volver al inicio')
         )
       )
@@ -117,6 +117,26 @@ async function registrarServiceWorker() {
 }
 
 window.addEventListener('pagehide', () => media.liberarUrls());
+
+// El boton atras del telefono debe IR SALIENDO un nivel a la vez
+// (tabla → arbol → lista → salir de la app), no recorrer todo lo visitado.
+// Para eso el historial se reconstruye como la jerarquia al arrancar; de ahi
+// en adelante entrar agrega un nivel y los botones "volver" usan history.back().
+function cadenaDeRuta() {
+  const p = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  if (p[0] === 's' && p[1]) {
+    if (p[2] === 't' && p[3]) return ['#/', '#/s/' + p[1], '#/s/' + p[1] + '/t/' + p[3]];
+    return ['#/', '#/s/' + p[1]];
+  }
+  return ['#/'];
+}
+
+const cadena = cadenaDeRuta();
+if (cadena.length > 1) {
+  // replaceState/pushState no disparan hashchange: se reescribe en silencio.
+  history.replaceState(null, '', cadena[0]);
+  for (let i = 1; i < cadena.length; i++) history.pushState(null, '', cadena[i]);
+}
 
 aplicarTema(temaActual());   // sincroniza meta theme-color con lo aplicado al arrancar
 pintar();

@@ -2,7 +2,7 @@
 
 import * as db from '../db.js';
 import * as media from '../media.js';
-import { h, hora, aviso, hoja, confirmar, campoArea, vacio } from '../ui.js';
+import { h, hora, aviso, hoja, confirmar, campoArea, vacio, anclarCapa } from '../ui.js';
 
 /* ---------------------------------------------------------------- */
 /* Acciones de captura                                               */
@@ -25,6 +25,69 @@ export async function capturarFoto(servicioId, equipoId, { galeria = false } = {
   }
   if (ultimo) aviso(archivos.length > 1 ? archivos.length + ' fotos agregadas' : 'Foto agregada', 'ok');
   return ultimo;
+}
+
+/** Boton Imagen: deja elegir entre tomar foto o traer de la galeria. */
+export async function agregarImagen(servicioId, equipoId) {
+  const origen = await hoja('Agregar imagen', (cerrar) => h('div.lista-acciones',
+    h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('camara') },
+      '📷  Tomar foto'),
+    h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('galeria') },
+      '🖼  Elegir de la galeria')
+  ));
+  if (!origen) return null;
+  return capturarFoto(servicioId, equipoId, { galeria: origen === 'galeria' });
+}
+
+/**
+ * Galeria del trabajo: todas las fotos del arbol, agrupadas por rama.
+ * Tocar una abre el visor (pie editable, eliminar, excluir).
+ */
+export function galeriaDelTrabajo(servicioId, nombrePorRama) {
+  return hoja('Fotos del trabajo', (cerrar) => {
+    const cont = h('div');
+
+    const pintar = async () => {
+      const fotos = (await db.eventosDeServicio(servicioId)).filter(e => e.tipo === 'foto');
+      cont.replaceChildren();
+
+      if (!fotos.length) {
+        cont.append(vacio('🖼', 'Sin fotos todavia',
+          'Las imagenes que agregues con el boton Imagen apareceran aqui.'));
+        return;
+      }
+
+      const grupos = new Map();
+      for (const ev of fotos) {
+        if (!grupos.has(ev.equipoId)) grupos.set(ev.equipoId, []);
+        grupos.get(ev.equipoId).push(ev);
+      }
+
+      for (const [ramaId, lista] of grupos) {
+        cont.append(h('h3.galeria__rama',
+          (nombrePorRama[ramaId] || 'General') + ' · ' + lista.length));
+        const rejilla = h('div.galeria-rejilla');
+        for (const ev of lista) {
+          const celda = h('button.galeria-celda', {
+            type: 'button',
+            onclick: () => verFoto(ev, pintar),
+          });
+          if (!ev.incluir) celda.classList.add('galeria-celda--excluida');
+          rejilla.append(celda);
+          db.fotoLeer(ev.datos.fotoId).then(f => {
+            if (!f) { celda.append(h('span.galeria-celda__falta', '✕')); return; }
+            const img = h('img', { alt: ev.datos.pie || '' });
+            celda.append(img);
+            img.src = media.urlDe(f.mini || f.blob);
+          });
+        }
+        cont.append(rejilla);
+      }
+    };
+
+    pintar();
+    return cont;
+  }, { altura: 'alta' });
 }
 
 export async function agregarNota(servicioId, equipoId) {
@@ -99,7 +162,14 @@ export async function verFoto(evento, alCambiar) {
     value: evento.datos.pie || '',
   });
 
+  // El atras del telefono cierra el visor (guardando el pie), no navega.
+  let resuelto = false;
+  let porBack = false;
+  const ancla = anclarCapa(() => { porBack = true; cerrar(true); });
+
   const cerrar = async (guardar) => {
+    if (resuelto) return;
+    resuelto = true;
     if (guardar) {
       evento.datos.pie = pie.value.trim();
       await db.eventoGuardar(evento);
@@ -107,6 +177,8 @@ export async function verFoto(evento, alCambiar) {
     URL.revokeObjectURL(url);
     capa.remove();
     document.body.classList.remove('sin-scroll');
+    if (porBack) ancla.desdePop();
+    else await ancla.liberar();
     if (alCambiar) alCambiar();
   };
 
@@ -413,8 +485,8 @@ export function barraCaptura(servicioId, equipoId, refrescar, destinoNombre) {
     destinoNombre ? h('div.captura-destino',
       h('span.captura-destino__flecha', '▸'), destinoNombre) : null,
     h('div.captura',
-      btn('📷', 'Foto', async () => {
-        await capturarFoto(servicioId, equipoId);
+      btn('📷', 'Imagen', async () => {
+        await agregarImagen(servicioId, equipoId);
         refrescar();
       }, '.captura__btn--principal'),
       btn('📝', 'Nota', async () => {

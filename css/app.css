@@ -616,6 +616,31 @@ button { font-family: inherit; font-size: inherit; }
 .prueba__resultadoCabeza { display: flex; align-items: center; gap: .5rem; margin-bottom: .25rem; }
 
 /* ---------------------------------------------------------------- */
+/* Galeria del trabajo                                               */
+/* ---------------------------------------------------------------- */
+
+.galeria__rama {
+  margin: .9rem 0 .45rem;
+  font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--tinta-suave);
+}
+.galeria__rama:first-child { margin-top: 0; }
+
+.galeria-rejilla {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem;
+}
+.galeria-celda {
+  position: relative; aspect-ratio: 1; padding: 0;
+  border: 1px solid var(--borde); background: var(--superficie-2);
+  overflow: hidden; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.galeria-celda:active { border-color: var(--primario); }
+.galeria-celda img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.galeria-celda--excluida { opacity: .4; }
+.galeria-celda__falta { color: var(--tinta-tenue); font-size: 1.2rem; }
+
+/* ---------------------------------------------------------------- */
 /* Barra de captura                                                  */
 /* ---------------------------------------------------------------- */
 

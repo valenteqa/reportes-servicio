@@ -10,7 +10,7 @@
 import * as db from '../db.js';
 import * as media from '../media.js';
 import { h, campo, hoja, aviso, confirmar, fecha, hora, duracion } from '../ui.js';
-import { lineaDeTiempo, barraCaptura, capturarFoto } from './eventos.js';
+import { lineaDeTiempo, barraCaptura, galeriaDelTrabajo } from './eventos.js';
 import { editarServicio } from './servicios.js';
 
 function claveRama(servicioId) { return 'rama:' + servicioId; }
@@ -119,7 +119,7 @@ function rama(servicio, actividad, eventos, activaId, refrescar) {
 export async function render(contenedor, refrescar, params) {
   media.liberarUrls();
   const servicio = await db.servicioLeer(params.sid);
-  if (!servicio) { location.hash = '#/'; return; }
+  if (!servicio) { location.replace('#/'); return; }
 
   const actividades = await db.equiposDeServicio(servicio.id);
   const eventos = await db.eventosDeServicio(servicio.id);
@@ -141,19 +141,21 @@ export async function render(contenedor, refrescar, params) {
   const maquina = [[servicio.marca, servicio.modelo].filter(Boolean).join(' '), servicio.serie]
     .filter(Boolean).join(' · ');
 
+  const nombrePorRama = { [db.GENERAL]: 'General' };
+  actividades.forEach(a => { nombrePorRama[a.id] = a.nombre; });
+
   const cabecera = h('header.cabecera',
     h('div.cabecera__fila',
       h('button.icono-btn', { type: 'button', 'aria-label': 'Volver',
-        onclick: () => { location.hash = '#/'; } }, '←'),
+        onclick: () => history.back() }, '←'),
       h('div.cabecera__titulo',
         h('h1', titulo),
         h('p', tipo.icono + ' ' + tipo.nombre + (servicio.planta ? ' · ' + servicio.planta : ''))
       ),
-      h('button.icono-btn', { type: 'button', 'aria-label': 'Importar de galeria',
+      h('button.icono-btn', { type: 'button', 'aria-label': 'Fotos del trabajo',
         onclick: async () => {
-          // Las fotos importadas caen en la rama activa, igual que la barra.
-          await capturarFoto(servicio.id, activaId, { galeria: true });
-          refrescar();
+          await galeriaDelTrabajo(servicio.id, nombrePorRama);
+          refrescar();   // por si borro o excluyo fotos desde el visor
         } }, '🖼'),
       h('button.icono-btn', { type: 'button', 'aria-label': 'Editar datos',
         onclick: async () => { if (await editarServicio(servicio)) refrescar(); } }, '✎')

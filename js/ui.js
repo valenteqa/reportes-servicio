@@ -132,6 +132,62 @@ export function aviso(texto, tipo = 'info') {
 }
 
 /* ---------------------------------------------------------------- */
+/* Pila de capas: el boton atras del telefono cierra la capa de      */
+/* hasta arriba (hoja o visor), no navega. Cada capa apila una       */
+/* entrada fantasma en el historial; solo la capa superior responde  */
+/* al popstate — si todas escucharan, un atras las cerraria todas.   */
+/* ---------------------------------------------------------------- */
+
+const capas = [];
+let consumiendoFantasma = false;
+
+window.addEventListener('popstate', () => {
+  if (consumiendoFantasma) return;
+  const tope = capas[capas.length - 1];
+  if (tope) tope.cerrarPorBack();
+});
+
+export function anclarCapa(cerrarPorBack) {
+  const entrada = { cerrarPorBack };
+  capas.push(entrada);
+  history.pushState({ capa: capas.length }, '');
+  let viva = true;
+
+  const desapilar = () => {
+    const i = capas.indexOf(entrada);
+    if (i > -1) capas.splice(i, 1);
+  };
+
+  return {
+    // La cerro el boton atras: el navegador ya consumio el fantasma.
+    desdePop() { if (!viva) return; viva = false; desapilar(); },
+
+    // Cierre manual (boton, tocar fuera, Escape): consumir el fantasma
+    // nosotros y esperar a que termine, para que una navegacion posterior
+    // del que llamo no se cruce con el history.back().
+    liberar() {
+      if (!viva) return Promise.resolve();
+      viva = false;
+      desapilar();
+      consumiendoFantasma = true;
+      return new Promise((fin) => {
+        let hecho = false;
+        const listo = () => {
+          if (hecho) return;
+          hecho = true;
+          consumiendoFantasma = false;
+          window.removeEventListener('popstate', listo);
+          fin();
+        };
+        window.addEventListener('popstate', listo);
+        setTimeout(listo, 350);
+        history.back();
+      });
+    },
+  };
+}
+
+/* ---------------------------------------------------------------- */
 /* Hoja modal (bottom sheet)                                         */
 /* ---------------------------------------------------------------- */
 
@@ -142,13 +198,18 @@ export function aviso(texto, tipo = 'info') {
 export function hoja(titulo, construir, { altura = 'auto' } = {}) {
   return new Promise((resolve) => {
     let resuelto = false;
+    let porBack = false;
 
-    const cerrar = (valor = null) => {
+    const ancla = anclarCapa(() => { porBack = true; cerrar(null); });
+
+    const cerrar = async (valor = null) => {
       if (resuelto) return;
       resuelto = true;
       fondo.classList.remove('hoja-fondo--visible');
       panel.classList.remove('hoja--visible');
       setTimeout(() => { fondo.remove(); document.body.classList.remove('sin-scroll'); }, 240);
+      if (porBack) ancla.desdePop();
+      else await ancla.liberar();
       resolve(valor);
     };
 

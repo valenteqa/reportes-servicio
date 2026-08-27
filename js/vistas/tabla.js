@@ -83,11 +83,13 @@ async function editarColumna(evento, indice, repintar) {
 
 export async function render(contenedor, refrescar, params) {
   const evento = await db.eventoLeer(params.eventoId);
-  if (!evento || evento.tipo !== 'tabla') { location.hash = '#/s/' + params.sid; return; }
+  if (!evento || evento.tipo !== 'tabla') { location.replace('#/s/' + params.sid); return; }
 
   const servicio = await db.servicioLeer(evento.servicioId);
+  // history.back() en vez de asignar el hash: asi el boton atras del telefono
+  // y el de la app recorren la misma jerarquia (tabla → arbol → lista).
   const volver = () => {
-    guardarYa(evento).then(() => { location.hash = '#/s/' + evento.servicioId; });
+    guardarYa(evento).then(() => history.back());
   };
 
   const indicador = h('span.estado', 'Guardado');
