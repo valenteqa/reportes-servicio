@@ -161,11 +161,22 @@ export async function vistaPreviaReporte(servicioId) {
       resolve();
     }
 
+    // Imprimir: solo sale la pagina blanca (CSS @media print + body.imprimiendo).
+    const imprimir = () => {
+      document.body.classList.add('imprimiendo');
+      const fin = () => document.body.classList.remove('imprimiendo');
+      window.addEventListener('afterprint', fin, { once: true });
+      setTimeout(fin, 2000);   // respaldo por si afterprint no dispara
+      window.print();
+    };
+
     const capa = h('div.previa',
       h('div.previa__barra',
         h('button.icono-btn.icono-btn--claro', { type: 'button', 'aria-label': 'Cerrar', onclick: cerrar }, '✕'),
         h('span.previa__titulo', 'Vista previa'),
-        h('span.previa__nota', 'aproximada — el Word lleva logos y formato')
+        h('span.previa__nota', 'aproximada — el Word lleva logos y formato'),
+        h('span.crece'),
+        h('button.icono-btn.icono-btn--claro', { type: 'button', 'aria-label': 'Imprimir', onclick: imprimir }, '🖨')
       ),
       h('div.previa__scroll', pagina)
     );

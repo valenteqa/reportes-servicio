@@ -79,7 +79,8 @@ async function hojaReporte(servicio) {
       setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 90000);
     };
 
-    const entregar = async (modo) => {
+    // Genera (o toma el ya preparado) y le pasa el archivo a la accion.
+    const conArchivo = async (accion) => {
       let res;
       try {
         if (!preparado) estado.textContent = 'Generando...';
@@ -90,39 +91,80 @@ async function hojaReporte(servicio) {
         aviso('No se pudo generar el reporte', 'error');
         return;
       }
+      await accion(res);
+    };
 
-      const { blob, nombreArchivo } = res;
-
-      // Se intenta compartir siempre que el navegador tenga la funcion
-      // (canShare a veces es mas estricto que share y miente que no).
-      if (modo === 'compartir' && navigator.share) {
-        const archivo = new File([blob], nombreArchivo, { type: blob.type });
-        const t0 = Date.now();
-        try {
-          await navigator.share({ files: [archivo], title: nombreArchivo });
-          const seg = Math.round((Date.now() - t0) / 100) / 10;
-          estado.textContent = 'Compartido en ' + seg + ' s.'
-            + (seg < 1.5 ? ' Fue tan rapido que Android no mostro el menu: avisame si no se abrio ninguna app.' : '');
-          aviso('Reporte compartido', 'ok');
-        } catch (e) {
-          console.error(e);
-          if (e && e.name === 'AbortError') {
-            estado.textContent = 'Menu cerrado sin elegir app. El archivo sigue listo.';
-          } else if (e && e.name === 'NotAllowedError') {
-            estado.textContent = 'El archivo ya esta listo. Toca Compartir otra vez para abrir el menu.';
-          } else {
-            descargar(blob, nombreArchivo);
-            estado.textContent = 'Android no dejo compartir el archivo (' + (e && e.name ? e.name : e) +
-              '); se descargo en su lugar. Busca "' + nombreArchivo + '" en la carpeta Descargas.';
-          }
-        }
-      } else {
+    // Guardar en...: abre el explorador de Android para elegir carpeta
+    // (ahi tambien aparece OneDrive). Si el navegador no tiene el selector,
+    // cae a la descarga directa.
+    const guardarEn = async ({ blob, nombreArchivo }) => {
+      if (!window.showSaveFilePicker) {
         descargar(blob, nombreArchivo);
-        estado.textContent = (modo === 'compartir'
-          ? 'Este navegador no comparte archivos; se descargo en su lugar. '
-          : 'Descarga enviada. ')
-          + 'Busca "' + nombreArchivo + '" en la carpeta Descargas o en las notificaciones de Android.';
-        aviso('Reporte generado', 'ok');
+        estado.textContent = 'Este navegador no deja elegir carpeta; se descargo directo. Busca "' +
+          nombreArchivo + '" en la carpeta Descargas.';
+        aviso('Reporte descargado', 'ok');
+        return;
+      }
+      try {
+        const ext = '.' + nombreArchivo.split('.').pop().toLowerCase();
+        const destino = await showSaveFilePicker({
+          suggestedName: nombreArchivo,
+          types: [{ description: 'Reporte', accept: { [blob.type]: [ext] } }],
+        });
+        const flujo = await destino.createWritable();
+        await flujo.write(blob);
+        await flujo.close();
+        estado.textContent = 'Guardado: ' + (destino.name || nombreArchivo);
+        aviso('Archivo guardado', 'ok');
+      } catch (e) {
+        if (e && e.name === 'AbortError') { estado.textContent = 'Guardado cancelado.'; return; }
+        console.error(e);
+        descargar(blob, nombreArchivo);
+        estado.textContent = 'No abrio el selector (' + (e && e.name ? e.name : e) +
+          '); se descargo directo. Busca "' + nombreArchivo + '" en Descargas.';
+      }
+    };
+
+    // Menu propio de entrega: el plan B cuando el menu de Android no abre.
+    const menuEntrega = async (res, motivo) => {
+      if (motivo) estado.textContent = motivo;
+      const accion = await hoja('¿Como lo entregamos?', (cerrar) => h('div.lista-acciones',
+        h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('guardar') },
+          '💾  Guardar en... (carpeta u OneDrive)'),
+        h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('descargar') },
+          '⬇  Descargar directo'),
+        esProc ? null : h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('previa') },
+          '🖨  Vista previa para imprimir')
+      ));
+      if (accion === 'guardar') await guardarEn(res);
+      if (accion === 'descargar') {
+        descargar(res.blob, res.nombreArchivo);
+        estado.textContent = 'Descarga enviada. Busca "' + res.nombreArchivo + '" en la carpeta Descargas.';
+        aviso('Reporte descargado', 'ok');
+      }
+      if (accion === 'previa') await vistaPreviaReporte(servicio.id);
+    };
+
+    // Compartir: primero el menu nativo de Android (apps, imprimir, Drive...).
+    // Si este telefono no lo abre, sale nuestro menu de entrega.
+    const compartir = async (res) => {
+      const { blob, nombreArchivo } = res;
+      if (!navigator.share) {
+        await menuEntrega(res, 'Este navegador no tiene menu de compartir.');
+        return;
+      }
+      const archivo = new File([blob], nombreArchivo, { type: blob.type });
+      const t0 = Date.now();
+      try {
+        await navigator.share({ files: [archivo], title: nombreArchivo });
+        const seg = Math.round((Date.now() - t0) / 100) / 10;
+        estado.textContent = 'Compartido en ' + seg + ' s.'
+          + (seg < 1.5 ? ' Si no se abrio ninguna app, usa Guardar en...' : '');
+        aviso('Reporte compartido', 'ok');
+      } catch (e) {
+        console.error(e);
+        if (e && e.name === 'AbortError') { estado.textContent = 'Menu cerrado sin elegir app.'; return; }
+        await menuEntrega(res, 'El menu de Android no abrio (' + (e && e.name ? e.name : e) + ').');
       }
     };
 
@@ -135,8 +177,8 @@ async function hojaReporte(servicio) {
         }, '👁  Vista previa del reporte')
       ),
       h('div.hoja__acciones',
-        h('button.btn.btn--fantasma', { type: 'button', onclick: () => entregar('descargar') }, 'Descargar'),
-        h('button.btn.btn--primario', { type: 'button', onclick: () => entregar('compartir') }, 'Compartir  →  OneDrive')
+        h('button.btn.btn--fantasma', { type: 'button', onclick: () => conArchivo(guardarEn) }, '💾  Guardar en...'),
+        h('button.btn.btn--primario', { type: 'button', onclick: () => conArchivo(compartir) }, 'Compartir  →  OneDrive')
       )
     );
   });

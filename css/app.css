@@ -1190,3 +1190,13 @@ button { font-family: inherit; font-size: inherit; }
   border: 1px solid #b9c2cc; padding: .28rem .5rem; font-size: .82rem; text-align: left;
 }
 .previa__tabla th { background: #1f3864; color: #fff; font-weight: 700; }
+
+/* Imprimir la vista previa: solo la pagina blanca, a lo largo de las hojas */
+@media print {
+  body.imprimiendo { overflow: visible !important; }
+  body.imprimiendo > :not(.previa) { display: none !important; }
+  body.imprimiendo .previa { position: static; background: #fff; }
+  body.imprimiendo .previa__barra { display: none; }
+  body.imprimiendo .previa__scroll { overflow: visible; padding: 0; }
+  body.imprimiendo .previa__pagina { box-shadow: none; max-width: none; }
+}
