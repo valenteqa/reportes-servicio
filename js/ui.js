@@ -267,6 +267,52 @@ export function campo(etiqueta, props = {}) {
   return cont;
 }
 
+/**
+ * Campo de texto con lista desplegable de opciones guardadas.
+ * - `fuente.opciones()` se llama en cada foco/tecleo: devuelve las opciones
+ *   vigentes (ya en orden alfabetico); aqui solo se filtran por lo escrito.
+ * - Elegir una llama `fuente.alElegir(valor)`.
+ * - Siempre se puede escribir un valor nuevo: la lista solo sugiere.
+ * La lista se despliega EN el flujo (no flotante) para que no la recorte el
+ * scroll de la hoja ni la tape el teclado.
+ */
+export function campoLista(etiqueta, props = {}, fuente = {}) {
+  const entrada = h('input.campo__entrada',
+    Object.assign({ type: 'text', autocomplete: 'off' }, props));
+  const panel = h('div.despliegue', { style: { display: 'none' } });
+  const cont = h('label.campo', h('span.campo__etiqueta', etiqueta), entrada, panel);
+  cont.entrada = entrada;
+
+  const cerrar = () => { panel.style.display = 'none'; };
+
+  const abrir = async () => {
+    let ops = [];
+    try { ops = (await (fuente.opciones ? fuente.opciones() : [])) || []; } catch (e) {}
+    const texto = entrada.value.trim().toLowerCase();
+    if (texto) ops = ops.filter(o => o.toLowerCase().includes(texto));
+    ops = ops.slice(0, 8);
+    if (!ops.length) { cerrar(); return; }
+
+    panel.replaceChildren(...ops.map(o => h('button.despliegue__op', {
+      type: 'button',
+      // preventDefault en pointerdown: que el toque no dispare el blur del
+      // campo antes de que llegue el click.
+      onpointerdown: (ev) => ev.preventDefault(),
+      onclick: () => {
+        entrada.value = o;
+        cerrar();
+        if (fuente.alElegir) fuente.alElegir(o);
+      },
+    }, o)));
+    panel.style.display = '';
+  };
+
+  entrada.addEventListener('focus', abrir);
+  entrada.addEventListener('input', abrir);
+  entrada.addEventListener('blur', () => setTimeout(cerrar, 160));
+  return cont;
+}
+
 export function campoArea(etiqueta, props = {}) {
   const entrada = h('textarea.campo__entrada.campo__entrada--area', Object.assign({ rows: 4 }, props));
   const cont = h('label.campo', h('span.campo__etiqueta', etiqueta), entrada);

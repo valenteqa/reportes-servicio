@@ -1,7 +1,7 @@
 // Pantalla inicial: lista de trabajos (servicios, pruebas de laboratorio, generales).
 
 import * as db from '../db.js';
-import { h, campo, campoArea, hoja, aviso, confirmar, fecha, vacio } from '../ui.js';
+import { h, campo, campoLista, campoArea, hoja, aviso, confirmar, fecha, vacio } from '../ui.js';
 import * as media from '../media.js';
 import { APP_VERSION } from '../version.js';
 import { temaActual, alternarTema } from '../tema.js';
@@ -53,10 +53,32 @@ function elegirTipo() {
 }
 
 // El tecnico ya no se pregunta: es el usuario de la app.
-function formularioTrabajo(existente, tipoClave) {
+async function formularioTrabajo(existente, tipoClave) {
   const previo = existente || {};
   const tipo = db.TIPOS[tipoClave] || db.tipoDe(previo);
   const esServicio = tipoClave === 'servicio';
+
+  // Historial para sugerir: todo lo capturado antes en servicios.
+  const historial = esServicio
+    ? (await db.serviciosTodos()).filter(t => t.tipo === 'servicio' && t.id !== previo.id)
+    : [];
+  const norm = (x) => (x || '').trim().toLowerCase();
+
+  // Valores distintos de un campo, filtrados por lo ya elegido en otros.
+  // El historial viene del mas reciente al mas viejo; aqui se ordena a-z.
+  const distintos = (campoDe, filtro) => {
+    const vistos = new Map();
+    for (const t of historial) {
+      let pasa = true;
+      for (const [k, v] of Object.entries(filtro || {})) {
+        if (v && norm(t[k]) !== norm(v)) { pasa = false; break; }
+      }
+      if (!pasa) continue;
+      const val = (t[campoDe] || '').trim();
+      if (val && !vistos.has(val.toLowerCase())) vistos.set(val.toLowerCase(), val);
+    }
+    return Array.from(vistos.values()).sort((a, b) => a.localeCompare(b, 'es'));
+  };
 
   return hoja(tipo.icono + '  ' + tipo.nombre, (cerrar) => {
     // Pruebas de laboratorio y General: solo el titulo, para arrancar rapido.
@@ -77,29 +99,66 @@ function formularioTrabajo(existente, tipoClave) {
       );
     }
 
-    // Mismos campos que la tabla de datos del reporte.
-    const cCliente = campo('Cliente',           { value: previo.cliente || '', placeholder: 'CLIENTE' });
-    const cPlanta  = campo('Planta / sitio',    { value: previo.planta  || '', placeholder: 'Planta Norte' });
-    const cMarca   = campo('Tipo de maquina',   { value: previo.marca   || '', placeholder: 'HUSKY' });
-    const cModelo  = campo('Modelo',            { value: previo.modelo  || '', placeholder: 'H400 RS65/60' });
-    const cSerie   = campo('Numero de serie',   { value: previo.serie   || '', placeholder: '0000000' });
-    const cDesc    = campoArea('Descripcion de la falla', {
+    // Mismos campos que la tabla de datos del reporte. Cada uno sugiere lo
+    // ya guardado, filtrado en cascada por el cliente (y lo demas elegido).
+    const v = (c) => c.entrada.value.trim();
+
+    const cCliente = campoLista('Cliente', { value: previo.cliente || '', placeholder: 'CLIENTE' },
+      { opciones: () => distintos('cliente') });
+
+    const cPlanta = campoLista('Planta / sitio', { value: previo.planta || '', placeholder: 'Planta Norte' },
+      { opciones: () => distintos('planta', { cliente: v(cCliente) }) });
+
+    const cMarca = campoLista('Tipo de maquina', { value: previo.marca || '', placeholder: 'HUSKY' },
+      { opciones: () => distintos('marca', { cliente: v(cCliente), planta: v(cPlanta) }) });
+
+    const cModelo = campoLista('Modelo', { value: previo.modelo || '', placeholder: 'H400 RS65/60' },
+      {
+        opciones: () => distintos('modelo', { cliente: v(cCliente), marca: v(cMarca) }),
+        alElegir: (valor) => {
+          if (v(cMarca)) return;
+          const reg = historial.find(t => norm(t.modelo) === norm(valor) && t.marca);
+          if (reg) cMarca.entrada.value = reg.marca;
+        },
+      });
+
+    const cSerie = campoLista('Numero de serie', { value: previo.serie || '', placeholder: '0000000' },
+      {
+        opciones: () => distintos('serie', { cliente: v(cCliente), modelo: v(cModelo) }),
+        // Una serie identifica LA maquina: al elegirla se rellena lo que falte.
+        alElegir: (valor) => {
+          const reg = historial.find(t => norm(t.serie) === norm(valor) &&
+            (!v(cCliente) || norm(t.cliente) === norm(v(cCliente))));
+          if (!reg) return;
+          let relleno = false;
+          for (const [c, k] of [[cCliente, 'cliente'], [cPlanta, 'planta'], [cMarca, 'marca'], [cModelo, 'modelo'], [cNoMaq, 'noMaquina']]) {
+            if (!v(c) && reg[k]) { c.entrada.value = reg[k]; relleno = true; }
+          }
+          if (relleno) aviso('Datos de la maquina rellenados', 'ok');
+        },
+      });
+
+    const cNoMaq = campoLista('No. de maquina (opcional)', { value: previo.noMaquina || '', placeholder: 'Linea 3 / M-07' },
+      { opciones: () => distintos('noMaquina', { cliente: v(cCliente), serie: v(cSerie) }) });
+
+    const cDesc = campoArea('Descripcion de la falla', {
       value: previo.descripcion || '', rows: 3,
       placeholder: 'Falla de SERVODRIVE Screw Not Ready'
     });
 
     return h('div',
-      cCliente, cPlanta, cMarca, cModelo, cSerie, cDesc,
+      cCliente, cPlanta, cMarca, cModelo, cSerie, cNoMaq, cDesc,
       h('div.hoja__acciones',
         h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
         h('button.btn.btn--primario', {
           type: 'button',
           onclick: () => cerrar({
-            cliente: cCliente.entrada.value.trim(),
-            planta:  cPlanta.entrada.value.trim(),
-            marca:   cMarca.entrada.value.trim(),
-            modelo:  cModelo.entrada.value.trim(),
-            serie:   cSerie.entrada.value.trim(),
+            cliente:   cCliente.entrada.value.trim(),
+            planta:    cPlanta.entrada.value.trim(),
+            marca:     cMarca.entrada.value.trim(),
+            modelo:    cModelo.entrada.value.trim(),
+            serie:     cSerie.entrada.value.trim(),
+            noMaquina: cNoMaq.entrada.value.trim(),
             descripcion: cDesc.entrada.value.trim(),
           })
         }, existente ? 'Guardar' : 'Crear')
@@ -151,7 +210,8 @@ function tarjetaTrabajo(trabajo, resumen, refrescar) {
 
   const tipo = db.tipoDe(trabajo);
   const titulo = trabajo.titulo || trabajo.cliente || trabajo.planta || 'Sin nombre';
-  const maquina = [[trabajo.marca, trabajo.modelo].filter(Boolean).join(' '), trabajo.serie]
+  const maquina = [[trabajo.marca, trabajo.modelo].filter(Boolean).join(' '), trabajo.serie,
+    trabajo.noMaquina ? 'Maq. ' + trabajo.noMaquina : '']
     .filter(Boolean).join(' · ');
 
   return h('article.tarjeta-servicio', {

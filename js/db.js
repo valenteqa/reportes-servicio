@@ -132,6 +132,7 @@ export function servicioNuevo(datos) {
     planta:      datos.planta      || '',
     marca:       datos.marca       || '',   // "Tipo de Maquina" en el reporte (HUSKY)
     modelo:      datos.modelo      || '',
+    noMaquina:   datos.noMaquina   || '',   // linea de produccion o numero de maquina (opcional)
     serie:       datos.serie       || '',
     tecnico:     datos.tecnico     || '',
     descripcion: datos.descripcion || '',   // descripcion de la falla

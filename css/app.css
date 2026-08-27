@@ -786,6 +786,23 @@ button { font-family: inherit; font-size: inherit; }
 }
 .campo__entrada--area { min-height: auto; resize: vertical; line-height: 1.5; }
 
+/* Lista desplegable de opciones guardadas (bajo el campo, en el flujo) */
+.despliegue {
+  margin-top: .25rem;
+  border: 1px solid var(--borde-fuerte);
+  border-left: 2px solid var(--primario);
+  background: var(--superficie-2);
+  max-height: 208px; overflow-y: auto;
+}
+.despliegue__op {
+  display: block; width: 100%; min-height: 46px; padding: .55rem .7rem;
+  border: none; border-bottom: 1px solid var(--borde);
+  background: transparent; color: var(--tinta);
+  font-size: .95rem; text-align: left; cursor: pointer;
+}
+.despliegue__op:last-child { border-bottom: none; }
+.despliegue__op:active { background: var(--primario-suave); color: var(--primario); }
+
 .segmentado {
   display: flex; gap: .25rem; padding: .25rem;
   background: var(--superficie-2); border: 1px solid var(--borde);
