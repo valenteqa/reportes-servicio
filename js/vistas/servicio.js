@@ -91,21 +91,21 @@ function rama(servicio, actividad, eventos, refrescar) {
     eventos.length ? h('span.rama__conteo', String(eventos.length)) : null,
     sinResultado ? h('span.rama__pendiente', sinResultado + ' sin resultado') : null,
     h('span.crece'),
-    // El + de la rama: agregar directo aqui, sin concepto de rama activa.
-    h('button.rama__agregar', {
-      type: 'button', 'aria-label': 'Agregar en ' + actividad.nombre,
-      onclick: () => menuAgregar(servicio.id, actividad.id, refrescar, actividad.nombre),
-    }, '+'),
     esGeneral ? null : menuRama(actividad, eventos.length, refrescar)
   );
 
-  const cuerpo = eventos.length
-    ? lineaDeTiempo(eventos, refrescar)
-    : h('p.rama__vacia', 'Sin registros — agrega con el +');
+  // El + va al FINAL de la linea de tiempo: el siguiente nodo de la secuencia.
+  const agregar = h('button.rama__agregar', {
+    type: 'button', 'aria-label': 'Agregar en ' + actividad.nombre,
+    onclick: () => menuAgregar(servicio.id, actividad.id, refrescar, actividad.nombre),
+  }, '+');
 
   return h('section.rama',
     cabeza,
-    h('div.rama__cuerpo', cuerpo)
+    h('div.rama__cuerpo',
+      eventos.length ? lineaDeTiempo(eventos, refrescar) : null,
+      agregar
+    )
   );
 }
 
