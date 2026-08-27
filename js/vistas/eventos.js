@@ -37,11 +37,11 @@ export async function capturarFoto(servicioId, equipoId, { galeria = false } = {
  * Menu "+" de una rama: que agregar en esa actividad. Sustituye a la barra
  * inferior — se agrega directo donde tocaste, sin concepto de rama activa.
  */
-export async function menuAgregar(servicioId, equipoId, refrescar, nombreRama, opciones) {
+export async function menuAgregar(servicioId, equipoId, refrescar, nombreRama, opciones, esTexto) {
   const TODAS = [
     ['camara',    '📷  Tomar foto'],
     ['galeria',   '🖼  Foto de la galeria'],
-    ['nota',      '📝  Nota'],
+    ['nota',      esTexto ? '📝  Texto' : '📝  Nota'],
     ['tabla',     '▦  Tabla'],
     ['prueba',    '🧪  Prueba'],
     ['pendiente', '⏳  Pendiente'],
@@ -59,7 +59,7 @@ export async function menuAgregar(servicioId, equipoId, refrescar, nombreRama, o
 
   if (accion === 'camara')    await capturarFoto(servicioId, equipoId);
   if (accion === 'galeria')   await capturarFoto(servicioId, equipoId, { galeria: true });
-  if (accion === 'nota')      await agregarNota(servicioId, equipoId);
+  if (accion === 'nota')      await agregarNota(servicioId, equipoId, esTexto);
   if (accion === 'tabla')     { await agregarTabla(servicioId, equipoId); return; }  // navega al editor
   if (accion === 'prueba')    await agregarPrueba(servicioId, equipoId);
   if (accion === 'pendiente') await agregarPendiente(servicioId, equipoId);
@@ -125,10 +125,15 @@ export function galeriaDelTrabajo(servicioId) {
   }, { altura: 'alta' });
 }
 
-export async function agregarNota(servicioId, equipoId) {
-  const texto = await hoja('Nueva nota', (cerrar) => {
+// En procedimientos el elemento se llama "Texto" (es el texto de la
+// diapositiva); en los demas tipos, "Nota".
+export async function agregarNota(servicioId, equipoId, esTexto) {
+  const nombre = esTexto ? 'texto' : 'nota';
+  const texto = await hoja(esTexto ? 'Nuevo texto' : 'Nueva nota', (cerrar) => {
     const area = campoArea('', {
-      placeholder: 'Que observaste, que ajustaste, que falto...\n\nTip: usa el microfono de tu teclado para dictar.',
+      placeholder: esTexto
+        ? 'El texto de esta diapositiva...\n\nTip: usa el microfono de tu teclado para dictar.'
+        : 'Que observaste, que ajustaste, que falto...\n\nTip: usa el microfono de tu teclado para dictar.',
       rows: 7,
     });
     return h('div',
@@ -139,19 +144,22 @@ export async function agregarNota(servicioId, equipoId) {
         h('button.btn.btn--primario', {
           type: 'button',
           onclick: () => cerrar(area.entrada.value.trim())
-        }, 'Guardar nota')
+        }, 'Guardar ' + nombre)
       )
     );
   });
 
   if (!texto) return null;
   const ev = await db.eventoNuevo(servicioId, equipoId, 'nota', { texto });
-  aviso('Nota guardada', 'ok');
+  aviso(esTexto ? 'Texto guardado' : 'Nota guardada', 'ok');
   return ev;
 }
 
 export async function editarNota(evento) {
-  const texto = await hoja('Editar nota', (cerrar) => {
+  // El titulo de la hoja depende del tipo de trabajo al que pertenece.
+  const trabajo = await db.servicioLeer(evento.servicioId);
+  const esTexto = trabajo && trabajo.tipo === 'procedimiento';
+  const texto = await hoja(esTexto ? 'Editar texto' : 'Editar nota', (cerrar) => {
     const area = campoArea('', { rows: 7, value: evento.datos.texto || '' });
     return h('div',
       area,

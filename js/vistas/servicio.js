@@ -30,7 +30,7 @@ async function hojaReporte(servicio) {
   await hoja(esProc ? '📊  Generar presentacion' : '📄  Generar reporte', (cerrar) => {
     const resumen = h('div.reporte-resumen',
       esProc
-        ? h('p.parrafo', pasosConContenido + ' pasos con contenido · ' + n('nota') + ' notas · ' +
+        ? h('p.parrafo', pasosConContenido + ' pasos con contenido · ' + n('nota') + ' textos · ' +
             n('foto') + ' fotos · ' + n('tabla') + ' tablas · ' + n('pendiente') + ' pendientes')
         : h('p.parrafo',
             n('nota') + ' notas · ' + n('tabla') + ' tablas · ' + n('foto') + ' fotos · ' +
@@ -173,7 +173,7 @@ function rama(servicio, actividad, eventos, refrescar, numeroPaso) {
   const agregar = h('button.rama__agregar', {
     type: 'button', 'aria-label': 'Agregar en ' + actividad.nombre,
     onclick: () => menuAgregar(servicio.id, actividad.id, refrescar, nombreVisible,
-      esProc ? ['camara', 'galeria', 'nota', 'tabla', 'pendiente'] : null),
+      esProc ? ['camara', 'galeria', 'nota', 'tabla', 'pendiente'] : null, esProc),
   }, '+');
 
   return h('section.rama', { dataset: { rama: actividad.id } },
