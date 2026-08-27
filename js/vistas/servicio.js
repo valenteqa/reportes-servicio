@@ -30,7 +30,8 @@ async function hojaReporte(servicio) {
   await hoja(esProc ? '📊  Generar presentacion' : '📄  Generar reporte', (cerrar) => {
     const resumen = h('div.reporte-resumen',
       esProc
-        ? h('p.parrafo', pasosConContenido + ' pasos con contenido · ' + n('nota') + ' notas · ' + n('foto') + ' fotos')
+        ? h('p.parrafo', pasosConContenido + ' pasos con contenido · ' + n('nota') + ' notas · ' +
+            n('foto') + ' fotos · ' + n('tabla') + ' tablas · ' + n('pendiente') + ' pendientes')
         : h('p.parrafo',
             n('nota') + ' notas · ' + n('tabla') + ' tablas · ' + n('foto') + ' fotos · ' +
             n('prueba') + ' pruebas · ' + n('pendiente') + ' pendientes'),
@@ -167,11 +168,12 @@ function rama(servicio, actividad, eventos, refrescar, numeroPaso) {
   );
 
   // El + va al FINAL de la linea de tiempo: el siguiente nodo de la secuencia.
-  // En procedimientos cada paso es una diapositiva: solo texto e imagenes.
+  // En procedimientos cada paso es una diapositiva: texto, imagenes, tablas
+  // y pendientes (sin pruebas).
   const agregar = h('button.rama__agregar', {
     type: 'button', 'aria-label': 'Agregar en ' + actividad.nombre,
     onclick: () => menuAgregar(servicio.id, actividad.id, refrescar, nombreVisible,
-      esProc ? ['camara', 'galeria', 'nota'] : null),
+      esProc ? ['camara', 'galeria', 'nota', 'tabla', 'pendiente'] : null),
   }, '+');
 
   return h('section.rama', { dataset: { rama: actividad.id } },

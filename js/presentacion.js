@@ -93,6 +93,48 @@ function imagen(relId, anchoPx, altoPx, cx, cy, cw, ch) {
     '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>';
 }
 
+// Tabla nativa de PowerPoint: cabecera teal, celdas con borde fino.
+function tablaPptx(datosTabla, x, y, w, h) {
+  const cols = datosTabla.columnas || [];
+  const filas = (datosTabla.filas || []).filter(f => f.some(c => String(c).trim() !== ''));
+  if (!cols.length) return '';
+
+  const nFilas = filas.length + 1;
+  const altoFila = Math.min(457200, Math.max(274320, Math.floor(h / nFilas)));
+  const anchoCol = Math.floor(w / cols.length);
+  const borde = (lado) =>
+    '<a:ln' + lado + ' w="6350"><a:solidFill><a:srgbClr val="B9C6D3"/></a:solidFill></a:ln' + lado + '>';
+
+  const celda = (texto, cabecera) =>
+    '<a:tc><a:txBody><a:bodyPr/><a:lstStyle/>' +
+    '<a:p><a:r><a:rPr lang="es-MX" sz="1200" b="' + (cabecera ? 1 : 0) + '" dirty="0">' +
+    '<a:solidFill><a:srgbClr val="' + (cabecera ? 'FFFFFF' : TINTA) + '"/></a:solidFill>' +
+    '<a:latin typeface="Calibri"/></a:rPr><a:t>' + esc(texto) + '</a:t></a:r></a:p>' +
+    '</a:txBody>' +
+    '<a:tcPr marL="72000" marR="72000" marT="36000" marB="36000" anchor="ctr">' +
+    borde('L') + borde('R') + borde('T') + borde('B') +
+    '<a:solidFill><a:srgbClr val="' + (cabecera ? TEAL : 'FFFFFF') + '"/></a:solidFill>' +
+    '</a:tcPr></a:tc>';
+
+  const filaCab = '<a:tr h="' + altoFila + '">' +
+    cols.map(c => celda(c.nombre + (c.unidad ? ' (' + c.unidad + ')' : ''), true)).join('') + '</a:tr>';
+  const cuerpoFilas = filas.map(f =>
+    '<a:tr h="' + altoFila + '">' + cols.map((c, i) => celda(String(f[i] || ''), false)).join('') + '</a:tr>'
+  ).join('');
+
+  idSp++;
+  return '<p:graphicFrame><p:nvGraphicFramePr>' +
+    '<p:cNvPr id="' + idSp + '" name="tabla' + idSp + '"/><p:cNvGraphicFramePr/><p:nvPr/>' +
+    '</p:nvGraphicFramePr>' +
+    '<p:xfrm><a:off x="' + Math.round(x) + '" y="' + Math.round(y) + '"/>' +
+    '<a:ext cx="' + Math.round(w) + '" cy="' + Math.round(Math.min(h, altoFila * nFilas)) + '"/></p:xfrm>' +
+    '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table">' +
+    '<a:tbl><a:tblPr firstRow="1"><a:tableStyleId>{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}</a:tableStyleId></a:tblPr>' +
+    '<a:tblGrid>' + cols.map(() => '<a:gridCol w="' + anchoCol + '"/>').join('') + '</a:tblGrid>' +
+    filaCab + cuerpoFilas +
+    '</a:tbl></a:graphicData></a:graphic></p:graphicFrame>';
+}
+
 function laminaXml(cuerpo) {
   return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<p:sld ' + NS + '><p:cSld><p:spTree>' + GRP_VACIO + cuerpo +
@@ -209,18 +251,23 @@ export async function generarPresentacion(servicioId) {
     fotos: [],
   });
 
-  // --- Un paso por lamina (con continuaciones si trae mas de 4 fotos)
+  // --- Un paso por lamina, con continuaciones para tablas y tandas de fotos.
+  //     El texto (notas + pendientes en ambar) va en la primera lamina del paso.
+  const AMBAR = '9A6407';
+  const pendientesGlobal = [];
   let nPaso = 0;
+
   for (const paso of pasos) {
     const evs = porPaso[paso.id] || [];
     if (!evs.length) continue;
     nPaso++;
 
-    const notas = evs.filter(e => e.tipo === 'nota' || e.tipo === 'pendiente')
-      .map(e => e.datos.texto || '');
+    const notas = evs.filter(e => e.tipo === 'nota').map(e => e.datos.texto || '');
+    const pendientes = evs.filter(e => e.tipo === 'pendiente').map(e => e.datos.texto || '');
+    pendientes.forEach(p => pendientesGlobal.push({ paso: nPaso + '. ' + paso.nombre, texto: p }));
+    const tablas = evs.filter(e => e.tipo === 'tabla');
     const fotosEv = evs.filter(e => e.tipo === 'foto');
 
-    // cargar fotos del paso
     const fotosPaso = [];
     for (const fe of fotosEv) {
       const f = await db.fotoLeer(fe.datos.fotoId);
@@ -230,18 +277,27 @@ export async function generarPresentacion(servicioId) {
         nombre: 'image' + nImg + '.jpeg',
         datos: new Uint8Array(await f.blob.arrayBuffer()),
         ancho: f.ancho, alto: f.alto,
-        pie: fe.datos.pie || '',
       });
     }
 
-    const trozos = [];
-    for (let i = 0; i < Math.max(1, Math.ceil(fotosPaso.length / FOTOS_POR_LAMINA)); i++) {
-      trozos.push(fotosPaso.slice(i * FOTOS_POR_LAMINA, (i + 1) * FOTOS_POR_LAMINA));
+    // Cola de visuales: cada tabla es un visual; las fotos van en tandas de 4.
+    const visuales = tablas.map(t => ({ tipo: 'tabla', datos: t.datos }));
+    for (let i = 0; i < Math.ceil(fotosPaso.length / FOTOS_POR_LAMINA); i++) {
+      visuales.push({ tipo: 'fotos', fotos: fotosPaso.slice(i * FOTOS_POR_LAMINA, (i + 1) * FOTOS_POR_LAMINA) });
     }
+    if (!visuales.length) visuales.push({ tipo: 'nada' });
 
-    trozos.forEach((fotos, idx) => {
+    const textoXml = (sz) =>
+      notas.map(n => n.split('\n').map(l => parrafo(l, { sz, despues: 600 })).join('')).join('') +
+      pendientes.map(p =>
+        parrafo('PENDIENTE: ' + p.replace(/\n+/g, ' '), { sz: sz - 100, b: 1, color: AMBAR, despues: 600 })
+      ).join('');
+
+    visuales.forEach((vis, idx) => {
       const titulo = nPaso + '. ' + paso.nombre + (idx ? ' (cont.)' : '');
-      const fotosRel = fotos.map((f, k) => ({ ...f, relId: 'rIdImg' + (k + 1) }));
+      const fotosRel = (vis.tipo === 'fotos')
+        ? vis.fotos.map((f, k) => ({ ...f, relId: 'rIdImg' + (k + 1) }))
+        : [];
 
       let cuerpo =
         banda(0, 0, ANCHO, 91440, TEAL) +
@@ -250,24 +306,41 @@ export async function generarPresentacion(servicioId) {
 
       const zonaY = 1097280;
       const zonaH = ALTO - zonaY - M;
-      const conTexto = idx === 0 && notas.length;
+      const conTexto = idx === 0 && (notas.length || pendientes.length);
 
-      if (conTexto && fotosRel.length) {
+      const pintarVisual = (zx, zw) => {
+        if (vis.tipo === 'tabla') return tablaPptx(vis.datos, zx, zonaY, zw, zonaH);
+        if (vis.tipo === 'fotos') return rejillaFotos(fotosRel, zx, zonaY, zw, zonaH);
+        return '';
+      };
+
+      if (conTexto && vis.tipo !== 'nada') {
         const wTexto = (ANCHO - 2 * M) * 0.42;
-        cuerpo += cuadroTexto(M, zonaY, wTexto, zonaH,
-          notas.map(n => n.split('\n').map(l =>
-            parrafo(l, { sz: 1500, despues: 600 })).join('')).join(''));
+        cuerpo += cuadroTexto(M, zonaY, wTexto, zonaH, textoXml(1500));
         const zx = M + wTexto + 182880;
-        cuerpo += rejillaFotos(fotosRel, zx, zonaY, ANCHO - M - zx, zonaH);
-      } else if (fotosRel.length) {
-        cuerpo += rejillaFotos(fotosRel, M, zonaY, ANCHO - 2 * M, zonaH);
-      } else if (conTexto) {
-        cuerpo += cuadroTexto(M, zonaY, ANCHO - 2 * M, zonaH,
-          notas.map(n => n.split('\n').map(l =>
-            parrafo(l, { sz: 1600, despues: 600 })).join('')).join(''));
+        cuerpo += pintarVisual(zx, ANCHO - M - zx);
+      } else if (vis.tipo !== 'nada') {
+        cuerpo += pintarVisual(M, ANCHO - 2 * M);
+      } else {
+        cuerpo += cuadroTexto(M, zonaY, ANCHO - 2 * M, zonaH, textoXml(1600));
       }
 
       laminas.push({ xml: laminaXml(cuerpo), fotos: fotosRel });
+    });
+  }
+
+  // --- Lamina final de PENDIENTES (si hay), como el reporte Word
+  if (pendientesGlobal.length) {
+    laminas.push({
+      xml: laminaXml(
+        banda(0, 0, ANCHO, 91440, TEAL) +
+        cuadroTexto(M, 228600, ANCHO - 2 * M, 685800, parrafo('PENDIENTES', { sz: 2400, b: 1 })) +
+        cuadroTexto(M, 1097280, ANCHO - 2 * M, ALTO - 1097280 - M,
+          pendientesGlobal.map(p =>
+            parrafo('— ' + p.texto.replace(/\n+/g, ' ') + '   (' + p.paso + ')',
+              { sz: 1500, despues: 800 })).join(''))
+      ),
+      fotos: [],
     });
   }
 
