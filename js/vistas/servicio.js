@@ -12,6 +12,66 @@ import * as media from '../media.js';
 import { h, campo, hoja, aviso, confirmar, fecha, hora, duracion } from '../ui.js';
 import { lineaDeTiempo, menuAgregar, galeriaDelTrabajo } from './eventos.js';
 import { editarServicio } from './servicios.js';
+import { generarReporte } from '../reporte.js';
+
+/* ---------------------------------------------------------------- */
+/* Generar el reporte Word y entregarlo (compartir o descargar)      */
+/* ---------------------------------------------------------------- */
+
+async function hojaReporte(servicio) {
+  const eventos = await db.eventosDeServicio(servicio.id);
+  const incluidos = eventos.filter(e => e.incluir !== false);
+  const excluidos = eventos.length - incluidos.length;
+  const n = (tipo) => incluidos.filter(e => e.tipo === tipo).length;
+  const pruebasAbiertas = incluidos.filter(e => e.tipo === 'prueba' && !e.datos.resultado).length;
+
+  await hoja('📄  Generar reporte', (cerrar) => {
+    const resumen = h('div.reporte-resumen',
+      h('p.parrafo',
+        n('nota') + ' notas · ' + n('tabla') + ' tablas · ' + n('foto') + ' fotos · ' +
+        n('prueba') + ' pruebas · ' + n('pendiente') + ' pendientes'),
+      excluidos ? h('p.pista', excluidos + ' registro(s) marcados "fuera del reporte" no saldran.') : null,
+      pruebasAbiertas ? h('p.pista', '⚠ ' + pruebasAbiertas + ' prueba(s) sin resultado: saldran como "(pendiente de resultado)".') : null,
+      h('p.pista', 'El Word se genera en el telefono, sin internet. El indice se actualiza solo al abrirlo en Word. Observaciones y recomendaciones se redactan al final, ya en Word.')
+    );
+
+    const estado = h('p.pista', '');
+
+    const entregar = async (modo) => {
+      estado.textContent = 'Generando...';
+      try {
+        const { blob, nombreArchivo } = await generarReporte(servicio.id);
+        const archivo = new File([blob], nombreArchivo, { type: blob.type });
+
+        if (modo === 'compartir' && navigator.canShare && navigator.canShare({ files: [archivo] })) {
+          await navigator.share({ files: [archivo], title: nombreArchivo });
+          estado.textContent = 'Compartido.';
+        } else {
+          const url = URL.createObjectURL(blob);
+          const a = h('a', { href: url, download: nombreArchivo });
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 4000);
+          estado.textContent = 'Descargado: ' + nombreArchivo;
+        }
+        aviso('Reporte generado', 'ok');
+      } catch (e) {
+        if (e && e.name === 'AbortError') { estado.textContent = ''; return; }
+        console.error(e);
+        estado.textContent = 'Fallo: ' + (e && e.message ? e.message : e);
+        aviso('No se pudo generar el reporte', 'error');
+      }
+    };
+
+    return h('div',
+      resumen, estado,
+      h('div.hoja__acciones',
+        h('button.btn.btn--fantasma', { type: 'button', onclick: () => entregar('descargar') }, 'Descargar'),
+        h('button.btn.btn--primario', { type: 'button', onclick: () => entregar('compartir') }, 'Compartir  →  OneDrive')
+      )
+    );
+  });
+}
 
 export async function agregarActividad(servicioId) {
   const catalogo = await db.catalogoEquipos();
@@ -136,6 +196,8 @@ export async function render(contenedor, refrescar, params) {
         h('h1', titulo),
         h('p', tipo.icono + ' ' + tipo.nombre + (servicio.planta ? ' · ' + servicio.planta : ''))
       ),
+      h('button.icono-btn', { type: 'button', 'aria-label': 'Generar reporte',
+        onclick: () => hojaReporte(servicio) }, '📄'),
       h('button.icono-btn', { type: 'button', 'aria-label': 'Fotos del trabajo',
         onclick: async () => {
           await galeriaDelTrabajo(servicio.id);
