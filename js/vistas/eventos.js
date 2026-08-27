@@ -41,7 +41,7 @@ export async function menuAgregar(servicioId, equipoId, refrescar, nombreRama, o
   const TODAS = [
     ['camara',    '📷  Tomar foto'],
     ['galeria',   '🖼  Foto de la galeria'],
-    ['nota',      esTexto ? '📝  Texto' : '📝  Nota'],
+    ['nota',      '📝  Texto'],
     ['tabla',     '▦  Tabla'],
     ['prueba',    '🧪  Prueba'],
     ['pendiente', '⏳  Pendiente'],
@@ -125,11 +125,11 @@ export function galeriaDelTrabajo(servicioId) {
   }, { altura: 'alta' });
 }
 
-// En procedimientos el elemento se llama "Texto" (es el texto de la
-// diapositiva); en los demas tipos, "Nota".
+// El elemento se llama "Texto" en toda la app (en procedimientos es el texto
+// de la diapositiva; en servicios, la nota de campo). esTexto solo ajusta la
+// pista del placeholder.
 export async function agregarNota(servicioId, equipoId, esTexto) {
-  const nombre = esTexto ? 'texto' : 'nota';
-  const texto = await hoja(esTexto ? 'Nuevo texto' : 'Nueva nota', (cerrar) => {
+  const texto = await hoja('Nuevo texto', (cerrar) => {
     const area = campoArea('', {
       placeholder: esTexto
         ? 'El texto de esta diapositiva...\n\nTip: usa el microfono de tu teclado para dictar.'
@@ -144,22 +144,19 @@ export async function agregarNota(servicioId, equipoId, esTexto) {
         h('button.btn.btn--primario', {
           type: 'button',
           onclick: () => cerrar(area.entrada.value.trim())
-        }, 'Guardar ' + nombre)
+        }, 'Guardar texto')
       )
     );
   });
 
   if (!texto) return null;
   const ev = await db.eventoNuevo(servicioId, equipoId, 'nota', { texto });
-  aviso(esTexto ? 'Texto guardado' : 'Nota guardada', 'ok');
+  aviso('Texto guardado', 'ok');
   return ev;
 }
 
 export async function editarNota(evento) {
-  // El titulo de la hoja depende del tipo de trabajo al que pertenece.
-  const trabajo = await db.servicioLeer(evento.servicioId);
-  const esTexto = trabajo && trabajo.tipo === 'procedimiento';
-  const texto = await hoja(esTexto ? 'Editar texto' : 'Editar nota', (cerrar) => {
+  const texto = await hoja('Editar texto', (cerrar) => {
     const area = campoArea('', { rows: 7, value: evento.datos.texto || '' });
     return h('div',
       area,
@@ -240,6 +237,76 @@ export async function verFoto(evento, alCambiar) {
     if (alCambiar) alCambiar();
   };
 
+  /* ---- zoom del visor: pellizco, paneo y doble toque ---- */
+  const zv = { s: 1, tx: 0, ty: 0 };
+  const imgEl = h('img.visor__img', { src: url, alt: '' });
+  const btnZoomV = h('button.editor__zoomreset', {
+    type: 'button', style: { display: 'none' },
+    onclick: () => { zv.s = 1; zv.tx = 0; zv.ty = 0; aplicarZoomV(); },
+  }, 'RESET ZOOM');
+  const lienzoV = h('div.visor__lienzo', imgEl, btnZoomV);
+
+  function acotarPan() {
+    const r = lienzoV.getBoundingClientRect();
+    const mx = (zv.s - 1) * r.width / 2, my = (zv.s - 1) * r.height / 2;
+    zv.tx = Math.max(-mx, Math.min(mx, zv.tx));
+    zv.ty = Math.max(-my, Math.min(my, zv.ty));
+  }
+  function aplicarZoomV() {
+    acotarPan();
+    imgEl.style.transform = 'translate(' + zv.tx + 'px,' + zv.ty + 'px) scale(' + zv.s + ')';
+    btnZoomV.style.display = zv.s > 1 ? '' : 'none';
+  }
+
+  const punterosV = new Map();
+  let pinchV = null, panV = null, ultimoTap = 0;
+
+  lienzoV.addEventListener('pointerdown', (evp) => {
+    evp.preventDefault();
+    try { lienzoV.setPointerCapture(evp.pointerId); } catch (e) {}
+    punterosV.set(evp.pointerId, { x: evp.clientX, y: evp.clientY });
+    if (punterosV.size === 2) {
+      const [a, b] = Array.from(punterosV.values());
+      pinchV = { d0: Math.hypot(a.x - b.x, a.y - b.y), s0: zv.s };
+      panV = null;
+    } else if (zv.s > 1) {
+      panV = { x0: evp.clientX, y0: evp.clientY, tx0: zv.tx, ty0: zv.ty };
+    }
+  });
+  lienzoV.addEventListener('pointermove', (evp) => {
+    if (punterosV.has(evp.pointerId)) punterosV.set(evp.pointerId, { x: evp.clientX, y: evp.clientY });
+    if (pinchV && punterosV.size === 2) {
+      evp.preventDefault();
+      const [a, b] = Array.from(punterosV.values());
+      zv.s = Math.max(1, Math.min(6, pinchV.s0 * Math.hypot(a.x - b.x, a.y - b.y) / pinchV.d0));
+      aplicarZoomV();
+    } else if (panV) {
+      evp.preventDefault();
+      zv.tx = panV.tx0 + (evp.clientX - panV.x0);
+      zv.ty = panV.ty0 + (evp.clientY - panV.y0);
+      aplicarZoomV();
+    }
+  });
+  const soltarV = (evp) => {
+    // doble toque: acercar al doble / regresar
+    if (punterosV.size === 1 && !panV && !pinchV) {
+      const ahora = Date.now();
+      if (ahora - ultimoTap < 320) {
+        if (zv.s > 1) { zv.s = 1; zv.tx = 0; zv.ty = 0; }
+        else { zv.s = 2.5; }
+        aplicarZoomV();
+        ultimoTap = 0;
+      } else {
+        ultimoTap = ahora;
+      }
+    }
+    punterosV.delete(evp.pointerId);
+    if (punterosV.size < 2) pinchV = null;
+    if (!punterosV.size) panV = null;
+  };
+  lienzoV.addEventListener('pointerup', soltarV);
+  lienzoV.addEventListener('pointercancel', soltarV);
+
   const capa = h('div.visor',
     h('div.visor__barra',
       h('button.icono-btn.icono-btn--claro', { type: 'button', onclick: () => cerrar(true) }, '✕'),
@@ -263,7 +330,7 @@ export async function verFoto(evento, alCambiar) {
         }
       }, '🗑')
     ),
-    h('div.visor__lienzo', h('img.visor__img', { src: url, alt: '' })),
+    lienzoV,
     h('div.visor__pieCont',
       h('div.visor__pieFila', pie, botonOk),
       h('span.visor__meta', foto.ancho + '×' + foto.alto + ' · ' + media.formatoBytes(foto.bytes)))

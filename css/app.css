@@ -913,8 +913,13 @@ button { font-family: inherit; font-size: inherit; }
   flex: 1; text-align: center; color: var(--primario);
   font-family: var(--mono); font-size: .85rem; font-weight: 600;
 }
-.visor__lienzo { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: .5rem; }
-.visor__img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.visor__lienzo {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  overflow: hidden; padding: .5rem;
+  position: relative;
+  touch-action: none;   /* pellizco y paneo propios, sin gestos del navegador */
+}
+.visor__img { max-width: 100%; max-height: 100%; object-fit: contain; will-change: transform; }
 .visor__pieCont {
   display: flex; flex-direction: column; gap: .35rem;
   padding: .7rem .8rem calc(.9rem + var(--inf));

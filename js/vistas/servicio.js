@@ -33,7 +33,7 @@ async function hojaReporte(servicio) {
         ? h('p.parrafo', pasosConContenido + ' pasos con contenido · ' + n('nota') + ' textos · ' +
             n('foto') + ' fotos · ' + n('tabla') + ' tablas · ' + n('pendiente') + ' pendientes')
         : h('p.parrafo',
-            n('nota') + ' notas · ' + n('tabla') + ' tablas · ' + n('foto') + ' fotos · ' +
+            n('nota') + ' textos · ' + n('tabla') + ' tablas · ' + n('foto') + ' fotos · ' +
             n('prueba') + ' pruebas · ' + n('pendiente') + ' pendientes'),
       excluidos ? h('p.pista', excluidos + ' registro(s) marcados "fuera del reporte" no saldran.') : null,
       (!esProc && pruebasAbiertas) ? h('p.pista', '⚠ ' + pruebasAbiertas + ' prueba(s) sin resultado: saldran como "(pendiente de resultado)".') : null,
