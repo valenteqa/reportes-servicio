@@ -159,20 +159,47 @@ function menuRama(actividad, conteo, refrescar) {
   }, '⋯');
 }
 
+// Estado de colapso por trabajo: lista de ids de rama cerradas. Se recuerda
+// entre visitas para poder ir cerrando las actividades ya terminadas.
+function ramasCerradas(servicioId) {
+  try { return JSON.parse(localStorage.getItem('colapso:' + servicioId)) || []; }
+  catch (e) { return []; }
+}
+
+function guardarCerradas(servicioId, lista) {
+  localStorage.setItem('colapso:' + servicioId, JSON.stringify(lista));
+}
+
 function rama(servicio, actividad, eventos, refrescar, numeroPaso) {
   const esGeneral = actividad.id === db.GENERAL;
   const esObs = actividad.id === db.OBSERVACIONES;
   const esProc = (servicio.tipo === 'procedimiento');
   const sinResultado = eventos.filter(e => e.tipo === 'prueba' && !e.datos.resultado).length;
   const nombreVisible = numeroPaso ? numeroPaso + '. ' + actividad.nombre : actividad.nombre;
+  const cerrada = ramasCerradas(servicio.id).includes(actividad.id);
 
-  const cabeza = h('div.rama__cabeza',
+  // Tocar el encabezado colapsa o expande la rama (la palomita ⋯ no: corta
+  // la burbuja). El estado se guarda al instante.
+  const alternar = () => {
+    const quedo = seccion.classList.toggle('rama--cerrada');
+    cabeza.setAttribute('aria-expanded', String(!quedo));
+    const lista = ramasCerradas(servicio.id).filter(id => id !== actividad.id);
+    if (quedo) lista.push(actividad.id);
+    guardarCerradas(servicio.id, lista);
+  };
+
+  const cabeza = h('div.rama__cabeza', {
+    role: 'button', tabindex: '0', 'aria-expanded': String(!cerrada),
+    onclick: alternar,
+    onkeydown: (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); alternar(); } },
+  },
     h('span.rama__rombo'),
     h('span.rama__nombre', nombreVisible),
     eventos.length ? h('span.rama__conteo', String(eventos.length)) : null,
     sinResultado ? h('span.rama__pendiente', sinResultado + ' sin resultado') : null,
     h('span.crece'),
-    (esGeneral || esObs) ? null : menuRama(actividad, eventos.length, refrescar)
+    (esGeneral || esObs) ? null : menuRama(actividad, eventos.length, refrescar),
+    h('span.rama__flecha', '▾')
   );
 
   // El + va al FINAL de la linea de tiempo: el siguiente nodo de la secuencia.
@@ -188,16 +215,18 @@ function rama(servicio, actividad, eventos, refrescar, numeroPaso) {
     onclick: () => menuAgregar(servicio.id, actividad.id, refrescar, nombreVisible, opciones, esProc),
   }, '+');
 
-  return h('section.rama' + (esObs ? '.rama--fija' : ''), { dataset: { rama: actividad.id } },
+  const seccion = h('section.rama' + (esObs ? '.rama--fija' : '') + (cerrada ? '.rama--cerrada' : ''),
+    { dataset: { rama: actividad.id } },
     cabeza,
-    esObs && !eventos.length
-      ? h('p.rama__pista', 'Como quedo la maquina y que se recomienda. Cada texto sale como viñeta en el reporte.')
-      : null,
     h('div.rama__cuerpo',
+      esObs && !eventos.length
+        ? h('p.rama__pista', 'Como quedo la maquina y que se recomienda. Cada texto sale como viñeta en el reporte.')
+        : null,
       eventos.length ? lineaDeTiempo(eventos, refrescar) : null,
       agregar
     )
   );
+  return seccion;
 }
 
 export async function render(contenedor, refrescar, params) {

@@ -564,6 +564,15 @@ button { font-family: inherit; font-size: inherit; }
 
 .rama__cuerpo { padding: 0 0 .2rem .55rem; }
 
+/* Colapsar/expandir ramas tocando el encabezado */
+.rama__cabeza { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.rama__flecha {
+  flex: 0 0 auto; color: var(--tinta-tenue); font-size: .85rem;
+  transition: transform .15s ease; padding: 0 .15rem;
+}
+.rama--cerrada .rama__flecha { transform: rotate(-90deg); }
+.rama--cerrada .rama__cuerpo { display: none; }
+
 /* Seccion fija de observaciones y recomendaciones, al final del arbol */
 .rama--fija { margin-top: .9rem; }
 .rama--fija .rama__rombo { border-color: var(--primario); }
