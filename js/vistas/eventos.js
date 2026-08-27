@@ -164,11 +164,26 @@ export async function verFoto(evento, alCambiar) {
   if (!foto) { aviso('La imagen no se encontro', 'error'); return; }
 
   const url = media.urlDe(foto.blob);
+
+  const guardarPie = async () => {
+    evento.datos.pie = pie.value.trim();
+    await db.eventoGuardar(evento);
+    pie.blur();                    // baja el teclado
+    aviso('Leyenda guardada', 'ok');
+  };
+
   const pie = h('input.visor__pie', {
     type: 'text',
-    placeholder: 'Pie de foto (aparece en el reporte)',
+    placeholder: 'Leyenda de la foto (aparece en el reporte)',
     value: evento.datos.pie || '',
+    enterkeyhint: 'done',
+    onkeydown: (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); guardarPie(); } },
   });
+
+  const botonOk = h('button.visor__ok', {
+    type: 'button', 'aria-label': 'Guardar leyenda',
+    onclick: guardarPie,
+  }, '✓');
 
   // El atras del telefono cierra el visor (guardando el pie), no navega.
   let resuelto = false;
@@ -206,7 +221,8 @@ export async function verFoto(evento, alCambiar) {
       }, '🗑')
     ),
     h('div.visor__lienzo', h('img.visor__img', { src: url, alt: '' })),
-    h('div.visor__pieCont', pie,
+    h('div.visor__pieCont',
+      h('div.visor__pieFila', pie, botonOk),
       h('span.visor__meta', foto.ancho + '×' + foto.alto + ' · ' + media.formatoBytes(foto.bytes)))
   );
 

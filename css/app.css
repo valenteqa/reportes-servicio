@@ -883,12 +883,22 @@ button { font-family: inherit; font-size: inherit; }
   background: var(--superficie);
   border-top: 1px solid var(--borde-fuerte);
 }
+.visor__pieFila { display: flex; align-items: stretch; gap: .4rem; }
+
 .visor__pie {
-  width: 100%; min-height: 46px; padding: .6rem .7rem;
+  flex: 1; min-width: 0; min-height: 48px; padding: .6rem .7rem;
   border: 1px solid var(--borde-fuerte);
   background: var(--superficie-2); color: var(--tinta);
   font-family: inherit; font-size: .95rem;
 }
+
+.visor__ok {
+  flex: 0 0 auto; width: 54px;
+  border: none; background: var(--primario); color: var(--primario-tinta);
+  font-size: 1.25rem; font-weight: 700; cursor: pointer;
+  clip-path: var(--corte);
+}
+.visor__ok:active { transform: scale(.95); }
 .visor__pie:focus { outline: none; border-color: var(--primario); box-shadow: var(--glow); }
 .visor__meta { font-size: .72rem; color: var(--tinta-tenue); font-family: var(--mono); }
 
