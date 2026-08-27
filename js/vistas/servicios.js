@@ -77,17 +77,19 @@ function formularioTrabajo(existente, tipoClave) {
       );
     }
 
-    const cCliente = campo('Cliente',            { value: previo.cliente || '', placeholder: 'CLIENTE' });
-    const cPlanta  = campo('Planta / sitio',     { value: previo.planta  || '', placeholder: 'Planta Norte' });
-    const cModelo  = campo('Modelo de maquina',  { value: previo.modelo  || '', placeholder: 'MAQUINA' });
-    const cSerie   = campo('Numero de serie',    { value: previo.serie   || '', placeholder: '0000000' });
+    // Mismos campos que la tabla de datos del reporte.
+    const cCliente = campo('Cliente',           { value: previo.cliente || '', placeholder: 'CLIENTE' });
+    const cPlanta  = campo('Planta / sitio',    { value: previo.planta  || '', placeholder: 'Planta Norte' });
+    const cMarca   = campo('Tipo de maquina',   { value: previo.marca   || '', placeholder: 'HUSKY' });
+    const cModelo  = campo('Modelo',            { value: previo.modelo  || '', placeholder: 'H400 RS65/60' });
+    const cSerie   = campo('Numero de serie',   { value: previo.serie   || '', placeholder: '0000000' });
     const cDesc    = campoArea('Descripcion de la falla', {
       value: previo.descripcion || '', rows: 3,
       placeholder: 'Falla de SERVODRIVE Screw Not Ready'
     });
 
     return h('div',
-      cCliente, cPlanta, cModelo, cSerie, cDesc,
+      cCliente, cPlanta, cMarca, cModelo, cSerie, cDesc,
       h('div.hoja__acciones',
         h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
         h('button.btn.btn--primario', {
@@ -95,6 +97,7 @@ function formularioTrabajo(existente, tipoClave) {
           onclick: () => cerrar({
             cliente: cCliente.entrada.value.trim(),
             planta:  cPlanta.entrada.value.trim(),
+            marca:   cMarca.entrada.value.trim(),
             modelo:  cModelo.entrada.value.trim(),
             serie:   cSerie.entrada.value.trim(),
             descripcion: cDesc.entrada.value.trim(),
@@ -148,7 +151,8 @@ function tarjetaTrabajo(trabajo, resumen, refrescar) {
 
   const tipo = db.tipoDe(trabajo);
   const titulo = trabajo.titulo || trabajo.cliente || trabajo.planta || 'Sin nombre';
-  const maquina = [trabajo.modelo, trabajo.serie].filter(Boolean).join(' · ');
+  const maquina = [[trabajo.marca, trabajo.modelo].filter(Boolean).join(' '), trabajo.serie]
+    .filter(Boolean).join(' · ');
 
   return h('article.tarjeta-servicio', {
     onclick: () => { location.hash = '#/s/' + trabajo.id; }

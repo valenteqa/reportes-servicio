@@ -138,7 +138,8 @@ export async function render(contenedor, refrescar, params) {
 
   const tipo = db.tipoDe(servicio);
   const titulo = servicio.titulo || servicio.cliente || servicio.planta || tipo.nombre;
-  const maquina = [servicio.modelo, servicio.serie].filter(Boolean).join(' · ');
+  const maquina = [[servicio.marca, servicio.modelo].filter(Boolean).join(' '), servicio.serie]
+    .filter(Boolean).join(' · ');
 
   const cabecera = h('header.cabecera',
     h('div.cabecera__fila',

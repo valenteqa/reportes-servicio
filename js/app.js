@@ -74,7 +74,12 @@ window.addEventListener('error', (ev) => {
 async function protegerDatos() {
   try {
     const { pedirPersistencia, estadoAlmacenamiento, ajusteLeer, ajusteGuardar } = await import('./db.js');
-    if (!(await ajusteLeer('usuario'))) await ajusteGuardar('usuario', 'Usuario');
+    // Nombre completo: es el que se imprime como Tecnico en el reporte.
+    // (Tambien actualiza el "Usuario" corto que sembraron versiones previas.)
+    const usuario = await ajusteLeer('usuario');
+    if (!usuario || usuario === 'Usuario') {
+      await ajusteGuardar('usuario', 'Usuario');
+    }
     const info = await estadoAlmacenamiento();
     if (info.soportado && !info.persistente) await pedirPersistencia();
   } catch (e) { /* sin soporte */ }

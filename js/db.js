@@ -130,6 +130,7 @@ export function servicioNuevo(datos) {
     titulo:      datos.titulo      || '',   // pruebas de laboratorio y general solo llevan titulo
     cliente:     datos.cliente     || '',
     planta:      datos.planta      || '',
+    marca:       datos.marca       || '',   // "Tipo de Maquina" en el reporte (HUSKY)
     modelo:      datos.modelo      || '',
     serie:       datos.serie       || '',
     tecnico:     datos.tecnico     || '',
