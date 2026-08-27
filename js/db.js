@@ -321,6 +321,33 @@ export function ajusteGuardar(clave, valor) {
 }
 
 /* ---------------------------------------------------------------- */
+/* Respaldo: acceso a stores completos                               */
+/* ---------------------------------------------------------------- */
+
+const STORES_RESPALDO = ['servicios', 'equipos', 'eventos', 'catalogo', 'ajustes'];
+
+export function todosDe(nombre) {
+  return tx(nombre, 'readonly', st => pedir(st[nombre].getAll()));
+}
+
+export function volcadoCompleto() {
+  return Promise.all(STORES_RESPALDO.map(s => todosDe(s)))
+    .then(([servicios, equipos, eventos, catalogo, ajustes]) =>
+      ({ servicios, equipos, eventos, catalogo, ajustes }));
+}
+
+export function restaurarVolcado(volcado, fotos) {
+  return tx(['servicios', 'equipos', 'eventos', 'catalogo', 'ajustes', 'fotos'], 'readwrite', (st) => {
+    let n = 0;
+    for (const s of STORES_RESPALDO) {
+      for (const registro of (volcado[s] || [])) { st[s].put(registro); n++; }
+    }
+    for (const f of (fotos || [])) { st.fotos.put(f); n++; }
+    return n;
+  });
+}
+
+/* ---------------------------------------------------------------- */
 /* Almacenamiento                                                    */
 /* ---------------------------------------------------------------- */
 

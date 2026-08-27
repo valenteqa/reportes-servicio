@@ -58,7 +58,7 @@ function crc32(datos) {
   return (c ^ 0xFFFFFFFF) >>> 0;
 }
 
-function fabricarZip(entradas) {
+export function fabricarZip(entradas) {
   const ahora = new Date();
   const horaDos = (ahora.getHours() << 11) | (ahora.getMinutes() << 5) | (ahora.getSeconds() >> 1);
   const fechaDos = ((ahora.getFullYear() - 1980) << 9) | ((ahora.getMonth() + 1) << 5) | ahora.getDate();
@@ -115,6 +115,38 @@ function fabricarZip(entradas) {
   return new Blob([...partes, ...centrales, new Uint8Array(fin.buffer)], {
     type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   });
+}
+
+/**
+ * Lector de ZIP sin compresion (los que fabrica esta app). Devuelve
+ * { nombre: Uint8Array }. Rechaza entradas comprimidas con mensaje claro.
+ */
+export function leerZip(buf) {
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  let eocd = buf.length - 22;
+  while (eocd >= 0 && dv.getUint32(eocd, true) !== 0x06054b50) eocd--;
+  if (eocd < 0) throw new Error('No es un ZIP valido');
+
+  const n = dv.getUint16(eocd + 8, true);
+  let pos = dv.getUint32(eocd + 16, true);
+  const entradas = {};
+  for (let i = 0; i < n; i++) {
+    if (dv.getUint32(pos, true) !== 0x02014b50) throw new Error('ZIP corrupto');
+    const metodo = dv.getUint16(pos + 10, true);
+    const tam = dv.getUint32(pos + 20, true);
+    const nLen = dv.getUint16(pos + 28, true);
+    const eLen = dv.getUint16(pos + 30, true);
+    const cLen = dv.getUint16(pos + 32, true);
+    const off = dv.getUint32(pos + 42, true);
+    const nombre = new TextDecoder().decode(buf.subarray(pos + 46, pos + 46 + nLen));
+    if (metodo !== 0) throw new Error('Entrada comprimida no soportada: ' + nombre);
+    const nLoc = dv.getUint16(off + 26, true);
+    const eLoc = dv.getUint16(off + 28, true);
+    const ini = off + 30 + nLoc + eLoc;
+    entradas[nombre] = buf.subarray(ini, ini + tam);
+    pos += 46 + nLen + eLen + cLen;
+  }
+  return entradas;
 }
 
 /* ---------------------------------------------------------------- */

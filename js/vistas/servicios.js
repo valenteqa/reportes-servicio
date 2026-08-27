@@ -410,6 +410,9 @@ function tarjetaTrabajo(trabajo, resumen, refrescar) {
           trabajo.estado = trabajo.estado === 'abierto' ? 'cerrado' : 'abierto';
           trabajo.fin = trabajo.estado === 'cerrado' ? Date.now() : null;
           await db.servicioGuardar(trabajo);
+          if (trabajo.estado === 'cerrado') {
+            aviso('Trabajo cerrado. Buen momento para respaldar (boton ⛁).', 'ok');
+          }
           refrescar();
         } else if (accion === 'borrar') {
           const ok = await confirmar('Se elimina "' + titulo + '" con todos sus equipos, notas, tablas y fotos. Esto no se puede deshacer.');
@@ -421,6 +424,86 @@ function tarjetaTrabajo(trabajo, resumen, refrescar) {
 }
 
 /* ---------------------------------------------------------------- */
+/* Almacenamiento y respaldo                                         */
+/* ---------------------------------------------------------------- */
+
+async function hojaAlmacenamiento(refrescar) {
+  const i = await db.estadoAlmacenamiento();
+
+  await hoja('Almacenamiento y respaldo', (cerrar) => {
+    const estado = h('p.pista', '');
+
+    const entregar = async (modo) => {
+      estado.textContent = 'Preparando respaldo...';
+      try {
+        const { crearRespaldo } = await import('../respaldo.js');
+        const r = await crearRespaldo();
+        const archivo = new File([r.blob], r.nombreArchivo, { type: 'application/zip' });
+
+        if (modo === 'compartir' && navigator.canShare && navigator.canShare({ files: [archivo] })) {
+          await navigator.share({ files: [archivo], title: r.nombreArchivo });
+        } else {
+          const url = URL.createObjectURL(r.blob);
+          const a = h('a', { href: url, download: r.nombreArchivo });
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 4000);
+        }
+        estado.textContent = 'Respaldo listo: ' + r.resumen.trabajos + ' trabajos, ' +
+          r.resumen.registros + ' registros, ' + r.resumen.fotos + ' fotos.';
+        aviso('Respaldo generado', 'ok');
+      } catch (e) {
+        if (e && e.name === 'AbortError') { estado.textContent = ''; return; }
+        console.error(e);
+        estado.textContent = 'Fallo: ' + (e && e.message ? e.message : e);
+        aviso('No se pudo respaldar', 'error');
+      }
+    };
+
+    const restaurar = () => {
+      const input = h('input', { type: 'file', accept: '.zip,application/zip', style: { display: 'none' } });
+      document.body.appendChild(input);
+      input.addEventListener('change', async () => {
+        const archivo = input.files && input.files[0];
+        input.remove();
+        if (!archivo) return;
+        const ok = await confirmar(
+          'Se restaurara "' + archivo.name + '". Lo del respaldo se MEZCLA con lo que ya hay (mismos trabajos se sobreescriben, nada se borra). ¿Continuar?',
+          { textoOk: 'Restaurar', peligro: false });
+        if (!ok) return;
+        estado.textContent = 'Restaurando...';
+        try {
+          const { restaurarRespaldo } = await import('../respaldo.js');
+          const r = await restaurarRespaldo(archivo);
+          estado.textContent = 'Restaurado: ' + r.trabajos + ' trabajos, ' + r.fotos + ' fotos.';
+          aviso('Respaldo restaurado', 'ok');
+          refrescar();
+        } catch (e) {
+          console.error(e);
+          estado.textContent = 'Fallo: ' + (e && e.message ? e.message : e);
+          aviso('No se pudo restaurar', 'error');
+        }
+      });
+      input.click();
+    };
+
+    return h('div',
+      h('p.parrafo', 'Usado: ' + media.formatoBytes(i.usado) +
+        (i.cuota ? ' de ' + media.formatoBytes(i.cuota) + ' disponibles' : '')),
+      h('p.parrafo', i.persistente
+        ? '✓ Los datos estan protegidos contra borrado automatico.'
+        : '⚠ Los datos NO estan protegidos. Instala la app desde el menu de Chrome y toca "Proteger".'),
+      h('p.pista', 'Todo se guarda unicamente en este telefono. El respaldo es un ZIP con todos tus trabajos y fotos: guardalo en OneDrive de vez en cuando, y con el puedes migrar a otro telefono.'),
+      h('div.hoja__acciones',
+        h('button.btn.btn--fantasma', { type: 'button', onclick: restaurar }, 'Restaurar'),
+        h('button.btn.btn--fantasma', { type: 'button', onclick: () => entregar('descargar') }, 'Descargar'),
+        h('button.btn.btn--primario', { type: 'button', onclick: () => entregar('compartir') }, 'Respaldar')
+      ),
+      estado,
+      h('p.pista', { style: { marginTop: '.6rem' } }, 'Version de la app: ' + APP_VERSION)
+    );
+  });
+}
 
 export async function render(contenedor, refrescar) {
   media.liberarUrls();
@@ -437,19 +520,8 @@ export async function render(contenedor, refrescar) {
         }
       }, temaActual() === 'claro' ? '🌙' : '☀️'),
       h('button.icono-btn', {
-        type: 'button', 'aria-label': 'Almacenamiento',
-        onclick: async () => {
-          const i = await db.estadoAlmacenamiento();
-          hoja('Almacenamiento', () => h('div',
-            h('p.parrafo', 'Usado: ' + media.formatoBytes(i.usado) +
-              (i.cuota ? ' de ' + media.formatoBytes(i.cuota) + ' disponibles' : '')),
-            h('p.parrafo', i.persistente
-              ? '✓ Los datos estan protegidos contra borrado automatico.'
-              : '⚠ Los datos NO estan protegidos. Instala la app desde el menu de Chrome y toca "Proteger".'),
-            h('p.pista', 'Todo se guarda unicamente en este telefono.'),
-            h('p.pista', 'Version de la app: ' + APP_VERSION)
-          ));
-        }
+        type: 'button', 'aria-label': 'Almacenamiento y respaldo',
+        onclick: () => hojaAlmacenamiento(refrescar)
       }, '⛁')
     )
   );
