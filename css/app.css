@@ -933,6 +933,61 @@ button { font-family: inherit; font-size: inherit; }
 .visor__meta { font-size: .72rem; color: var(--tinta-tenue); font-family: var(--mono); }
 
 /* ---------------------------------------------------------------- */
+/* Editor de fotos                                                   */
+/* ---------------------------------------------------------------- */
+
+.editor {
+  position: fixed; inset: 0; z-index: 80;
+  display: flex; flex-direction: column;
+  background: #04060a;
+  touch-action: none;
+}
+.editor__barra {
+  display: flex; align-items: center; gap: .4rem;
+  padding: calc(var(--sup) + .4rem) .5rem .4rem;
+}
+.editor__titulo { flex: 1; color: #cdd6df; font-size: .9rem; font-weight: 650; }
+.editor__revertir { color: var(--aviso); padding: .5rem .4rem; font-size: .82rem; }
+.editor__ok {
+  width: 54px; min-height: 44px; border: none;
+  background: var(--primario); color: var(--primario-tinta);
+  font-size: 1.25rem; font-weight: 700; cursor: pointer;
+  clip-path: var(--corte);
+}
+.editor__ok:active { transform: scale(.95); }
+
+.editor__zona {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  overflow: hidden; padding: 8px; min-height: 0;
+}
+.editor__lienzo { max-width: 100%; max-height: 100%; touch-action: none; }
+
+.editor__controles, .editor__modos {
+  display: flex; align-items: center; gap: .35rem;
+  padding: .45rem .6rem;
+  background: #0d141b; border-top: 1px solid #1d2632;
+}
+.editor__modos { padding-bottom: calc(.55rem + var(--inf)); }
+
+.editor__btn {
+  min-height: 46px; padding: 0 .8rem;
+  border: 1px solid #2b3947; background: #121b24; color: #e9eef4;
+  font-weight: 650; font-size: .88rem; cursor: pointer; white-space: nowrap;
+}
+.editor__btn:active { transform: scale(.96); }
+.editor__btn--activo {
+  background: var(--primario-suave); border-color: var(--primario); color: var(--primario);
+}
+.editor__modos .editor__btn { flex: 1; }
+
+.editor__fino { flex: 1; min-width: 60px; accent-color: var(--primario); }
+.editor__grados {
+  min-width: 42px; text-align: right;
+  font-family: var(--mono); font-size: .82rem; color: #cdd6df;
+}
+.editor__pista { font-size: .76rem; color: #8a99a8; }
+
+/* ---------------------------------------------------------------- */
 /* Estado vacio                                                      */
 /* ---------------------------------------------------------------- */
 

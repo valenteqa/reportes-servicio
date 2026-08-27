@@ -3,6 +3,7 @@
 import * as db from '../db.js';
 import * as media from '../media.js';
 import { h, hora, aviso, hoja, confirmar, campoArea, vacio, anclarCapa } from '../ui.js';
+import { editarFoto } from '../editor-foto.js';
 
 /* ---------------------------------------------------------------- */
 /* Acciones de captura                                               */
@@ -24,6 +25,11 @@ export async function capturarFoto(servicioId, equipoId, { galeria = false } = {
     }
   }
   if (ultimo) aviso(archivos.length > 1 ? archivos.length + ' fotos agregadas' : 'Foto agregada', 'ok');
+
+  // Una sola imagen: abrir el editor de inmediato (recortar, girar, señalar).
+  // Con varias de la galeria no: se editan una por una al abrirlas.
+  if (ultimo && archivos.length === 1) await editarFoto(ultimo);
+
   return ultimo;
 }
 
@@ -221,6 +227,14 @@ export async function verFoto(evento, alCambiar) {
     h('div.visor__barra',
       h('button.icono-btn.icono-btn--claro', { type: 'button', onclick: () => cerrar(true) }, '✕'),
       h('span.visor__hora', hora(evento.ts)),
+      h('button.icono-btn.icono-btn--claro', {
+        type: 'button', 'aria-label': 'Editar foto',
+        onclick: async () => {
+          await cerrar(true);                 // guarda la leyenda y cierra el visor
+          await editarFoto(evento);           // abre el editor
+          if (alCambiar) alCambiar();         // refresca miniaturas al volver
+        }
+      }, '✎'),
       h('button.icono-btn.icono-btn--claro', {
         type: 'button',
         onclick: async () => {
