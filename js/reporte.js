@@ -127,6 +127,13 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }
 
+// Fuente de los runs generados: la del TEMA del documento (en la plantilla
+// resuelve a la fuente de cuerpo de la casa), con Calibri de respaldo para el
+// modo basico, que no trae tema. Sin esto los runs caian al docDefaults de la
+// plantilla (Times New Roman) y se mezclaban fuentes.
+const FUENTE_RUN = '<w:rFonts w:asciiTheme="minorHAnsi" w:hAnsiTheme="minorHAnsi"' +
+  ' w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>';
+
 // Un parrafo. segmentos: string, o lista de {t, b (negrita), i (cursiva)}.
 function par(segmentos, opts = {}) {
   const p = [];
@@ -140,6 +147,8 @@ function par(segmentos, opts = {}) {
   const lista = typeof segmentos === 'string' ? [{ t: segmentos }] : segmentos;
   for (const s of lista) {
     p.push('<w:r><w:rPr>');
+    // En parrafos con estilo (titulos) manda el estilo, no se inyecta fuente.
+    if (!opts.estilo) p.push(FUENTE_RUN);
     if (s.b) p.push('<w:b/>');
     if (s.i) p.push('<w:i/>');
     if (s.color) p.push('<w:color w:val="' + s.color + '"/>');
@@ -295,7 +304,8 @@ const XML_INDICE =
 function parVineta(texto) {
   return '<w:p><w:pPr><w:pStyle w:val="ListParagraph"/>' +
     '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="4"/></w:numPr></w:pPr>' +
-    '<w:r><w:t xml:space="preserve">' + esc(texto) + '</w:t></w:r></w:p>';
+    '<w:r><w:rPr>' + FUENTE_RUN + '</w:rPr>' +
+    '<w:t xml:space="preserve">' + esc(texto) + '</w:t></w:r></w:p>';
 }
 
 let _plantilla = null;

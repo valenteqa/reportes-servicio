@@ -57,8 +57,11 @@ function TokenizarCelda([string]$xml, [string]$marca, [string]$token) {
   # parrafos de la celda: descripcion y tecnico pueden compartir celda.
   $rxPar = New-Object Text.RegularExpressions.Regex(
     '(<w:p\b[^>]*>(?:<w:pPr>(?:(?!</w:pPr>).)*</w:pPr>)?).*?(</w:p>)', $RX)
+  # El run nuevo lleva la fuente del tema: sin rPr caeria al docDefaults
+  # (Times New Roman) y esa celda desentonaria del resto de la tabla.
+  $rPr = '<w:rPr><w:rFonts w:asciiTheme="minorHAnsi" w:hAnsiTheme="minorHAnsi" w:cs="Calibri"/></w:rPr>'
   $nueva = $rxPar.Replace($celda,
-    ('$1<w:r><w:t xml:space="preserve">' + $token + '</w:t></w:r>$2'), 1)
+    ('$1<w:r>' + $rPr + '<w:t xml:space="preserve">' + $token + '</w:t></w:r>$2'), 1)
   return $xml.Replace($celda, $nueva)
 }
 
