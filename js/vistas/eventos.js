@@ -27,16 +27,28 @@ export async function capturarFoto(servicioId, equipoId, { galeria = false } = {
   return ultimo;
 }
 
-/** Boton Imagen: deja elegir entre tomar foto o traer de la galeria. */
-export async function agregarImagen(servicioId, equipoId) {
-  const origen = await hoja('Agregar imagen', (cerrar) => h('div.lista-acciones',
-    h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('camara') },
-      '📷  Tomar foto'),
-    h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('galeria') },
-      '🖼  Elegir de la galeria')
+/**
+ * Menu "+" de una rama: que agregar en esa actividad. Sustituye a la barra
+ * inferior — se agrega directo donde tocaste, sin concepto de rama activa.
+ */
+export async function menuAgregar(servicioId, equipoId, refrescar, nombreRama) {
+  const accion = await hoja('＋  ' + (nombreRama || 'Agregar'), (cerrar) => h('div.lista-acciones',
+    h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('camara') },   '📷  Tomar foto'),
+    h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('galeria') },  '🖼  Foto de la galeria'),
+    h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('nota') },     '📝  Nota'),
+    h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('tabla') },    '▦  Tabla'),
+    h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('prueba') },   '🧪  Prueba'),
+    h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('pendiente') },'⏳  Pendiente')
   ));
-  if (!origen) return null;
-  return capturarFoto(servicioId, equipoId, { galeria: origen === 'galeria' });
+  if (!accion) return;
+
+  if (accion === 'camara')    await capturarFoto(servicioId, equipoId);
+  if (accion === 'galeria')   await capturarFoto(servicioId, equipoId, { galeria: true });
+  if (accion === 'nota')      await agregarNota(servicioId, equipoId);
+  if (accion === 'tabla')     { await agregarTabla(servicioId, equipoId); return; }  // navega al editor
+  if (accion === 'prueba')    await agregarPrueba(servicioId, equipoId);
+  if (accion === 'pendiente') await agregarPendiente(servicioId, equipoId);
+  refrescar();
 }
 
 /**
@@ -234,7 +246,55 @@ export async function verFoto(evento, alCambiar) {
 /* Tarjetas de la linea de tiempo                                    */
 /* ---------------------------------------------------------------- */
 
-const ICONO = { nota: '📝', tabla: '▦', foto: '📷', prueba: '🧪' };
+const ICONO = { nota: '📝', tabla: '▦', foto: '📷', prueba: '🧪', pendiente: '⏳' };
+
+/* ---------------------------------------------------------------- */
+/* Pendientes: lo que queda por hacer despues del servicio.          */
+/* En el reporte alimentan su propia seccion.                        */
+/* ---------------------------------------------------------------- */
+
+export async function agregarPendiente(servicioId, equipoId) {
+  const texto = await hoja('Nuevo pendiente', (cerrar) => {
+    const area = campoArea('', {
+      placeholder: 'Que queda pendiente...\n\nEj: Instalar contactor K905 de mas de 125 A cuando llegue la refaccion.',
+      rows: 5,
+    });
+    return h('div',
+      area,
+      h('p.pista', 'Los pendientes llevan su propia seccion en el reporte.'),
+      h('div.hoja__acciones',
+        h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+        h('button.btn.btn--primario', {
+          type: 'button', onclick: () => cerrar(area.entrada.value.trim())
+        }, 'Guardar pendiente')
+      )
+    );
+  });
+
+  if (!texto) return null;
+  const ev = await db.eventoNuevo(servicioId, equipoId, 'pendiente', { texto });
+  aviso('Pendiente guardado', 'ok');
+  return ev;
+}
+
+async function editarPendiente(evento) {
+  const texto = await hoja('Editar pendiente', (cerrar) => {
+    const area = campoArea('', { rows: 5, value: evento.datos.texto || '' });
+    return h('div',
+      area,
+      h('div.hoja__acciones',
+        h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+        h('button.btn.btn--primario', {
+          type: 'button', onclick: () => cerrar(area.entrada.value.trim())
+        }, 'Guardar')
+      )
+    );
+  });
+  if (texto === null) return false;
+  evento.datos.texto = texto;
+  await db.eventoGuardar(evento);
+  return true;
+}
 
 /* ---------------------------------------------------------------- */
 /* Pruebas: se describe la prueba a realizar y queda colgando una    */
@@ -289,10 +349,24 @@ async function registrarResultado(evento) {
   });
 
   if (texto === null) return false;
+  const esNuevoResultado = !evento.datos.resultado && !!texto;
   evento.datos.resultado = texto;
   if (texto && !evento.datos.resultadoTs) evento.datos.resultadoTs = Date.now();
   if (!texto) evento.datos.resultadoTs = null;
   await db.eventoGuardar(evento);
+
+  // Al cerrar una prueba, ofrecer encadenar la siguiente: asi las pruebas
+  // de una actividad quedan en secuencia sin volver a buscar el menu.
+  if (esNuevoResultado) {
+    const siguiente = await hoja('Resultado guardado', (cerrar) => h('div',
+      h('p.parrafo', '¿Agregar la siguiente prueba de esta actividad?'),
+      h('div.hoja__acciones',
+        h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Ahora no'),
+        h('button.btn.btn--primario', { type: 'button', onclick: () => cerrar('si') }, '＋ Siguiente prueba')
+      )
+    ));
+    if (siguiente === 'si') await agregarPrueba(evento.servicioId, evento.equipoId);
+  }
   return true;
 }
 
@@ -449,12 +523,27 @@ function tarjetaPrueba(evento, refrescar) {
   );
 }
 
+function tarjetaPendiente(evento, refrescar) {
+  return h('div.tarjeta.tarjeta--pendiente', {
+    onclick: async () => { if (await editarPendiente(evento)) refrescar(); }
+  },
+    h('div.tarjeta__cabeza',
+      h('span.tarjeta__icono', ICONO.pendiente),
+      h('span.pendiente__etiqueta', 'Pendiente'),
+      h('span.tarjeta__hora', hora(evento.ts)),
+      menuEvento(evento, refrescar)
+    ),
+    h('p.tarjeta__texto', evento.datos.texto || '(sin texto)')
+  );
+}
+
 export function tarjetaEvento(evento, refrescar) {
   let el;
   if (evento.tipo === 'nota')  el = tarjetaNota(evento, refrescar);
   else if (evento.tipo === 'tabla')  el = tarjetaTabla(evento, refrescar);
   else if (evento.tipo === 'foto')   el = tarjetaFoto(evento, refrescar);
   else if (evento.tipo === 'prueba') el = tarjetaPrueba(evento, refrescar);
+  else if (evento.tipo === 'pendiente') el = tarjetaPendiente(evento, refrescar);
   else el = h('div.tarjeta', 'Tipo desconocido: ' + evento.tipo);
 
   if (!evento.incluir) el.classList.add('tarjeta--excluida');
@@ -496,30 +585,3 @@ export function lineaDeTiempo(eventos, refrescar, { mostrarEquipo = null } = {})
 /* Barra inferior de captura                                         */
 /* ---------------------------------------------------------------- */
 
-/**
- * Barra fija de captura. Todo cae en la actividad activa (destinoNombre
- * la muestra para que siempre sepas donde va a quedar lo que captures).
- */
-export function barraCaptura(servicioId, equipoId, refrescar, destinoNombre) {
-  const btn = (icono, texto, alPulsar, clase = '') =>
-    h('button.captura__btn' + clase, { type: 'button', onclick: alPulsar },
-      h('span.captura__icono', icono), h('span.captura__texto', texto));
-
-  return h('div.captura-zona',
-    destinoNombre ? h('div.captura-destino',
-      h('span.captura-destino__flecha', '▸'), destinoNombre) : null,
-    h('div.captura',
-      btn('📷', 'Imagen', async () => {
-        await agregarImagen(servicioId, equipoId);
-        refrescar();
-      }, '.captura__btn--principal'),
-      btn('📝', 'Nota', async () => {
-        if (await agregarNota(servicioId, equipoId)) refrescar();
-      }),
-      btn('▦', 'Tabla', () => agregarTabla(servicioId, equipoId)),
-      btn('🧪', 'Prueba', async () => {
-        if (await agregarPrueba(servicioId, equipoId)) refrescar();
-      })
-    )
-  );
-}

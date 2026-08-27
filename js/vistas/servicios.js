@@ -358,8 +358,9 @@ function tarjetaTrabajo(trabajo, resumen, refrescar) {
     acc.total += r.total; acc.foto += r.foto || 0;
     acc.nota += r.nota || 0; acc.tabla += r.tabla || 0;
     acc.prueba += r.prueba || 0;
+    acc.pendiente += r.pendiente || 0;
     return acc;
-  }, { total: 0, foto: 0, nota: 0, tabla: 0, prueba: 0 });
+  }, { total: 0, foto: 0, nota: 0, tabla: 0, prueba: 0, pendiente: 0 });
 
   const tipo = db.tipoDe(trabajo);
   const titulo = trabajo.titulo || trabajo.cliente || trabajo.planta || 'Sin nombre';
@@ -389,6 +390,7 @@ function tarjetaTrabajo(trabajo, resumen, refrescar) {
       totales.tabla  ? h('span.contador', '▦ ' + totales.tabla)   : null,
       totales.nota   ? h('span.contador', '📝 ' + totales.nota)   : null,
       totales.prueba ? h('span.contador', '🧪 ' + totales.prueba) : null,
+      totales.pendiente ? h('span.contador', '⏳ ' + totales.pendiente) : null,
       !totales.total ? h('span.pista', 'Sin registros') : null
     ),
     h('button.icono-btn.tarjeta-servicio__menu', {

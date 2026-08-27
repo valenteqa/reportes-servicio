@@ -82,7 +82,6 @@
 
 :root[data-tema="claro"] #app { background: linear-gradient(180deg, #e6ebf0 0%, var(--fondo) 260px); }
 :root[data-tema="claro"] .cabecera { background: rgba(255, 255, 255, .96); }
-:root[data-tema="claro"] .captura { background: rgba(255, 255, 255, .97); }
 :root[data-tema="claro"] .fab { filter: drop-shadow(0 6px 16px rgba(19, 28, 36, .3)); }
 :root[data-tema="claro"] .pestana--activa { text-shadow: none; }
 :root[data-tema="claro"] .linea__punto { box-shadow: none; }
@@ -525,11 +524,6 @@ button { font-family: inherit; font-size: inherit; }
   background: var(--fondo); border: 2px solid var(--tinta-tenue);
   transform: rotate(45deg);
 }
-.rama__cabeza--activa .rama__rombo {
-  border-color: var(--primario); background: var(--primario-suave);
-  box-shadow: 0 0 10px rgba(53, 224, 242, .5);
-}
-:root[data-tema="claro"] .rama__cabeza--activa .rama__rombo { box-shadow: none; }
 
 .rama__nombre {
   font-weight: 700; font-size: .84rem;
@@ -537,7 +531,13 @@ button { font-family: inherit; font-size: inherit; }
   color: var(--tinta-suave);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.rama__cabeza--activa .rama__nombre { color: var(--primario); }
+.rama__agregar {
+  width: 38px; height: 38px; flex: 0 0 auto;
+  border: 1.5px dashed var(--primario-borde);
+  background: transparent; color: var(--primario);
+  font-size: 1.25rem; font-weight: 700; line-height: 1; cursor: pointer;
+}
+.rama__agregar:active { background: var(--primario-suave); border-style: solid; }
 
 .rama__conteo {
   flex: 0 0 auto; min-width: 22px; text-align: center;
@@ -554,7 +554,6 @@ button { font-family: inherit; font-size: inherit; }
 
 .rama__cuerpo { padding: 0 0 .2rem .55rem; }
 .rama__vacia { padding: .1rem 0 .5rem .35rem; font-size: .78rem; color: var(--tinta-tenue); }
-.rama--activa > .rama__cuerpo .rama__vacia { color: var(--primario); }
 
 .rama-nueva {
   display: flex; align-items: center; gap: .55rem;
@@ -654,47 +653,14 @@ button { font-family: inherit; font-size: inherit; }
 .galeria-item__falta { color: var(--tinta-tenue); font-size: 1.2rem; }
 
 /* ---------------------------------------------------------------- */
-/* Barra de captura                                                  */
+/* Pendientes                                                        */
 /* ---------------------------------------------------------------- */
 
-.captura-zona {
-  position: absolute; left: 0; right: 0; bottom: 0; z-index: 30;
-  box-shadow: var(--sombra-3);
+.tarjeta--pendiente { border-left: 3px solid var(--aviso); }
+.pendiente__etiqueta {
+  font-size: .66rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--aviso);
 }
-
-.captura-destino {
-  display: flex; align-items: center; gap: .4rem;
-  padding: .3rem .8rem;
-  background: var(--superficie-2);
-  border-top: 1px solid var(--borde);
-  font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
-  color: var(--primario);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.captura-destino__flecha { color: var(--tinta-tenue); }
-
-.captura {
-  display: flex; gap: .4rem;
-  padding: .6rem .6rem calc(.6rem + var(--inf));
-  background: rgba(11, 16, 23, .97);
-  border-top: 1px solid var(--borde-fuerte);
-}
-.captura__btn {
-  flex: 1;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem;
-  min-height: 60px; padding: .4rem .2rem;
-  border: 1px solid var(--borde-fuerte);
-  background: var(--superficie-2); color: var(--tinta);
-  cursor: pointer;
-}
-.captura__btn:active { transform: scale(.96); border-color: var(--primario); }
-.captura__btn--principal {
-  flex: 1.45;
-  background: var(--primario); border-color: var(--primario); color: var(--primario-tinta);
-  clip-path: var(--corte);
-}
-.captura__icono { font-size: 1.3rem; line-height: 1; }
-.captura__texto { font-size: .68rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 
 /* ---------------------------------------------------------------- */
 /* Hoja modal                                                        */

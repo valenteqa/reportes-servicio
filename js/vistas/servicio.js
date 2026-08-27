@@ -10,10 +10,8 @@
 import * as db from '../db.js';
 import * as media from '../media.js';
 import { h, campo, hoja, aviso, confirmar, fecha, hora, duracion } from '../ui.js';
-import { lineaDeTiempo, barraCaptura, galeriaDelTrabajo } from './eventos.js';
+import { lineaDeTiempo, menuAgregar, galeriaDelTrabajo } from './eventos.js';
 import { editarServicio } from './servicios.js';
-
-function claveRama(servicioId) { return 'rama:' + servicioId; }
 
 export async function agregarActividad(servicioId) {
   const catalogo = await db.catalogoEquipos();
@@ -48,7 +46,6 @@ export async function agregarActividad(servicioId) {
 
   if (!nombre) return null;
   const actividad = await db.equipoNuevo(servicioId, { nombre });
-  sessionStorage.setItem(claveRama(servicioId), actividad.id);
   aviso('Actividad creada', 'ok');
   return actividad;
 }
@@ -84,33 +81,29 @@ function menuRama(actividad, conteo, refrescar) {
   }, '⋯');
 }
 
-function rama(servicio, actividad, eventos, activaId, refrescar) {
-  const esActiva = actividad.id === activaId;
+function rama(servicio, actividad, eventos, refrescar) {
   const esGeneral = actividad.id === db.GENERAL;
-  const pendientes = eventos.filter(e => e.tipo === 'prueba' && !e.datos.resultado).length;
+  const sinResultado = eventos.filter(e => e.tipo === 'prueba' && !e.datos.resultado).length;
 
-  const cabeza = h('button.rama__cabeza' + (esActiva ? '.rama__cabeza--activa' : ''), {
-    type: 'button',
-    onclick: () => {
-      sessionStorage.setItem(claveRama(servicio.id), actividad.id);
-      refrescar();
-    }
-  },
+  const cabeza = h('div.rama__cabeza',
     h('span.rama__rombo'),
     h('span.rama__nombre', actividad.nombre),
     eventos.length ? h('span.rama__conteo', String(eventos.length)) : null,
-    pendientes ? h('span.rama__pendiente', pendientes + ' sin resultado') : null,
+    sinResultado ? h('span.rama__pendiente', sinResultado + ' sin resultado') : null,
     h('span.crece'),
+    // El + de la rama: agregar directo aqui, sin concepto de rama activa.
+    h('button.rama__agregar', {
+      type: 'button', 'aria-label': 'Agregar en ' + actividad.nombre,
+      onclick: () => menuAgregar(servicio.id, actividad.id, refrescar, actividad.nombre),
+    }, '+'),
     esGeneral ? null : menuRama(actividad, eventos.length, refrescar)
   );
 
   const cuerpo = eventos.length
     ? lineaDeTiempo(eventos, refrescar)
-    : h('p.rama__vacia', esActiva
-        ? 'Rama activa — lo que captures abajo cae aqui.'
-        : 'Sin registros. Tocala para capturar aqui.');
+    : h('p.rama__vacia', 'Sin registros — agrega con el +');
 
-  return h('section.rama' + (esActiva ? '.rama--activa' : ''),
+  return h('section.rama',
     cabeza,
     h('div.rama__cuerpo', cuerpo)
   );
@@ -127,13 +120,6 @@ export async function render(contenedor, refrescar, params) {
   const porRama = {};
   for (const ev of eventos) {
     (porRama[ev.equipoId] = porRama[ev.equipoId] || []).push(ev);
-  }
-
-  // Rama activa: la guardada si sigue existiendo; si no, General.
-  let activaId = sessionStorage.getItem(claveRama(servicio.id)) || db.GENERAL;
-  if (activaId !== db.GENERAL && !actividades.some(a => a.id === activaId)) {
-    activaId = db.GENERAL;
-    sessionStorage.setItem(claveRama(servicio.id), activaId);
   }
 
   const tipo = db.tipoDe(servicio);
@@ -169,8 +155,8 @@ export async function render(contenedor, refrescar, params) {
 
   const general = { id: db.GENERAL, nombre: 'General' };
   const arbol = h('div.arbol',
-    rama(servicio, general, porRama[db.GENERAL] || [], activaId, refrescar),
-    actividades.map(a => rama(servicio, a, porRama[a.id] || [], activaId, refrescar)),
+    rama(servicio, general, porRama[db.GENERAL] || [], refrescar),
+    actividades.map(a => rama(servicio, a, porRama[a.id] || [], refrescar)),
     h('button.rama-nueva', {
       type: 'button',
       onclick: async () => { if (await agregarActividad(servicio.id)) refrescar(); }
@@ -180,13 +166,5 @@ export async function render(contenedor, refrescar, params) {
     )
   );
 
-  const nombreActiva = activaId === db.GENERAL
-    ? 'General'
-    : (actividades.find(a => a.id === activaId) || general).nombre;
-
-  contenedor.append(
-    cabecera,
-    h('main.contenido.contenido--conBarra', arbol),
-    barraCaptura(servicio.id, activaId, refrescar, nombreActiva)
-  );
+  contenedor.append(cabecera, h('main.contenido', arbol));
 }
