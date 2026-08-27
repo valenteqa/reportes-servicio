@@ -748,6 +748,52 @@ button { font-family: inherit; font-size: inherit; }
 .lista-acciones__item:active { background: var(--superficie-2); }
 .lista-acciones__item--peligro { color: var(--peligro); }
 
+/* Asistente de alta de servicio (paso a paso, a botones) */
+.asistente { display: flex; flex-direction: column; gap: .7rem; padding-bottom: .4rem; }
+
+.asistente__cab { display: flex; flex-direction: column; gap: .2rem; }
+.asistente__fila { display: flex; align-items: center; gap: .3rem; margin-left: -.5rem; }
+.asistente__fila > .crece { margin-left: .5rem; }
+.asistente__paso {
+  font-family: var(--mono); font-size: .66rem; letter-spacing: .16em;
+  color: var(--primario);
+}
+.asistente__titulo { font-size: 1.15rem; }
+.asistente__miga {
+  font-size: .76rem; color: var(--tinta-suave);
+  font-family: var(--mono);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.asistente__nuevo {
+  width: 100%; min-height: 52px; padding: 0 .9rem;
+  border: 1.5px dashed var(--primario-borde);
+  background: transparent; color: var(--primario);
+  font-weight: 650; text-align: left; cursor: pointer;
+}
+.asistente__nuevo:active { background: var(--primario-suave); }
+
+.asistente__rejilla {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: .45rem;
+}
+.asistente__op {
+  min-height: 64px; padding: .5rem .65rem;
+  border: 1px solid var(--borde-fuerte);
+  background: var(--superficie-2); color: var(--tinta);
+  font-weight: 650; font-size: .95rem; text-align: left; cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.asistente__op:active {
+  background: var(--primario-suave); border-color: var(--primario); color: var(--primario);
+}
+
+.asistente__omitir {
+  align-self: flex-end;
+  border: none; background: transparent; padding: .5rem .2rem;
+  color: var(--tinta-tenue); font-weight: 600; font-size: .88rem; cursor: pointer;
+}
+.asistente__omitir:active { color: var(--primario); }
+
 /* Selector de tipo de trabajo */
 .selector-tipo { display: flex; flex-direction: column; gap: .5rem; padding-bottom: .5rem; }
 .selector-tipo__op {

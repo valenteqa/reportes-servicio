@@ -20,6 +20,31 @@ const PRECARGADOS = [
   },
 ];
 
+const norm = (x) => (x || '').trim().toLowerCase();
+
+// Historial para sugerir: servicios previos + catalogo precargado (el
+// historial real va primero, asi gana en autorrellenos y en el orden).
+async function historialServicios(exceptoId) {
+  return (await db.serviciosTodos())
+    .filter(t => t.tipo === 'servicio' && t.id !== exceptoId)
+    .concat(PRECARGADOS);
+}
+
+// Valores distintos de un campo, filtrados por lo ya elegido, en orden a-z.
+function distintosDe(historial, campoDe, filtro) {
+  const vistos = new Map();
+  for (const t of historial) {
+    let pasa = true;
+    for (const [k, v] of Object.entries(filtro || {})) {
+      if (v && norm(t[k]) !== norm(v)) { pasa = false; break; }
+    }
+    if (!pasa) continue;
+    const val = (t[campoDe] || '').trim();
+    if (val && !vistos.has(val.toLowerCase())) vistos.set(val.toLowerCase(), val);
+  }
+  return Array.from(vistos.values()).sort((a, b) => a.localeCompare(b, 'es'));
+}
+
 async function bannerAlmacenamiento() {
   const info = await db.estadoAlmacenamiento();
   if (!info.soportado || info.persistente) return null;
@@ -72,29 +97,8 @@ async function formularioTrabajo(existente, tipoClave) {
   const tipo = db.TIPOS[tipoClave] || db.tipoDe(previo);
   const esServicio = tipoClave === 'servicio';
 
-  // Historial para sugerir: lo capturado antes en servicios, mas el catalogo
-  // precargado al final (el historial real gana en el autorrelleno).
-  const historial = esServicio
-    ? (await db.serviciosTodos()).filter(t => t.tipo === 'servicio' && t.id !== previo.id)
-        .concat(PRECARGADOS)
-    : [];
-  const norm = (x) => (x || '').trim().toLowerCase();
-
-  // Valores distintos de un campo, filtrados por lo ya elegido en otros.
-  // El historial viene del mas reciente al mas viejo; aqui se ordena a-z.
-  const distintos = (campoDe, filtro) => {
-    const vistos = new Map();
-    for (const t of historial) {
-      let pasa = true;
-      for (const [k, v] of Object.entries(filtro || {})) {
-        if (v && norm(t[k]) !== norm(v)) { pasa = false; break; }
-      }
-      if (!pasa) continue;
-      const val = (t[campoDe] || '').trim();
-      if (val && !vistos.has(val.toLowerCase())) vistos.set(val.toLowerCase(), val);
-    }
-    return Array.from(vistos.values()).sort((a, b) => a.localeCompare(b, 'es'));
-  };
+  const historial = esServicio ? await historialServicios(previo.id) : [];
+  const distintos = (campoDe, filtro) => distintosDe(historial, campoDe, filtro);
 
   return hoja(tipo.icono + '  ' + tipo.nombre, (cerrar) => {
     // Pruebas de laboratorio y General: solo el titulo, para arrancar rapido.
@@ -183,11 +187,144 @@ async function formularioTrabajo(existente, tipoClave) {
   }, { altura: esServicio ? 'alta' : 'auto' });
 }
 
+/* ---------------------------------------------------------------- */
+/* Asistente de alta de servicio: un paso por dato, a puros botones. */
+/* Cuadricula con lo ya guardado (filtrado en cascada), "+ Agregar"  */
+/* hasta arriba, Omitir en No. de maquina, y texto libre solo en la  */
+/* descripcion del problema.                                         */
+/* ---------------------------------------------------------------- */
+
+const PASOS_SERVICIO = [
+  { campo: 'cliente',   titulo: 'Cliente',          nuevo: 'Agregar cliente' },
+  { campo: 'planta',    titulo: 'Planta / sitio',   nuevo: 'Agregar planta' },
+  { campo: 'marca',     titulo: 'Tipo de maquina',  nuevo: 'Agregar tipo' },
+  { campo: 'modelo',    titulo: 'Modelo',           nuevo: 'Agregar modelo' },
+  { campo: 'serie',     titulo: 'Numero de serie',  nuevo: 'Agregar serie' },
+  { campo: 'noMaquina', titulo: 'No. de maquina',   nuevo: 'Agregar numero', omitible: true },
+];
+
+async function asistenteServicio() {
+  const historial = await historialServicios(null);
+
+  return hoja('🔧  Nuevo servicio', (cerrar) => {
+    const sel = { cliente: '', planta: '', marca: '', modelo: '', serie: '', noMaquina: '', descripcion: '' };
+    let i = 0;
+    const cont = h('div.asistente');
+    const TOTAL = PASOS_SERVICIO.length + 1;
+
+    // replaceChildren no ignora null (lo pinta como texto); este si.
+    const poner = (...nodos) => cont.replaceChildren(...nodos.filter(Boolean));
+
+    const filtroPara = (campo) => {
+      const f = {};
+      if (campo !== 'cliente') f.cliente = sel.cliente;
+      if (campo === 'marca')     f.planta = sel.planta;
+      if (campo === 'modelo')    f.marca  = sel.marca;
+      if (campo === 'serie')     f.modelo = sel.modelo;
+      if (campo === 'noMaquina') f.serie  = sel.serie;
+      return f;
+    };
+
+    const cabeza = (titulo) => {
+      const miga = Object.values(sel).slice(0, i).filter(Boolean).join(' · ');
+      return h('div.asistente__cab',
+        h('div.asistente__fila',
+          i > 0 ? h('button.icono-btn', { type: 'button', 'aria-label': 'Paso anterior',
+            onclick: () => { i--; pintarPaso(); } }, '←') : null,
+          h('div.crece',
+            h('p.asistente__paso', 'PASO ' + (i + 1) + ' / ' + TOTAL),
+            h('h3.asistente__titulo', titulo)
+          )
+        ),
+        miga ? h('p.asistente__miga', miga) : null
+      );
+    };
+
+    const avanzar = () => { i++; pintarPaso(); };
+
+    function pintarEntrada(p, opciones) {
+      const entrada = h('input.campo__entrada', { type: 'text', placeholder: p.titulo });
+      poner(
+        cabeza(p.titulo),
+        entrada,
+        h('div.hoja__acciones',
+          opciones.length
+            ? h('button.btn.btn--fantasma', { type: 'button', onclick: () => pintarPaso() }, 'Ver opciones')
+            : h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+          h('button.btn.btn--primario', {
+            type: 'button',
+            onclick: () => { sel[p.campo] = entrada.value.trim(); avanzar(); }
+          }, 'Continuar')
+        )
+      );
+      setTimeout(() => entrada.focus(), 80);
+    }
+
+    function pintarPaso() {
+      if (i >= PASOS_SERVICIO.length) return pintarDescripcion();
+      const p = PASOS_SERVICIO[i];
+      const opciones = distintosDe(historial, p.campo, filtroPara(p.campo));
+
+      // Sin nada guardado no hay cuadricula que mostrar: directo a escribir.
+      if (!opciones.length && !p.omitible) return pintarEntrada(p, opciones);
+
+      poner(
+        cabeza(p.titulo),
+        h('button.asistente__nuevo', { type: 'button', onclick: () => pintarEntrada(p, opciones) },
+          '＋  ' + p.nuevo),
+        opciones.length ? h('div.asistente__rejilla',
+          opciones.map(o => h('button.asistente__op', {
+            type: 'button',
+            onclick: () => { sel[p.campo] = o; avanzar(); }
+          }, o))) : null,
+        p.omitible ? h('button.asistente__omitir', {
+          type: 'button',
+          onclick: () => { sel[p.campo] = ''; avanzar(); }
+        }, 'Omitir este paso →') : null
+      );
+    }
+
+    function pintarDescripcion() {
+      const area = h('textarea.campo__entrada.campo__entrada--area', {
+        rows: 5, placeholder: 'Falla de SERVODRIVE Screw Not Ready',
+        // guardar mientras escribe: asi ningun camino de "atras" pierde el texto
+        oninput: () => { sel.descripcion = area.value.trim(); },
+      });
+      area.value = sel.descripcion || '';
+      poner(
+        cabeza('Descripcion del problema'),
+        area,
+        h('div.hoja__acciones',
+          h('button.btn.btn--fantasma', { type: 'button',
+            onclick: () => { sel.descripcion = area.value.trim(); i--; pintarPaso(); } }, '← Anterior'),
+          h('button.btn.btn--primario', {
+            type: 'button',
+            onclick: () => {
+              sel.descripcion = area.value.trim();
+              if (!sel.cliente && !sel.planta) {
+                aviso('Pon al menos cliente o planta', 'error');
+                i = 0; pintarPaso();
+                return;
+              }
+              cerrar(sel);
+            }
+          }, 'Crear servicio')
+        )
+      );
+    }
+
+    pintarPaso();
+    return cont;
+  }, { altura: 'alta' });
+}
+
 export async function nuevoServicio() {
   const tipo = await elegirTipo();
   if (!tipo) return;
 
-  const datos = await formularioTrabajo(null, tipo);
+  const datos = tipo === 'servicio'
+    ? await asistenteServicio()
+    : await formularioTrabajo(null, tipo);
   if (!datos) return;
 
   if (tipo === 'servicio' && !datos.cliente && !datos.planta) {
