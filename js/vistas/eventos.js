@@ -2,7 +2,7 @@
 
 import * as db from '../db.js';
 import * as media from '../media.js';
-import { h, hora, aviso, hoja, confirmar, campoArea, vacio, anclarCapa } from '../ui.js';
+import { h, hora, aviso, hoja, confirmar, campoArea, vacio, anclarCapa, bloquearScroll, liberarScroll } from '../ui.js';
 import { editarFoto } from '../editor-foto.js';
 
 /* ---------------------------------------------------------------- */
@@ -231,7 +231,7 @@ export async function verFoto(evento, alCambiar) {
     }
     URL.revokeObjectURL(url);
     capa.remove();
-    document.body.classList.remove('sin-scroll');
+    liberarScroll();
     if (porBack) ancla.desdePop();
     else await ancla.liberar();
     if (alCambiar) alCambiar();
@@ -337,7 +337,7 @@ export async function verFoto(evento, alCambiar) {
   );
 
   document.body.appendChild(capa);
-  document.body.classList.add('sin-scroll');
+  bloquearScroll();
 }
 
 /* ---------------------------------------------------------------- */

@@ -769,6 +769,32 @@ button { font-family: inherit; font-size: inherit; }
 }
 .asistente__omitir:active { color: var(--primario); }
 
+/* Menu de campos al editar un servicio */
+.campos-menu { display: flex; flex-direction: column; }
+.campos-menu__fila {
+  display: flex; align-items: center; gap: .6rem;
+  width: 100%; min-height: 58px; padding: .5rem .35rem;
+  border: none; border-bottom: 1px solid var(--borde);
+  background: transparent; color: var(--tinta);
+  text-align: left; cursor: pointer;
+}
+.campos-menu__fila:active { background: var(--superficie-2); }
+.campos-menu__cuerpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .12rem; }
+.campos-menu__etq {
+  font-size: .66rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--tinta-tenue);
+}
+.campos-menu__valor {
+  font-size: .95rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.campos-menu__valor--vacio { color: var(--tinta-tenue); font-style: italic; }
+.campos-menu__flecha { color: var(--primario); font-size: 1.3rem; flex: 0 0 auto; }
+
+.asistente__op--actual {
+  border-color: var(--primario); color: var(--primario); background: var(--primario-suave);
+}
+
 /* Selector de tipo de trabajo */
 .selector-tipo { display: flex; flex-direction: column; gap: .5rem; padding-bottom: .5rem; }
 .selector-tipo__op {

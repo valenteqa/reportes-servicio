@@ -141,6 +141,18 @@ export function aviso(texto, tipo = 'info') {
 const capas = [];
 let consumiendoFantasma = false;
 
+// Bloqueo de scroll con contador: con capas anidadas (hoja sobre hoja,
+// visor sobre galeria), cerrar la de arriba no debe liberar el fondo.
+let bloqueos = 0;
+export function bloquearScroll() {
+  bloqueos++;
+  document.body.classList.add('sin-scroll');
+}
+export function liberarScroll() {
+  bloqueos = Math.max(0, bloqueos - 1);
+  if (!bloqueos) document.body.classList.remove('sin-scroll');
+}
+
 window.addEventListener('popstate', () => {
   if (consumiendoFantasma) return;
   const tope = capas[capas.length - 1];
@@ -207,7 +219,7 @@ export function hoja(titulo, construir, { altura = 'auto' } = {}) {
       resuelto = true;
       fondo.classList.remove('hoja-fondo--visible');
       panel.classList.remove('hoja--visible');
-      setTimeout(() => { fondo.remove(); document.body.classList.remove('sin-scroll'); }, 240);
+      setTimeout(() => { fondo.remove(); liberarScroll(); }, 240);
       if (porBack) ancla.desdePop();
       else await ancla.liberar();
       resolve(valor);
@@ -229,7 +241,7 @@ export function hoja(titulo, construir, { altura = 'auto' } = {}) {
 
     cuerpo.append(construir(cerrar));
     document.body.appendChild(fondo);
-    document.body.classList.add('sin-scroll');
+    bloquearScroll();
 
     requestAnimationFrame(() => {
       fondo.classList.add('hoja-fondo--visible');

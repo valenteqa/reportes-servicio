@@ -12,7 +12,7 @@
 // grueso sin relleno (rectangulo, circulo, flecha) para señalar.
 
 import * as db from './db.js';
-import { h, aviso, confirmar, anclarCapa } from './ui.js';
+import { h, aviso, confirmar, anclarCapa, bloquearScroll, liberarScroll } from './ui.js';
 
 const ROJO = '#FF2222';
 const LADO_MAX = 1600;
@@ -724,7 +724,7 @@ export async function editarFoto(evento, alTerminar) {
     resuelto = true;
     bitmap.close && bitmap.close();
     capa.remove();
-    document.body.classList.remove('sin-scroll');
+    liberarScroll();
     if (porBack) ancla.desdePop();
     else await ancla.liberar();
     if (guardado && alTerminar) alTerminar();
@@ -732,7 +732,7 @@ export async function editarFoto(evento, alTerminar) {
   }
 
   document.body.appendChild(capa);
-  document.body.classList.add('sin-scroll');
+  bloquearScroll();
   pintarBarras();
   // Doble pintado: el primero puede correr antes de que el layout de la zona
   // tenga altura real. Y re-pintar al girar el telefono.

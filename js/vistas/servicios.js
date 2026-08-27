@@ -1,7 +1,7 @@
 // Pantalla inicial: lista de trabajos (servicios, pruebas de laboratorio, generales).
 
 import * as db from '../db.js';
-import { h, campo, campoLista, campoArea, hoja, aviso, confirmar, fecha, vacio } from '../ui.js';
+import { h, campo, campoArea, hoja, aviso, confirmar, fecha, vacio } from '../ui.js';
 import * as media from '../media.js';
 import { APP_VERSION } from '../version.js';
 import { temaActual, alternarTema } from '../tema.js';
@@ -92,109 +92,30 @@ function elegirTipo() {
   ));
 }
 
-// El tecnico ya no se pregunta: es el usuario de la app.
+// Alta/edicion de laboratorio, general y procedimiento: solo el titulo.
+// (Los servicios se crean con el asistente y se editan con el menu de campos.)
 async function formularioTrabajo(existente, tipoClave) {
   const previo = existente || {};
   const tipo = db.TIPOS[tipoClave] || db.tipoDe(previo);
-  const esServicio = tipoClave === 'servicio';
-
-  const historial = esServicio ? await historialServicios(previo.id) : [];
-  const distintos = (campoDe, filtro) => distintosDe(historial, campoDe, filtro);
 
   return hoja(tipo.icono + '  ' + tipo.nombre, (cerrar) => {
-    // Pruebas de laboratorio y General: solo el titulo, para arrancar rapido.
-    if (!esServicio) {
-      const cTitulo = campo('Titulo', {
-        value: previo.titulo || '',
-        placeholder: tipoClave === 'laboratorio' ? 'Pruebas de tarjeta IPC'
-          : tipoClave === 'procedimiento' ? 'Cambio de sellos de bomba hidraulica'
-          : 'Revision mensual',
-      });
-      return h('div',
-        cTitulo,
-        h('div.hoja__acciones',
-          h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
-          h('button.btn.btn--primario', {
-            type: 'button',
-            onclick: () => cerrar({ titulo: cTitulo.entrada.value.trim() })
-          }, existente ? 'Guardar' : 'Crear')
-        )
-      );
-    }
-
-    // Mismos campos que la tabla de datos del reporte. Cada uno sugiere lo
-    // ya guardado, filtrado en cascada por el cliente (y lo demas elegido).
-    const v = (c) => c.entrada.value.trim();
-
-    const cCliente = campoLista('Cliente', { value: previo.cliente || '', placeholder: 'CLIENTE' },
-      { opciones: () => distintos('cliente') });
-
-    const cPlanta = campoLista('Planta / sitio', { value: previo.planta || '', placeholder: 'Planta Norte' },
-      { opciones: () => distintos('planta', { cliente: v(cCliente) }) });
-
-    const cMarca = campoLista('Tipo de maquina', { value: previo.marca || '', placeholder: 'HUSKY' },
-      { opciones: () => distintos('marca', { cliente: v(cCliente), planta: v(cPlanta) }) });
-
-    const cModelo = campoLista('Modelo', { value: previo.modelo || '', placeholder: 'H400 RS65/60' },
-      {
-        opciones: () => distintos('modelo', { cliente: v(cCliente), marca: v(cMarca) }),
-        alElegir: (valor) => {
-          if (v(cMarca)) return;
-          const reg = historial.find(t => norm(t.modelo) === norm(valor) && t.marca);
-          if (reg) cMarca.entrada.value = reg.marca;
-        },
-      });
-
-    const cSerie = campoLista('Numero de serie', { value: previo.serie || '', placeholder: '0000000' },
-      {
-        opciones: () => distintos('serie', { cliente: v(cCliente), modelo: v(cModelo) }),
-        // Una serie identifica LA maquina: al elegirla se rellena lo que falte.
-        alElegir: (valor) => {
-          const reg = historial.find(t => norm(t.serie) === norm(valor) &&
-            (!v(cCliente) || norm(t.cliente) === norm(v(cCliente))));
-          if (!reg) return;
-          let relleno = false;
-          for (const [c, k] of [[cCliente, 'cliente'], [cPlanta, 'planta'], [cMarca, 'marca'], [cModelo, 'modelo'], [cNoMaq, 'noMaquina']]) {
-            if (!v(c) && reg[k]) { c.entrada.value = reg[k]; relleno = true; }
-          }
-          if (relleno) aviso('Datos de la maquina rellenados', 'ok');
-        },
-      });
-
-    const cNoMaq = campoLista('No. de maquina (opcional)', { value: previo.noMaquina || '', placeholder: 'Linea 3 / M-07' },
-      { opciones: () => distintos('noMaquina', { cliente: v(cCliente), serie: v(cSerie) }) });
-
-    const cDesc = campoArea('Descripcion de la falla', {
-      value: previo.descripcion || '', rows: 3,
-      placeholder: 'Falla de SERVODRIVE Screw Not Ready'
+    const cTitulo = campo('Titulo', {
+      value: previo.titulo || '',
+      placeholder: tipoClave === 'laboratorio' ? 'Pruebas de tarjeta IPC'
+        : tipoClave === 'procedimiento' ? 'Cambio de sellos de bomba hidraulica'
+        : 'Revision mensual',
     });
-
     return h('div',
-      cCliente, cPlanta, cMarca, cModelo, cSerie, cNoMaq, cDesc,
+      cTitulo,
       h('div.hoja__acciones',
         h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
         h('button.btn.btn--primario', {
           type: 'button',
-          onclick: () => {
-            if (!cDesc.entrada.value.trim()) {
-              aviso('La descripcion de la falla es obligatoria', 'error');
-              cDesc.entrada.focus();
-              return;
-            }
-            cerrar({
-              cliente:   cCliente.entrada.value.trim(),
-              planta:    cPlanta.entrada.value.trim(),
-              marca:     cMarca.entrada.value.trim(),
-              modelo:    cModelo.entrada.value.trim(),
-              serie:     cSerie.entrada.value.trim(),
-              noMaquina: cNoMaq.entrada.value.trim(),
-              descripcion: cDesc.entrada.value.trim(),
-            });
-          }
+          onclick: () => cerrar({ titulo: cTitulo.entrada.value.trim() })
         }, existente ? 'Guardar' : 'Crear')
       )
     );
-  }, { altura: esServicio ? 'alta' : 'auto' });
+  });
 }
 
 /* ---------------------------------------------------------------- */
@@ -357,7 +278,124 @@ export async function nuevoServicio() {
   location.hash = '#/s/' + trabajo.id;
 }
 
+/* ---------------------------------------------------------------- */
+/* Edicion de servicio: menu de campos. Nada de teclado al entrar:   */
+/* el usuario elige QUE editar. Cliente/planta/maquina/modelo/serie  */
+/* se eligen de cuadricula (como el asistente, con "+ Agregar");     */
+/* solo No. de maquina y la descripcion abren teclado.               */
+/* ---------------------------------------------------------------- */
+
+function elegirDeCuadricula(etiqueta, actual, opciones, nombreNuevo) {
+  // El valor actual siempre esta entre las opciones, aunque el historial
+  // (que excluye al servicio en edicion) no lo traiga.
+  if (actual && !opciones.some(o => norm(o) === norm(actual))) {
+    opciones = opciones.concat(actual).sort((a, b) => a.localeCompare(b, 'es'));
+  }
+
+  return hoja(etiqueta, (cerrar) => {
+    const cont = h('div');
+
+    const modoRejilla = () => {
+      cont.replaceChildren(
+        h('button.asistente__nuevo', { type: 'button', onclick: modoEntrada }, '＋  ' + nombreNuevo),
+        opciones.length
+          ? h('div.asistente__rejilla', opciones.map(o =>
+              h('button.asistente__op' + (norm(o) === norm(actual) ? '.asistente__op--actual' : ''), {
+                type: 'button', onclick: () => cerrar(o),
+              }, o)))
+          : h('p.pista', 'Nada guardado todavia. Agrega uno nuevo.')
+      );
+    };
+
+    const modoEntrada = () => {
+      const inp = h('input.campo__entrada', { type: 'text', value: actual || '' });
+      cont.replaceChildren(inp,
+        h('div.hoja__acciones',
+          opciones.length
+            ? h('button.btn.btn--fantasma', { type: 'button', onclick: modoRejilla }, 'Ver opciones')
+            : h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+          h('button.btn.btn--primario', { type: 'button', onclick: () => cerrar(inp.value.trim()) }, 'Guardar')
+        ));
+      setTimeout(() => inp.focus(), 80);
+    };
+
+    if (opciones.length) modoRejilla(); else modoEntrada();
+    return cont;
+  });
+}
+
+function editarTextoCampo(etiqueta, actual, esArea) {
+  return hoja(etiqueta, (cerrar) => {
+    const c = esArea
+      ? campoArea('', { rows: 4, value: actual || '' })
+      : campo('', { value: actual || '' });
+    return h('div', c,
+      h('div.hoja__acciones',
+        h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+        h('button.btn.btn--primario', { type: 'button', onclick: () => cerrar(c.entrada.value.trim()) }, 'Guardar')
+      ));
+  });
+}
+
+async function editarServicioMenu(trabajo) {
+  const historial = await historialServicios(trabajo.id);
+  let cambio = false;
+
+  const CAMPOS = [
+    { k: 'cliente',   etiqueta: 'Cliente',          lista: true, nuevo: 'Agregar cliente', filtro: () => ({}) },
+    { k: 'planta',    etiqueta: 'Planta / sitio',   lista: true, nuevo: 'Agregar planta',  filtro: () => ({ cliente: trabajo.cliente }) },
+    { k: 'marca',     etiqueta: 'Tipo de maquina',  lista: true, nuevo: 'Agregar tipo',    filtro: () => ({ cliente: trabajo.cliente, planta: trabajo.planta }) },
+    { k: 'modelo',    etiqueta: 'Modelo',           lista: true, nuevo: 'Agregar modelo',  filtro: () => ({ cliente: trabajo.cliente, marca: trabajo.marca }) },
+    { k: 'serie',     etiqueta: 'Numero de serie',  lista: true, nuevo: 'Agregar serie',   filtro: () => ({ cliente: trabajo.cliente, modelo: trabajo.modelo }) },
+    { k: 'noMaquina', etiqueta: 'No. de maquina',   lista: false },
+    { k: 'descripcion', etiqueta: 'Descripcion del problema', lista: false, area: true, obligatorio: true },
+  ];
+
+  await hoja('✎  Editar datos', (cerrar) => {
+    const cont = h('div');
+
+    const pintar = () => {
+      cont.replaceChildren(
+        h('div.campos-menu', CAMPOS.map(c =>
+          h('button.campos-menu__fila', { type: 'button', onclick: () => alCampo(c) },
+            h('span.campos-menu__cuerpo',
+              h('span.campos-menu__etq', c.etiqueta),
+              h('span.campos-menu__valor' + (trabajo[c.k] ? '' : '.campos-menu__valor--vacio'),
+                trabajo[c.k] || 'Sin valor')
+            ),
+            h('span.campos-menu__flecha', '›')
+          ))),
+        h('div.hoja__acciones',
+          h('button.btn.btn--primario', { type: 'button', onclick: () => cerrar(true) }, 'Listo'))
+      );
+    };
+
+    async function alCampo(c) {
+      const nuevo = c.lista
+        ? await elegirDeCuadricula(c.etiqueta, trabajo[c.k] || '',
+            distintosDe(historial, c.k, c.filtro()), c.nuevo)
+        : await editarTextoCampo(c.etiqueta, trabajo[c.k] || '', !!c.area);
+
+      if (nuevo === null || nuevo === (trabajo[c.k] || '')) return;
+      if (c.obligatorio && !nuevo) {
+        aviso('La descripcion del problema es obligatoria', 'error');
+        return;
+      }
+      trabajo[c.k] = nuevo;
+      await db.servicioGuardar(trabajo);
+      cambio = true;
+      pintar();
+    }
+
+    pintar();
+    return cont;
+  }, { altura: 'alta' });
+
+  return cambio;
+}
+
 export async function editarServicio(trabajo) {
+  if ((trabajo.tipo || 'servicio') === 'servicio') return editarServicioMenu(trabajo);
   const datos = await formularioTrabajo(trabajo, trabajo.tipo);
   if (!datos) return false;
   Object.assign(trabajo, datos);
