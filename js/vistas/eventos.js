@@ -40,14 +40,16 @@ export async function agregarImagen(servicioId, equipoId) {
 }
 
 /**
- * Galeria del trabajo: todas las fotos del arbol, agrupadas por rama.
+ * Galeria del trabajo: todas las fotos del arbol en orden cronologico,
+ * separadas por dia, cada una con su leyenda (el pie) si la tiene.
  * Tocar una abre el visor (pie editable, eliminar, excluir).
  */
-export function galeriaDelTrabajo(servicioId, nombrePorRama) {
+export function galeriaDelTrabajo(servicioId) {
   return hoja('Fotos del trabajo', (cerrar) => {
     const cont = h('div');
 
     const pintar = async () => {
+      // eventosDeServicio ya viene ordenado por hora de captura.
       const fotos = (await db.eventosDeServicio(servicioId)).filter(e => e.tipo === 'foto');
       cont.replaceChildren();
 
@@ -57,31 +59,37 @@ export function galeriaDelTrabajo(servicioId, nombrePorRama) {
         return;
       }
 
-      const grupos = new Map();
-      for (const ev of fotos) {
-        if (!grupos.has(ev.equipoId)) grupos.set(ev.equipoId, []);
-        grupos.get(ev.equipoId).push(ev);
-      }
+      let diaPrevio = null;
+      let rejilla = null;
 
-      for (const [ramaId, lista] of grupos) {
-        cont.append(h('h3.galeria__rama',
-          (nombrePorRama[ramaId] || 'General') + ' · ' + lista.length));
-        const rejilla = h('div.galeria-rejilla');
-        for (const ev of lista) {
-          const celda = h('button.galeria-celda', {
-            type: 'button',
-            onclick: () => verFoto(ev, pintar),
-          });
-          if (!ev.incluir) celda.classList.add('galeria-celda--excluida');
-          rejilla.append(celda);
-          db.fotoLeer(ev.datos.fotoId).then(f => {
-            if (!f) { celda.append(h('span.galeria-celda__falta', '✕')); return; }
-            const img = h('img', { alt: ev.datos.pie || '' });
-            celda.append(img);
-            img.src = media.urlDe(f.mini || f.blob);
-          });
+      for (const ev of fotos) {
+        const dia = new Date(ev.ts).toDateString();
+        if (dia !== diaPrevio) {
+          diaPrevio = dia;
+          cont.append(h('h3.galeria__dia', new Date(ev.ts).toLocaleDateString('es-MX', {
+            weekday: 'long', day: 'numeric', month: 'long'
+          })));
+          rejilla = h('div.galeria-rejilla');
+          cont.append(rejilla);
         }
-        cont.append(rejilla);
+
+        const marco = h('span.galeria-item__marco');
+        const item = h('button.galeria-item', {
+          type: 'button',
+          onclick: () => verFoto(ev, pintar),
+        },
+          marco,
+          ev.datos.pie ? h('span.galeria-item__pie', ev.datos.pie) : null
+        );
+        if (!ev.incluir) item.classList.add('galeria-item--excluida');
+        rejilla.append(item);
+
+        db.fotoLeer(ev.datos.fotoId).then(f => {
+          if (!f) { marco.append(h('span.galeria-item__falta', '✕')); return; }
+          const img = h('img', { alt: ev.datos.pie || '' });
+          marco.append(img);
+          img.src = media.urlDe(f.mini || f.blob);
+        });
       }
     };
 

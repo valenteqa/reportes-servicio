@@ -619,26 +619,39 @@ button { font-family: inherit; font-size: inherit; }
 /* Galeria del trabajo                                               */
 /* ---------------------------------------------------------------- */
 
-.galeria__rama {
+.galeria__dia {
   margin: .9rem 0 .45rem;
-  font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
-  color: var(--tinta-suave);
+  font-size: .7rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--tinta-tenue);
 }
-.galeria__rama:first-child { margin-top: 0; }
+.galeria__dia::before { content: '// '; color: var(--primario); }
+.galeria__dia:first-child { margin-top: 0; }
 
 .galeria-rejilla {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem .4rem;
+  align-items: start;
 }
-.galeria-celda {
-  position: relative; aspect-ratio: 1; padding: 0;
-  border: 1px solid var(--borde); background: var(--superficie-2);
-  overflow: hidden; cursor: pointer;
+.galeria-item {
+  display: flex; flex-direction: column; gap: .25rem;
+  padding: 0; border: none; background: transparent;
+  color: var(--tinta); text-align: left; cursor: pointer;
+}
+.galeria-item__marco {
   display: flex; align-items: center; justify-content: center;
+  width: 100%; aspect-ratio: 1;
+  border: 1px solid var(--borde); background: var(--superficie-2);
+  overflow: hidden;
 }
-.galeria-celda:active { border-color: var(--primario); }
-.galeria-celda img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.galeria-celda--excluida { opacity: .4; }
-.galeria-celda__falta { color: var(--tinta-tenue); font-size: 1.2rem; }
+.galeria-item:active .galeria-item__marco { border-color: var(--primario); }
+.galeria-item__marco img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.galeria-item__pie {
+  font-size: .7rem; line-height: 1.3; color: var(--tinta-suave);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; overflow-wrap: anywhere;
+}
+.galeria-item--excluida .galeria-item__marco,
+.galeria-item--excluida .galeria-item__pie { opacity: .4; }
+.galeria-item__falta { color: var(--tinta-tenue); font-size: 1.2rem; }
 
 /* ---------------------------------------------------------------- */
 /* Barra de captura                                                  */
@@ -716,7 +729,11 @@ button { font-family: inherit; font-size: inherit; }
 .hoja__cuerpo { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .hoja__acciones {
   display: flex; align-items: center; gap: .5rem;
-  margin-top: 1.1rem; padding-top: .3rem;
+  margin-top: 1.1rem; padding: .3rem 0 .2rem;
+  /* Pegajosos al fondo visible de la hoja: aunque el formulario sea largo o
+     el teclado achique la pantalla, Cancelar/Crear siempre estan a la mano. */
+  position: sticky; bottom: 0;
+  background: var(--superficie);
 }
 .hoja__acciones .btn--primario, .hoja__acciones .btn--fantasma { flex: 1; }
 

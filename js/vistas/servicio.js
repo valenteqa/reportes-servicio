@@ -141,9 +141,6 @@ export async function render(contenedor, refrescar, params) {
   const maquina = [[servicio.marca, servicio.modelo].filter(Boolean).join(' '), servicio.serie]
     .filter(Boolean).join(' · ');
 
-  const nombrePorRama = { [db.GENERAL]: 'General' };
-  actividades.forEach(a => { nombrePorRama[a.id] = a.nombre; });
-
   const cabecera = h('header.cabecera',
     h('div.cabecera__fila',
       h('button.icono-btn', { type: 'button', 'aria-label': 'Volver',
@@ -154,7 +151,7 @@ export async function render(contenedor, refrescar, params) {
       ),
       h('button.icono-btn', { type: 'button', 'aria-label': 'Fotos del trabajo',
         onclick: async () => {
-          await galeriaDelTrabajo(servicio.id, nombrePorRama);
+          await galeriaDelTrabajo(servicio.id);
           refrescar();   // por si borro o excluyo fotos desde el visor
         } }, '🖼'),
       h('button.icono-btn', { type: 'button', 'aria-label': 'Editar datos',
