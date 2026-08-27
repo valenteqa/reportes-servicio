@@ -51,20 +51,30 @@ de la lista de trabajos, p. ej. `v2.0` — así se comprueba que llegó.
 
 ## Cómo está organizada
 
-Al crear, primero eliges el **tipo**: 🔧 Servicio, 🧪 Pruebas de laboratorio o
-📋 General. De ahí en adelante todo funciona igual.
+Al crear, primero eliges el **tipo**: 🔧 Servicio (pide cliente, planta, modelo,
+serie y descripción de la falla), 🧪 Pruebas de laboratorio o 📋 General (estos
+dos solo piden un título). El técnico no se pregunta: es el usuario de la app
+(ajuste `usuario`, hoy "Usuario").
+
+La vista del trabajo es **un árbol** (estilo skill tree): el tronco es el
+trabajo, cada rama es una **actividad** y de cada rama cuelgan sus registros en
+orden cronológico. La rama seleccionada es el destino de la barra de captura.
 
 ```
-Trabajo  (tipo, cliente, planta, modelo y serie de máquina,
-          técnico, descripción de la falla)
-├─ General          ← lo que no es de un equipo específico
-│  └─ línea de tiempo
-└─ Equipos[]
-   └─ "Bomba hidráulica 2"
-      └─ línea de tiempo ──> 08:42 nota
-                             08:47 tabla
-                             08:51 foto
+Trabajo
+├─◇ General                      ← el tronco: lo que no es de una actividad
+├─◆ Mediciones de servodrive     ← rama activa (◆ cian)
+│    ├─ 08:42 nota
+│    ├─ 08:47 tabla
+│    └─ 08:51 prueba ─┐
+│         └─ resultado ← queda pendiente hasta registrarlo
+└─◇ Ajuste de bombas   [1 sin resultado]
 ```
+
+La **prueba** (botón 🧪 en la barra) registra qué se va a probar y deja
+colgando un nodo "Resultado" pendiente; al terminar la prueba se toca y se
+registra qué pasó, con su propia hora. Cada actividad será una sección del
+reporte.
 
 Cada registro guarda su hora automáticamente. Puedes ver la línea de tiempo de un
 equipo, o la del servicio completo con todo mezclado en orden cronológico.

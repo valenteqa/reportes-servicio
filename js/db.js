@@ -127,6 +127,7 @@ export function servicioNuevo(datos) {
   const servicio = {
     id: nuevoId(),
     tipo:        datos.tipo        || 'servicio',
+    titulo:      datos.titulo      || '',   // pruebas de laboratorio y general solo llevan titulo
     cliente:     datos.cliente     || '',
     planta:      datos.planta      || '',
     modelo:      datos.modelo      || '',

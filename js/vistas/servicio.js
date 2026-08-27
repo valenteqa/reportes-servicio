@@ -1,29 +1,32 @@
-// Detalle del servicio: equipos y linea de tiempo completa.
+// Detalle del trabajo: UNA sola vista en forma de arbol (tipo skill tree).
+//
+// El tronco es el trabajo; cada rama es una ACTIVIDAD (pruebas de una IPC,
+// ajuste de bombas, mediciones de temperatura...) y de cada rama cuelgan sus
+// notas, tablas, fotos y pruebas en orden cronologico.
+//
+// La rama seleccionada es el destino de la barra de captura. "General" es el
+// tronco: siempre existe y recibe lo que no pertenece a una actividad.
 
 import * as db from '../db.js';
 import * as media from '../media.js';
-import { h, campo, campoArea, hoja, aviso, confirmar, fecha, hora, duracion, relativo, vacio, $ } from '../ui.js';
-import { lineaDeTiempo } from './eventos.js';
+import { h, campo, hoja, aviso, confirmar, fecha, hora, duracion } from '../ui.js';
+import { lineaDeTiempo, barraCaptura } from './eventos.js';
 import { editarServicio } from './servicios.js';
 
-export async function agregarEquipo(servicioId) {
+function claveRama(servicioId) { return 'rama:' + servicioId; }
+
+export async function agregarActividad(servicioId) {
   const catalogo = await db.catalogoEquipos();
 
-  const datos = await hoja('Agregar equipo', (cerrar) => {
-    const cNombre = campo('Nombre del equipo', {
-      placeholder: 'Bomba hidraulica 2',
-      list: 'catalogo-equipos',
+  const nombre = await hoja('Nueva actividad', (cerrar) => {
+    const cNombre = campo('Titulo de la actividad', {
+      placeholder: 'Pruebas de tarjeta IPC',
       autocomplete: 'off',
     });
-    const cTag  = campo('TAG', { placeholder: 'BH-002' });
-    const cDesc = campoArea('Notas del equipo', { rows: 2, placeholder: 'Marca, modelo, serie...' });
-
-    const sugerencias = h('datalist#catalogo-equipos',
-      catalogo.slice(0, 40).map(c => h('option', { value: c.valor })));
 
     const rapidas = catalogo.length
       ? h('div.chips',
-          h('span.pista', 'Usados antes:'),
+          h('span.pista', 'Usadas antes:'),
           catalogo.slice(0, 6).map(c => h('button.chip', {
             type: 'button',
             onclick: () => { cNombre.entrada.value = c.valor; cNombre.entrada.focus(); }
@@ -32,92 +35,84 @@ export async function agregarEquipo(servicioId) {
       : null;
 
     return h('div',
-      cNombre, sugerencias, rapidas, cTag, cDesc,
+      cNombre, rapidas,
+      h('p.pista', 'Cada actividad es una rama del arbol: ahi caen sus notas, tablas, fotos y pruebas. En el reporte sera una seccion.'),
       h('div.hoja__acciones',
         h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
         h('button.btn.btn--primario', {
-          type: 'button',
-          onclick: () => cerrar({
-            nombre: cNombre.entrada.value.trim(),
-            tag:    cTag.entrada.value.trim(),
-            descripcion: cDesc.entrada.value.trim(),
-          })
-        }, 'Agregar')
+          type: 'button', onclick: () => cerrar(cNombre.entrada.value.trim())
+        }, 'Crear rama')
       )
     );
   });
 
-  if (!datos) return null;
-  if (!datos.nombre) { aviso('Ponle nombre al equipo', 'error'); return null; }
-  const equipo = await db.equipoNuevo(servicioId, datos);
-  aviso('Equipo agregado', 'ok');
-  return equipo;
+  if (!nombre) return null;
+  const actividad = await db.equipoNuevo(servicioId, { nombre });
+  sessionStorage.setItem(claveRama(servicioId), actividad.id);
+  aviso('Actividad creada', 'ok');
+  return actividad;
 }
 
-function tarjetaEquipo(servicio, equipo, resumen, refrescar) {
-  const r = resumen || { total: 0, foto: 0, nota: 0, tabla: 0, ultimo: 0 };
-  const esGeneral = equipo.id === db.GENERAL;
+function menuRama(actividad, conteo, refrescar) {
+  return h('button.icono-btn.icono-btn--mini.icono-btn--tenue', {
+    type: 'button', 'aria-label': 'Opciones',
+    onclick: async (ev) => {
+      ev.stopPropagation();
+      const accion = await hoja(actividad.nombre, (cerrar) => h('div.lista-acciones',
+        h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('renombrar') }, '✎  Renombrar'),
+        h('button.lista-acciones__item.lista-acciones__item--peligro',
+          { type: 'button', onclick: () => cerrar('borrar') }, '🗑  Eliminar actividad')
+      ));
 
-  return h('article.tarjeta-equipo' + (esGeneral ? '.tarjeta-equipo--general' : ''), {
-    onclick: () => { location.hash = '#/s/' + servicio.id + '/e/' + equipo.id; }
-  },
-    h('div.tarjeta-equipo__cuerpo',
-      h('h3.tarjeta-equipo__nombre',
-        esGeneral ? '📋 ' : '',
-        equipo.nombre,
-        equipo.tag ? h('span.tag', equipo.tag) : null
-      ),
-      equipo.descripcion ? h('p.tarjeta-equipo__desc', equipo.descripcion) : null,
-      h('div.tarjeta-equipo__pie',
-        r.total
-          ? [
-              r.foto  ? h('span.contador', '📷 ' + r.foto)  : null,
-              r.tabla ? h('span.contador', '▦ ' + r.tabla)  : null,
-              r.nota  ? h('span.contador', '📝 ' + r.nota)  : null,
-              h('span.pista', '· ' + relativo(r.ultimo)),
-            ]
-          : h('span.pista', 'Sin registros')
-      )
-    ),
-    esGeneral ? null : h('button.icono-btn.tarjeta-equipo__menu', {
-      type: 'button', 'aria-label': 'Opciones',
-      onclick: async (ev) => {
-        ev.stopPropagation();
-        const accion = await hoja(equipo.nombre, (cerrar) => h('div.lista-acciones',
-          h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('editar') }, '✎  Editar equipo'),
-          h('button.lista-acciones__item.lista-acciones__item--peligro',
-            { type: 'button', onclick: () => cerrar('borrar') }, '🗑  Eliminar equipo')
-        ));
-
-        if (accion === 'editar') {
-          const datos = await hoja('Editar equipo', (cerrar) => {
-            const cNombre = campo('Nombre', { value: equipo.nombre });
-            const cTag = campo('TAG', { value: equipo.tag || '' });
-            const cDesc = campoArea('Notas del equipo', { rows: 2, value: equipo.descripcion || '' });
-            return h('div', cNombre, cTag, cDesc,
-              h('div.hoja__acciones',
-                h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
-                h('button.btn.btn--primario', {
-                  type: 'button',
-                  onclick: () => cerrar({
-                    nombre: cNombre.entrada.value.trim(),
-                    tag: cTag.entrada.value.trim(),
-                    descripcion: cDesc.entrada.value.trim(),
-                  })
-                }, 'Guardar')));
-          });
-          if (datos && datos.nombre) {
-            Object.assign(equipo, datos);
-            await db.equipoGuardar(equipo);
-            refrescar();
-          }
-        } else if (accion === 'borrar') {
-          const ok = await confirmar('Se elimina "' + equipo.nombre +
-            '" y sus ' + r.total + ' registros. Esto no se puede deshacer.');
-          if (ok) { await db.equipoBorrar(equipo.id); aviso('Equipo eliminado'); refrescar(); }
-        }
+      if (accion === 'renombrar') {
+        const nombre = await hoja('Renombrar actividad', (cerrar) => {
+          const cNombre = campo('Titulo', { value: actividad.nombre });
+          return h('div', cNombre,
+            h('div.hoja__acciones',
+              h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+              h('button.btn.btn--primario', {
+                type: 'button', onclick: () => cerrar(cNombre.entrada.value.trim())
+              }, 'Guardar')));
+        });
+        if (nombre) { actividad.nombre = nombre; await db.equipoGuardar(actividad); refrescar(); }
+      } else if (accion === 'borrar') {
+        const ok = await confirmar('Se elimina "' + actividad.nombre + '" con sus ' +
+          conteo + ' registros. Esto no se puede deshacer.');
+        if (ok) { await db.equipoBorrar(actividad.id); aviso('Actividad eliminada'); refrescar(); }
       }
-    }, '⋯')
+    }
+  }, '⋯');
+}
+
+function rama(servicio, actividad, eventos, activaId, refrescar) {
+  const esActiva = actividad.id === activaId;
+  const esGeneral = actividad.id === db.GENERAL;
+  const pendientes = eventos.filter(e => e.tipo === 'prueba' && !e.datos.resultado).length;
+
+  const cabeza = h('button.rama__cabeza' + (esActiva ? '.rama__cabeza--activa' : ''), {
+    type: 'button',
+    onclick: () => {
+      sessionStorage.setItem(claveRama(servicio.id), actividad.id);
+      refrescar();
+    }
+  },
+    h('span.rama__rombo'),
+    h('span.rama__nombre', actividad.nombre),
+    eventos.length ? h('span.rama__conteo', String(eventos.length)) : null,
+    pendientes ? h('span.rama__pendiente', pendientes + ' sin resultado') : null,
+    h('span.crece'),
+    esGeneral ? null : menuRama(actividad, eventos.length, refrescar)
+  );
+
+  const cuerpo = eventos.length
+    ? lineaDeTiempo(eventos, refrescar)
+    : h('p.rama__vacia', esActiva
+        ? 'Rama activa — lo que captures abajo cae aqui.'
+        : 'Sin registros. Tocala para capturar aqui.');
+
+  return h('section.rama' + (esActiva ? '.rama--activa' : ''),
+    cabeza,
+    h('div.rama__cuerpo', cuerpo)
   );
 }
 
@@ -126,12 +121,23 @@ export async function render(contenedor, refrescar, params) {
   const servicio = await db.servicioLeer(params.sid);
   if (!servicio) { location.hash = '#/'; return; }
 
-  const equipos = await db.equiposDeServicio(servicio.id);
-  const resumen = await db.resumenPorEquipo(servicio.id);
-  const pestanaGuardada = sessionStorage.getItem('pestana:' + servicio.id) || 'equipos';
+  const actividades = await db.equiposDeServicio(servicio.id);
+  const eventos = await db.eventosDeServicio(servicio.id);
+
+  const porRama = {};
+  for (const ev of eventos) {
+    (porRama[ev.equipoId] = porRama[ev.equipoId] || []).push(ev);
+  }
+
+  // Rama activa: la guardada si sigue existiendo; si no, General.
+  let activaId = sessionStorage.getItem(claveRama(servicio.id)) || db.GENERAL;
+  if (activaId !== db.GENERAL && !actividades.some(a => a.id === activaId)) {
+    activaId = db.GENERAL;
+    sessionStorage.setItem(claveRama(servicio.id), activaId);
+  }
 
   const tipo = db.tipoDe(servicio);
-  const titulo = servicio.cliente || servicio.planta || tipo.nombre;
+  const titulo = servicio.titulo || servicio.cliente || servicio.planta || tipo.nombre;
   const maquina = [servicio.modelo, servicio.serie].filter(Boolean).join(' · ');
 
   const cabecera = h('header.cabecera',
@@ -154,51 +160,26 @@ export async function render(contenedor, refrescar, params) {
     )
   );
 
-  const panel = h('div.panel');
-
-  const pestanas = h('div.pestanas',
-    h('button.pestana', { type: 'button', dataset: { p: 'equipos' } },
-      'Equipos (' + equipos.length + ')'),
-    h('button.pestana', { type: 'button', dataset: { p: 'todo' } }, 'Linea completa')
+  const general = { id: db.GENERAL, nombre: 'General' };
+  const arbol = h('div.arbol',
+    rama(servicio, general, porRama[db.GENERAL] || [], activaId, refrescar),
+    actividades.map(a => rama(servicio, a, porRama[a.id] || [], activaId, refrescar)),
+    h('button.rama-nueva', {
+      type: 'button',
+      onclick: async () => { if (await agregarActividad(servicio.id)) refrescar(); }
+    },
+      h('span.rama-nueva__rombo', '+'),
+      h('span', 'Nueva actividad')
+    )
   );
 
-  const nombrePorId = {};
-  nombrePorId[db.GENERAL] = 'General';
-  equipos.forEach(e => { nombrePorId[e.id] = e.nombre; });
+  const nombreActiva = activaId === db.GENERAL
+    ? 'General'
+    : (actividades.find(a => a.id === activaId) || general).nombre;
 
-  async function pintarPanel(cual) {
-    sessionStorage.setItem('pestana:' + servicio.id, cual);
-    Array.from(pestanas.children).forEach(b =>
-      b.classList.toggle('pestana--activa', b.dataset.p === cual));
-    panel.replaceChildren();
-
-    if (cual === 'equipos') {
-      const general = { id: db.GENERAL, nombre: 'General', tag: '', descripcion: 'Observaciones que no son de un equipo especifico' };
-      panel.append(tarjetaEquipo(servicio, general, resumen[db.GENERAL], refrescar));
-
-      if (!equipos.length) {
-        panel.append(vacio('⚙', 'Sin equipos todavia',
-          'Agrega los equipos que vas a revisar. Cada uno lleva su propia linea de tiempo.'));
-      } else {
-        equipos.forEach(eq => panel.append(tarjetaEquipo(servicio, eq, resumen[eq.id], refrescar)));
-      }
-
-      panel.append(h('button.btn.btn--bloque', {
-        type: 'button',
-        onclick: async () => { if (await agregarEquipo(servicio.id)) refrescar(); }
-      }, '+  Agregar equipo'));
-
-    } else {
-      const eventos = await db.eventosDeServicio(servicio.id);
-      panel.append(lineaDeTiempo(eventos, refrescar, { mostrarEquipo: id => nombrePorId[id] || 'Equipo eliminado' }));
-    }
-  }
-
-  pestanas.addEventListener('click', (ev) => {
-    const btn = ev.target.closest('.pestana');
-    if (btn) pintarPanel(btn.dataset.p);
-  });
-
-  contenedor.append(cabecera, pestanas, h('main.contenido', panel));
-  await pintarPanel(pestanaGuardada);
+  contenedor.append(
+    cabecera,
+    h('main.contenido.contenido--conBarra', arbol),
+    barraCaptura(servicio.id, activaId, refrescar, nombreActiva)
+  );
 }

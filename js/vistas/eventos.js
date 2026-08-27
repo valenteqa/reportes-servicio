@@ -138,7 +138,86 @@ export async function verFoto(evento, alCambiar) {
 /* Tarjetas de la linea de tiempo                                    */
 /* ---------------------------------------------------------------- */
 
-const ICONO = { nota: '📝', tabla: '▦', foto: '📷' };
+const ICONO = { nota: '📝', tabla: '▦', foto: '📷', prueba: '🧪' };
+
+/* ---------------------------------------------------------------- */
+/* Pruebas: se describe la prueba a realizar y queda colgando una    */
+/* rama "Resultado" pendiente hasta que se registra que paso.        */
+/* ---------------------------------------------------------------- */
+
+export async function agregarPrueba(servicioId, equipoId) {
+  const texto = await hoja('Nueva prueba', (cerrar) => {
+    const area = campoArea('', {
+      placeholder: 'Que prueba vas a realizar...\n\nEj: Cambiar BREAKER Q905 de 90 A por uno de 125 A y arrancar en ciclo de inyeccion.',
+      rows: 5,
+    });
+    return h('div',
+      area,
+      h('p.pista', 'Al guardarla queda pendiente su resultado: registralo cuando termines la prueba.'),
+      h('div.hoja__acciones',
+        h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+        h('button.btn.btn--primario', {
+          type: 'button', onclick: () => cerrar(area.entrada.value.trim())
+        }, 'Guardar prueba')
+      )
+    );
+  });
+
+  if (!texto) return null;
+  const ev = await db.eventoNuevo(servicioId, equipoId, 'prueba', {
+    descripcion: texto,
+    resultado: '',
+    resultadoTs: null,
+  });
+  aviso('Prueba guardada — queda pendiente el resultado', 'ok');
+  return ev;
+}
+
+async function registrarResultado(evento) {
+  const texto = await hoja(evento.datos.resultado ? 'Editar resultado' : 'Resultado de la prueba', (cerrar) => {
+    const area = campoArea('', {
+      rows: 6,
+      value: evento.datos.resultado || '',
+      placeholder: 'Que paso al realizar la prueba...\n\nEj: Se arranca maquina en ciclo de inyeccion sin alarmas de SERVODRIVE.',
+    });
+    return h('div',
+      h('p.parrafo.prueba__cita', '🧪 ' + evento.datos.descripcion),
+      area,
+      h('div.hoja__acciones',
+        h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+        h('button.btn.btn--primario', {
+          type: 'button', onclick: () => cerrar(area.entrada.value.trim())
+        }, 'Guardar resultado')
+      )
+    );
+  });
+
+  if (texto === null) return false;
+  evento.datos.resultado = texto;
+  if (texto && !evento.datos.resultadoTs) evento.datos.resultadoTs = Date.now();
+  if (!texto) evento.datos.resultadoTs = null;
+  await db.eventoGuardar(evento);
+  return true;
+}
+
+async function editarPrueba(evento) {
+  const texto = await hoja('Editar prueba', (cerrar) => {
+    const area = campoArea('', { rows: 5, value: evento.datos.descripcion || '' });
+    return h('div',
+      area,
+      h('div.hoja__acciones',
+        h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+        h('button.btn.btn--primario', {
+          type: 'button', onclick: () => cerrar(area.entrada.value.trim())
+        }, 'Guardar')
+      )
+    );
+  });
+  if (texto === null) return false;
+  evento.datos.descripcion = texto;
+  await db.eventoGuardar(evento);
+  return true;
+}
 
 function menuEvento(evento, refrescar) {
   return h('button.icono-btn.tarjeta__menu', {
@@ -241,11 +320,45 @@ function tarjetaFoto(evento, refrescar) {
   return cont;
 }
 
+function tarjetaPrueba(evento, refrescar) {
+  const d = evento.datos;
+  const pendiente = !d.resultado;
+
+  const nodoResultado = pendiente
+    ? h('button.prueba__resultado.prueba__resultado--pendiente', {
+        type: 'button',
+        onclick: async (ev) => { ev.stopPropagation(); if (await registrarResultado(evento)) refrescar(); }
+      }, '⚡ Registrar resultado de la prueba…')
+    : h('div.prueba__resultado', {
+        onclick: async (ev) => { ev.stopPropagation(); if (await registrarResultado(evento)) refrescar(); }
+      },
+        h('div.prueba__resultadoCabeza',
+          h('span.prueba__etiqueta', 'Resultado'),
+          d.resultadoTs ? h('span.tarjeta__hora', hora(d.resultadoTs)) : null
+        ),
+        h('p.tarjeta__texto', d.resultado)
+      );
+
+  return h('div.tarjeta.tarjeta--prueba', {
+    onclick: async () => { if (await editarPrueba(evento)) refrescar(); }
+  },
+    h('div.tarjeta__cabeza',
+      h('span.tarjeta__icono', ICONO.prueba),
+      h('span.prueba__etiqueta', 'Prueba'),
+      h('span.tarjeta__hora', hora(evento.ts)),
+      menuEvento(evento, refrescar)
+    ),
+    h('p.tarjeta__texto', d.descripcion || '(sin descripcion)'),
+    h('div.prueba__rama', nodoResultado)
+  );
+}
+
 export function tarjetaEvento(evento, refrescar) {
   let el;
   if (evento.tipo === 'nota')  el = tarjetaNota(evento, refrescar);
-  else if (evento.tipo === 'tabla') el = tarjetaTabla(evento, refrescar);
-  else if (evento.tipo === 'foto')  el = tarjetaFoto(evento, refrescar);
+  else if (evento.tipo === 'tabla')  el = tarjetaTabla(evento, refrescar);
+  else if (evento.tipo === 'foto')   el = tarjetaFoto(evento, refrescar);
+  else if (evento.tipo === 'prueba') el = tarjetaPrueba(evento, refrescar);
   else el = h('div.tarjeta', 'Tipo desconocido: ' + evento.tipo);
 
   if (!evento.incluir) el.classList.add('tarjeta--excluida');
@@ -287,23 +400,30 @@ export function lineaDeTiempo(eventos, refrescar, { mostrarEquipo = null } = {})
 /* Barra inferior de captura                                         */
 /* ---------------------------------------------------------------- */
 
-export function barraCaptura(servicioId, equipoId, refrescar) {
+/**
+ * Barra fija de captura. Todo cae en la actividad activa (destinoNombre
+ * la muestra para que siempre sepas donde va a quedar lo que captures).
+ */
+export function barraCaptura(servicioId, equipoId, refrescar, destinoNombre) {
   const btn = (icono, texto, alPulsar, clase = '') =>
     h('button.captura__btn' + clase, { type: 'button', onclick: alPulsar },
       h('span.captura__icono', icono), h('span.captura__texto', texto));
 
-  return h('div.captura',
-    btn('📷', 'Foto', async () => {
-      await capturarFoto(servicioId, equipoId);
-      refrescar();
-    }, '.captura__btn--principal'),
-    btn('📝', 'Nota', async () => {
-      if (await agregarNota(servicioId, equipoId)) refrescar();
-    }),
-    btn('▦', 'Tabla', () => agregarTabla(servicioId, equipoId)),
-    btn('🖼', 'Galeria', async () => {
-      await capturarFoto(servicioId, equipoId, { galeria: true });
-      refrescar();
-    })
+  return h('div.captura-zona',
+    destinoNombre ? h('div.captura-destino',
+      h('span.captura-destino__flecha', '▸'), destinoNombre) : null,
+    h('div.captura',
+      btn('📷', 'Foto', async () => {
+        await capturarFoto(servicioId, equipoId);
+        refrescar();
+      }, '.captura__btn--principal'),
+      btn('📝', 'Nota', async () => {
+        if (await agregarNota(servicioId, equipoId)) refrescar();
+      }),
+      btn('▦', 'Tabla', () => agregarTabla(servicioId, equipoId)),
+      btn('🧪', 'Prueba', async () => {
+        if (await agregarPrueba(servicioId, equipoId)) refrescar();
+      })
+    )
   );
 }

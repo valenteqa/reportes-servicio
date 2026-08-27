@@ -1,9 +1,8 @@
 // Arranque y ruteo.
 //
 // Rutas:
-//   #/                      lista de servicios
-//   #/s/<sid>               detalle del servicio (equipos / linea completa)
-//   #/s/<sid>/e/<eid>       linea de tiempo de un equipo
+//   #/                      lista de trabajos
+//   #/s/<sid>               arbol del trabajo (actividades y sus registros)
 //   #/s/<sid>/t/<eventoId>  editor de tabla
 
 import { h, aviso, vaciar } from './ui.js';
@@ -11,7 +10,6 @@ import * as media from './media.js';
 import { temaActual, aplicarTema } from './tema.js';
 import * as vistaServicios from './vistas/servicios.js';
 import * as vistaServicio  from './vistas/servicio.js';
-import * as vistaEquipo    from './vistas/equipo.js';
 import * as vistaTabla     from './vistas/tabla.js';
 
 const raiz = document.getElementById('app');
@@ -23,8 +21,8 @@ function analizarRuta() {
 
   if (!p.length) return { vista: 'servicios', params: {} };
   if (p[0] === 's' && p[1]) {
-    if (p[2] === 'e' && p[3]) return { vista: 'equipo', params: { sid: p[1], eid: p[3] } };
-    if (p[2] === 't' && p[3]) return { vista: 'tabla',  params: { sid: p[1], eventoId: p[3] } };
+    if (p[2] === 't' && p[3]) return { vista: 'tabla', params: { sid: p[1], eventoId: p[3] } };
+    // '/e/<id>' era la vista por equipo; ahora todo vive en el arbol.
     return { vista: 'servicio', params: { sid: p[1] } };
   }
   return { vista: 'servicios', params: {} };
@@ -33,7 +31,6 @@ function analizarRuta() {
 const VISTAS = {
   servicios: vistaServicios,
   servicio:  vistaServicio,
-  equipo:    vistaEquipo,
   tabla:     vistaTabla,
 };
 
@@ -73,9 +70,11 @@ window.addEventListener('error', (ev) => {
 });
 
 // Al instalarse, pedir que Android no borre los datos por falta de espacio.
+// De paso, dejar registrado el usuario de la app (es el tecnico de los reportes).
 async function protegerDatos() {
   try {
-    const { pedirPersistencia, estadoAlmacenamiento } = await import('./db.js');
+    const { pedirPersistencia, estadoAlmacenamiento, ajusteLeer, ajusteGuardar } = await import('./db.js');
+    if (!(await ajusteLeer('usuario'))) await ajusteGuardar('usuario', 'Usuario');
     const info = await estadoAlmacenamiento();
     if (info.soportado && !info.persistente) await pedirPersistencia();
   } catch (e) { /* sin soporte */ }

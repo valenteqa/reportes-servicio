@@ -52,24 +52,42 @@ function elegirTipo() {
   ));
 }
 
-async function formularioTrabajo(existente, tipoClave) {
+// El tecnico ya no se pregunta: es el usuario de la app.
+function formularioTrabajo(existente, tipoClave) {
   const previo = existente || {};
   const tipo = db.TIPOS[tipoClave] || db.tipoDe(previo);
-  const ultimoTecnico = await db.ajusteLeer('ultimoTecnico', '');
+  const esServicio = tipoClave === 'servicio';
 
   return hoja(tipo.icono + '  ' + tipo.nombre, (cerrar) => {
-    const cCliente = campo('Cliente',            { value: previo.cliente || '', placeholder: 'Nombre del cliente' });
+    // Pruebas de laboratorio y General: solo el titulo, para arrancar rapido.
+    if (!esServicio) {
+      const cTitulo = campo('Titulo', {
+        value: previo.titulo || '',
+        placeholder: tipoClave === 'laboratorio' ? 'Pruebas de tarjeta IPC' : 'Revision mensual',
+      });
+      return h('div',
+        cTitulo,
+        h('div.hoja__acciones',
+          h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+          h('button.btn.btn--primario', {
+            type: 'button',
+            onclick: () => cerrar({ titulo: cTitulo.entrada.value.trim() })
+          }, existente ? 'Guardar' : 'Crear')
+        )
+      );
+    }
+
+    const cCliente = campo('Cliente',            { value: previo.cliente || '', placeholder: 'CLIENTE' });
     const cPlanta  = campo('Planta / sitio',     { value: previo.planta  || '', placeholder: 'Planta Norte' });
-    const cModelo  = campo('Modelo de maquina',  { value: previo.modelo  || '', placeholder: 'Engel Victory 200' });
-    const cSerie   = campo('Numero de serie',    { value: previo.serie   || '', placeholder: 'SN-48213' });
-    const cTecnico = campo('Tecnico',            { value: previo.tecnico || ultimoTecnico, placeholder: 'Tu nombre' });
+    const cModelo  = campo('Modelo de maquina',  { value: previo.modelo  || '', placeholder: 'MAQUINA' });
+    const cSerie   = campo('Numero de serie',    { value: previo.serie   || '', placeholder: '0000000' });
     const cDesc    = campoArea('Descripcion de la falla', {
       value: previo.descripcion || '', rows: 3,
-      placeholder: 'Que reporta el cliente, que sintoma presenta la maquina'
+      placeholder: 'Falla de SERVODRIVE Screw Not Ready'
     });
 
     return h('div',
-      cCliente, cPlanta, cModelo, cSerie, cTecnico, cDesc,
+      cCliente, cPlanta, cModelo, cSerie, cDesc,
       h('div.hoja__acciones',
         h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
         h('button.btn.btn--primario', {
@@ -79,13 +97,12 @@ async function formularioTrabajo(existente, tipoClave) {
             planta:  cPlanta.entrada.value.trim(),
             modelo:  cModelo.entrada.value.trim(),
             serie:   cSerie.entrada.value.trim(),
-            tecnico: cTecnico.entrada.value.trim(),
             descripcion: cDesc.entrada.value.trim(),
           })
         }, existente ? 'Guardar' : 'Crear')
       )
     );
-  }, { altura: 'alta' });
+  }, { altura: esServicio ? 'alta' : 'auto' });
 }
 
 export async function nuevoServicio() {
@@ -94,12 +111,18 @@ export async function nuevoServicio() {
 
   const datos = await formularioTrabajo(null, tipo);
   if (!datos) return;
-  if (!datos.cliente && !datos.planta) {
+
+  if (tipo === 'servicio' && !datos.cliente && !datos.planta) {
     aviso('Pon al menos cliente o planta', 'error');
     return;
   }
-  if (datos.tecnico) await db.ajusteGuardar('ultimoTecnico', datos.tecnico);
-  const trabajo = await db.servicioNuevo(Object.assign({ tipo }, datos));
+  if (tipo !== 'servicio' && !datos.titulo) {
+    aviso('Ponle un titulo', 'error');
+    return;
+  }
+
+  const usuario = await db.ajusteLeer('usuario', 'Usuario');
+  const trabajo = await db.servicioNuevo(Object.assign({ tipo, tecnico: usuario }, datos));
   location.hash = '#/s/' + trabajo.id;
 }
 
@@ -108,7 +131,6 @@ export async function editarServicio(trabajo) {
   if (!datos) return false;
   Object.assign(trabajo, datos);
   await db.servicioGuardar(trabajo);
-  if (datos.tecnico) await db.ajusteGuardar('ultimoTecnico', datos.tecnico);
   return true;
 }
 
@@ -120,11 +142,12 @@ function tarjetaTrabajo(trabajo, resumen, refrescar) {
   const totales = Object.values(resumen).reduce((acc, r) => {
     acc.total += r.total; acc.foto += r.foto || 0;
     acc.nota += r.nota || 0; acc.tabla += r.tabla || 0;
+    acc.prueba += r.prueba || 0;
     return acc;
-  }, { total: 0, foto: 0, nota: 0, tabla: 0 });
+  }, { total: 0, foto: 0, nota: 0, tabla: 0, prueba: 0 });
 
   const tipo = db.tipoDe(trabajo);
-  const titulo = trabajo.cliente || trabajo.planta || 'Sin nombre';
+  const titulo = trabajo.titulo || trabajo.cliente || trabajo.planta || 'Sin nombre';
   const maquina = [trabajo.modelo, trabajo.serie].filter(Boolean).join(' · ');
 
   return h('article.tarjeta-servicio', {
@@ -145,9 +168,10 @@ function tarjetaTrabajo(trabajo, resumen, refrescar) {
     h('div.tarjeta-servicio__pie',
       h('span', fecha(trabajo.inicio)),
       h('span.crece'),
-      totales.foto  ? h('span.contador', '📷 ' + totales.foto)  : null,
-      totales.tabla ? h('span.contador', '▦ ' + totales.tabla)  : null,
-      totales.nota  ? h('span.contador', '📝 ' + totales.nota)  : null,
+      totales.foto   ? h('span.contador', '📷 ' + totales.foto)   : null,
+      totales.tabla  ? h('span.contador', '▦ ' + totales.tabla)   : null,
+      totales.nota   ? h('span.contador', '📝 ' + totales.nota)   : null,
+      totales.prueba ? h('span.contador', '🧪 ' + totales.prueba) : null,
       !totales.total ? h('span.pista', 'Sin registros') : null
     ),
     h('button.icono-btn.tarjeta-servicio__menu', {

@@ -87,7 +87,7 @@ export async function render(contenedor, refrescar, params) {
 
   const servicio = await db.servicioLeer(evento.servicioId);
   const volver = () => {
-    guardarYa(evento).then(() => { location.hash = '#/s/' + evento.servicioId + '/e/' + evento.equipoId; });
+    guardarYa(evento).then(() => { location.hash = '#/s/' + evento.servicioId; });
   };
 
   const indicador = h('span.estado', 'Guardado');
