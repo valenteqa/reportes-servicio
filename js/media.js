@@ -35,9 +35,29 @@ export function elegirImagenes({ camara = true, multiple = false } = {}) {
     };
 
     input.addEventListener('change', () => terminar(Array.from(input.files || [])));
-    // Si el usuario cancela, 'change' nunca dispara. Se limpia al volver el foco.
-    window.addEventListener('focus', () => {
-      setTimeout(() => { if (!input.files || !input.files.length) terminar([]); }, 600);
+
+    // Si el usuario cancela, 'change' nunca dispara y hay que resolver solos.
+    // PERO: al volver de la camara, Chrome puede tardar VARIOS segundos en
+    // poblar input.files (foto grande, telefono ocupado). Declarar cancelacion
+    // a los 600ms descartaba fotos reales. Ahora se sondea con paciencia.
+    let sondeando = false;
+    const alVolver = () => {
+      if (resuelto || sondeando) return;
+      sondeando = true;
+      let intentos = 0;
+      const sondeo = setInterval(() => {
+        if (resuelto) { clearInterval(sondeo); return; }
+        if (input.files && input.files.length) {
+          clearInterval(sondeo);
+          terminar(Array.from(input.files));
+          return;
+        }
+        if (++intentos >= 15) { clearInterval(sondeo); terminar([]); }   // ~4.5s
+      }, 300);
+    };
+    window.addEventListener('focus', alVolver, { once: true });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') alVolver();
     }, { once: true });
 
     input.click();

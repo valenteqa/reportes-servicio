@@ -965,12 +965,24 @@ button { font-family: inherit; font-size: inherit; }
 .editor__ok:active { transform: scale(.95); }
 
 .editor__zona {
+  position: relative;
   flex: 1; display: flex; align-items: center; justify-content: center;
   overflow: hidden; min-height: 0;
   /* Marco de seguridad: las esquinas del recorte quedan lejos del borde de la
      pantalla para no disparar el gesto "Regresar" de Android. */
   padding: 14px 34px;
 }
+
+/* Flotante: aparece solo con zoom, arriba junto al boton de retroceso */
+.editor__zoomreset {
+  position: absolute; top: 8px; left: 10px; z-index: 5;
+  padding: .5rem .8rem;
+  border: 1px solid var(--primario);
+  background: rgba(4, 6, 10, .85); color: var(--primario);
+  font-weight: 700; font-size: .74rem; letter-spacing: .1em;
+  cursor: pointer;
+}
+.editor__zoomreset:active { background: var(--primario-suave); }
 .editor__lienzo { max-width: 100%; max-height: 100%; touch-action: none; }
 
 .editor__controles, .editor__modos {

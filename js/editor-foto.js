@@ -167,6 +167,16 @@ export async function editarFoto(evento, alTerminar) {
   const barraModos = h('div.editor__modos');
   const barraCtrl = h('div.editor__controles');
 
+  // Boton flotante para quitar el zoom: aparece solo cuando hay zoom,
+  // arriba a la izquierda, junto al boton de retroceso.
+  const btnZoom = h('button.editor__zoomreset', {
+    type: 'button', style: { display: 'none' },
+    onclick: () => { zoomReset(); refrescarBtnZoom(); pintar(); },
+  }, 'RESET ZOOM');
+  function refrescarBtnZoom() {
+    btnZoom.style.display = (modo === 'formas' && zoom.s > 1) ? '' : 'none';
+  }
+
   /* ---------- pintado del preview ---------- */
 
   let vista = { esc: 1, offX: 0, offY: 0, w: 1, h: 1 };  // mapeo pantalla<->imagen
@@ -420,7 +430,7 @@ export async function editarFoto(evento, alTerminar) {
       zoom.ox = vistaPellizco.px - mx / zoom.s;
       zoom.oy = vistaPellizco.py - my / zoom.s;
       zoomAcotar();
-      pintarBarras();   // refresca el boton 1:1
+      refrescarBtnZoom();
       pintar();
       return;
     }
@@ -525,6 +535,7 @@ export async function editarFoto(evento, alTerminar) {
       seleccion = null;
       herramienta = null;
       zoomReset();
+      refrescarBtnZoom();
       if (m === 'recortar' && !ed.recorte) ed.recorte = { x: 0, y: 0, w: 1, h: 1 };
       pintarBarras();
       pintar();
@@ -549,7 +560,6 @@ export async function editarFoto(evento, alTerminar) {
               ? 'Arrastra para mover · esquinas o 2 dedos para tamaño.'
               : 'Toca una forma para moverla · 2 dedos: zoom.'),
         h('span.crece'),
-        zoom.s > 1 ? btn('1:1', false, () => { zoomReset(); pintarBarras(); pintar(); }, 'Quitar zoom') : null,
         btn('⌫', false, () => {
           if (seleccion) {
             const i2 = ed.formas.indexOf(seleccion);
@@ -704,7 +714,7 @@ export async function editarFoto(evento, alTerminar) {
       h('button.enlace.editor__revertir', { type: 'button', onclick: revertir }, 'Revertir'),
       h('button.editor__ok', { type: 'button', 'aria-label': 'Guardar', onclick: aplicar }, '✓')
     ),
-    h('div.editor__zona', lienzo),
+    h('div.editor__zona', lienzo, btnZoom),
     barraCtrl,
     barraModos
   );

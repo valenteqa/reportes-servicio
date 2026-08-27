@@ -48,6 +48,9 @@ export async function menuAgregar(servicioId, equipoId, refrescar, nombreRama) {
   ));
   if (!accion) return;
 
+  // Al re-pintar el arbol, volver a la rama donde se agrego (no hasta arriba).
+  sessionStorage.setItem('irARama:' + servicioId, equipoId);
+
   if (accion === 'camara')    await capturarFoto(servicioId, equipoId);
   if (accion === 'galeria')   await capturarFoto(servicioId, equipoId, { galeria: true });
   if (accion === 'nota')      await agregarNota(servicioId, equipoId);

@@ -160,7 +160,7 @@ function rama(servicio, actividad, eventos, refrescar) {
     onclick: () => menuAgregar(servicio.id, actividad.id, refrescar, actividad.nombre),
   }, '+');
 
-  return h('section.rama',
+  return h('section.rama', { dataset: { rama: actividad.id } },
     cabeza,
     h('div.rama__cuerpo',
       eventos.length ? lineaDeTiempo(eventos, refrescar) : null,
@@ -181,6 +181,15 @@ export async function render(contenedor, refrescar, params) {
   for (const ev of eventos) {
     (porRama[ev.equipoId] = porRama[ev.equipoId] || []).push(ev);
   }
+
+  // (declarados antes de la cabecera para que sus botones tambien guarden
+  //  la posicion del scroll al refrescar)
+  const cont = h('main.contenido');
+  const claveScroll = 'scroll:' + servicio.id;
+  const alRefrescar = () => {
+    sessionStorage.setItem(claveScroll, String(cont.scrollTop));
+    refrescar();
+  };
 
   const tipo = db.tipoDe(servicio);
   const esServicio = (servicio.tipo || 'servicio') === 'servicio';
@@ -210,10 +219,10 @@ export async function render(contenedor, refrescar, params) {
       h('button.icono-btn', { type: 'button', 'aria-label': 'Fotos del trabajo',
         onclick: async () => {
           await galeriaDelTrabajo(servicio.id);
-          refrescar();   // por si borro o excluyo fotos desde el visor
+          alRefrescar();   // por si borro o excluyo fotos desde el visor
         } }, '🖼'),
       h('button.icono-btn', { type: 'button', 'aria-label': 'Editar datos',
-        onclick: async () => { if (await editarServicio(servicio)) refrescar(); } }, '✎')
+        onclick: async () => { if (await editarServicio(servicio)) alRefrescar(); } }, '✎')
     ),
     maquina ? h('div.cabecera__maquina', '⚙ ' + maquina) : null,
     h('div.cabecera__meta',
@@ -226,16 +235,43 @@ export async function render(contenedor, refrescar, params) {
 
   const general = { id: db.GENERAL, nombre: 'General' };
   const arbol = h('div.arbol',
-    rama(servicio, general, porRama[db.GENERAL] || [], refrescar),
-    actividades.map(a => rama(servicio, a, porRama[a.id] || [], refrescar)),
+    rama(servicio, general, porRama[db.GENERAL] || [], alRefrescar),
+    actividades.map(a => rama(servicio, a, porRama[a.id] || [], alRefrescar)),
     h('button.rama-nueva', {
       type: 'button',
-      onclick: async () => { if (await agregarActividad(servicio.id)) refrescar(); }
+      onclick: async () => { if (await agregarActividad(servicio.id)) alRefrescar(); }
     },
       h('span.rama-nueva__rombo', '+'),
       h('span', 'Nueva actividad')
     )
   );
+  cont.append(arbol);
+  contenedor.append(cabecera, cont);
 
-  contenedor.append(cabecera, h('main.contenido', arbol));
+  const ramaDestino = sessionStorage.getItem('irARama:' + servicio.id);
+  if (ramaDestino !== null) {
+    sessionStorage.removeItem('irARama:' + servicio.id);
+    // setTimeout y no requestAnimationFrame: rAF no corre si la pestaña no
+    // esta componiendo (p. ej. pantalla recién despierta) y el brinco se
+    // perderia; el doble disparo cubre layouts tardios.
+    const ir = () => {
+      const fin = cont.querySelector('.rama[data-rama="' + ramaDestino + '"] .rama__agregar');
+      if (fin) fin.scrollIntoView({ block: 'center' });
+      sessionStorage.setItem(claveScroll, String(cont.scrollTop));
+    };
+    setTimeout(ir, 0);
+    setTimeout(ir, 150);
+  } else {
+    const previo = sessionStorage.getItem(claveScroll);
+    if (previo) cont.scrollTop = Number(previo);
+  }
+
+  let tScroll = null;
+  cont.addEventListener('scroll', () => {
+    if (tScroll) return;
+    tScroll = setTimeout(() => {
+      tScroll = null;
+      sessionStorage.setItem(claveScroll, String(cont.scrollTop));
+    }, 150);
+  });
 }
