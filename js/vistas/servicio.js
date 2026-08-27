@@ -10,7 +10,7 @@
 import * as db from '../db.js';
 import * as media from '../media.js';
 import { h, campo, hoja, aviso, confirmar, fecha, hora, duracion } from '../ui.js';
-import { lineaDeTiempo, barraCaptura } from './eventos.js';
+import { lineaDeTiempo, barraCaptura, capturarFoto } from './eventos.js';
 import { editarServicio } from './servicios.js';
 
 function claveRama(servicioId) { return 'rama:' + servicioId; }
@@ -149,6 +149,12 @@ export async function render(contenedor, refrescar, params) {
         h('h1', titulo),
         h('p', tipo.icono + ' ' + tipo.nombre + (servicio.planta ? ' · ' + servicio.planta : ''))
       ),
+      h('button.icono-btn', { type: 'button', 'aria-label': 'Importar de galeria',
+        onclick: async () => {
+          // Las fotos importadas caen en la rama activa, igual que la barra.
+          await capturarFoto(servicio.id, activaId, { galeria: true });
+          refrescar();
+        } }, '🖼'),
       h('button.icono-btn', { type: 'button', 'aria-label': 'Editar datos',
         onclick: async () => { if (await editarServicio(servicio)) refrescar(); } }, '✎')
     ),
