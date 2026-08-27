@@ -183,7 +183,16 @@ export async function render(contenedor, refrescar, params) {
   }
 
   const tipo = db.tipoDe(servicio);
-  const titulo = servicio.titulo || servicio.cliente || servicio.planta || tipo.nombre;
+  const esServicio = (servicio.tipo || 'servicio') === 'servicio';
+
+  // Titulo: la falla es el nombre del trabajo. Debajo, cliente y sede.
+  const titulo = esServicio && servicio.descripcion
+    ? 'SERVICIO: ' + servicio.descripcion
+    : (servicio.titulo || servicio.cliente || servicio.planta || tipo.nombre);
+  const sub = esServicio
+    ? [servicio.cliente, servicio.planta].filter(Boolean).join(' · ')
+    : tipo.icono + ' ' + tipo.nombre + (servicio.planta ? ' · ' + servicio.planta : '');
+
   const maquina = [[servicio.marca, servicio.modelo].filter(Boolean).join(' '), servicio.serie,
     servicio.noMaquina ? 'Maq. ' + servicio.noMaquina : '']
     .filter(Boolean).join(' · ');
@@ -193,8 +202,8 @@ export async function render(contenedor, refrescar, params) {
       h('button.icono-btn', { type: 'button', 'aria-label': 'Volver',
         onclick: () => history.back() }, '←'),
       h('div.cabecera__titulo',
-        h('h1', titulo),
-        h('p', tipo.icono + ' ' + tipo.nombre + (servicio.planta ? ' · ' + servicio.planta : ''))
+        h('h1.cabecera__h1doble', titulo),
+        sub ? h('p', sub) : null
       ),
       h('button.icono-btn', { type: 'button', 'aria-label': 'Generar reporte',
         onclick: () => hojaReporte(servicio) }, '📄'),

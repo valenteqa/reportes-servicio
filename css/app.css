@@ -173,6 +173,14 @@ button { font-family: inherit; font-size: inherit; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
+/* Titulo del arbol: la descripcion de la falla puede ser larga; dos lineas. */
+.cabecera__titulo h1.cabecera__h1doble {
+  white-space: normal;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 1.05rem; line-height: 1.3;
+}
+
 .cabecera__maquina {
   margin-top: .35rem; padding: .3rem .5rem;
   background: var(--superficie-2);

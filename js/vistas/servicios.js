@@ -172,15 +172,22 @@ async function formularioTrabajo(existente, tipoClave) {
         h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
         h('button.btn.btn--primario', {
           type: 'button',
-          onclick: () => cerrar({
-            cliente:   cCliente.entrada.value.trim(),
-            planta:    cPlanta.entrada.value.trim(),
-            marca:     cMarca.entrada.value.trim(),
-            modelo:    cModelo.entrada.value.trim(),
-            serie:     cSerie.entrada.value.trim(),
-            noMaquina: cNoMaq.entrada.value.trim(),
-            descripcion: cDesc.entrada.value.trim(),
-          })
+          onclick: () => {
+            if (!cDesc.entrada.value.trim()) {
+              aviso('La descripcion de la falla es obligatoria', 'error');
+              cDesc.entrada.focus();
+              return;
+            }
+            cerrar({
+              cliente:   cCliente.entrada.value.trim(),
+              planta:    cPlanta.entrada.value.trim(),
+              marca:     cMarca.entrada.value.trim(),
+              modelo:    cModelo.entrada.value.trim(),
+              serie:     cSerie.entrada.value.trim(),
+              noMaquina: cNoMaq.entrada.value.trim(),
+              descripcion: cDesc.entrada.value.trim(),
+            });
+          }
         }, existente ? 'Guardar' : 'Crear')
       )
     );
@@ -291,6 +298,7 @@ async function asistenteServicio() {
         oninput: () => { sel.descripcion = area.value.trim(); },
       });
       area.value = sel.descripcion || '';
+      // La descripcion es OBLIGATORIA: es el titulo del trabajo y del reporte.
       poner(
         cabeza('Descripcion del problema'),
         area,
@@ -301,6 +309,11 @@ async function asistenteServicio() {
             type: 'button',
             onclick: () => {
               sel.descripcion = area.value.trim();
+              if (!sel.descripcion) {
+                aviso('Describe la falla: es el titulo del servicio y del reporte', 'error');
+                area.focus();
+                return;
+              }
               if (!sel.cliente && !sel.planta) {
                 aviso('Pon al menos cliente o planta', 'error');
                 i = 0; pintarPaso();
