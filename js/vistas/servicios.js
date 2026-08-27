@@ -6,6 +6,20 @@ import * as media from '../media.js';
 import { APP_VERSION } from '../version.js';
 import { temaActual, alternarTema } from '../tema.js';
 
+// Catalogo precargado: clientes y maquinas conocidos aunque el telefono aun
+// no tenga historial propio. El primero es el del reporte de referencia.
+// El historial real siempre tiene prioridad sobre esto.
+const PRECARGADOS = [
+  {
+    cliente: 'CLIENTE',
+    planta: 'PLANTA',
+    marca: 'HUSKY',
+    modelo: 'H400 RS65/60',
+    serie: '0000000',
+    noMaquina: '',
+  },
+];
+
 async function bannerAlmacenamiento() {
   const info = await db.estadoAlmacenamiento();
   if (!info.soportado || info.persistente) return null;
@@ -58,9 +72,11 @@ async function formularioTrabajo(existente, tipoClave) {
   const tipo = db.TIPOS[tipoClave] || db.tipoDe(previo);
   const esServicio = tipoClave === 'servicio';
 
-  // Historial para sugerir: todo lo capturado antes en servicios.
+  // Historial para sugerir: lo capturado antes en servicios, mas el catalogo
+  // precargado al final (el historial real gana en el autorrelleno).
   const historial = esServicio
     ? (await db.serviciosTodos()).filter(t => t.tipo === 'servicio' && t.id !== previo.id)
+        .concat(PRECARGADOS)
     : [];
   const norm = (x) => (x || '').trim().toLowerCase();
 
