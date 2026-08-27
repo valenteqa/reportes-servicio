@@ -150,6 +150,15 @@ export async function editarFoto(evento, alTerminar) {
   let seleccion = null;       // forma seleccionada para mover/redimensionar
   let guardado = false;
 
+  // Zoom de la VISTA en modo formas (para ajustar formas con precision).
+  // s = aumento; ox/oy = esquina visible, en fraccion de la vista recortada.
+  const zoom = { s: 1, ox: 0, oy: 0 };
+  const zoomReset = () => { zoom.s = 1; zoom.ox = 0; zoom.oy = 0; };
+  const zoomAcotar = () => {
+    zoom.ox = Math.max(0, Math.min(1 - 1 / zoom.s, zoom.ox));
+    zoom.oy = Math.max(0, Math.min(1 - 1 / zoom.s, zoom.oy));
+  };
+
   // Recorte inicial: el cuadro completo (guardar sin tocarlo no recorta nada).
   if (!ed.recorte) ed.recorte = { x: 0, y: 0, w: 1, h: 1 };
 
@@ -186,6 +195,13 @@ export async function editarFoto(evento, alTerminar) {
     lienzo.height = Math.max(1, Math.round(imgH * esc));
     vista = { esc, offX, offY, w: t.width, h: t.height };
 
+    // Zoom de vista (solo formas): todo el pintado pasa por la misma
+    // transformacion, asi imagen, formas y manijas coinciden siempre.
+    if (modo === 'formas' && zoom.s > 1) {
+      ctx.setTransform(zoom.s, 0, 0, zoom.s,
+        -zoom.ox * lienzo.width * zoom.s, -zoom.oy * lienzo.height * zoom.s);
+    }
+
     ctx.drawImage(base, offX, offY, imgW, imgH, 0, 0, lienzo.width, lienzo.height);
     // en vista recortada las formas se desplazan dentro de dibujarFormas
     dibujarFormas(ctx, ed.formas, lienzo.width, lienzo.height, modo === 'recortar' ? null : ed.recorte);
@@ -206,6 +222,11 @@ export async function editarFoto(evento, alTerminar) {
       for (const [hx, hy] of [[px, py], [px + pw, py], [px, py + ph], [px + pw, py + ph]]) {
         ctx.fillRect(hx - 8, hy - 8, 16, 16);
       }
+      // manijas de BORDE (barras al centro de cada lado)
+      ctx.fillRect(px + pw / 2 - 16, py - 5, 32, 10);
+      ctx.fillRect(px + pw / 2 - 16, py + ph - 5, 32, 10);
+      ctx.fillRect(px - 5, py + ph / 2 - 16, 10, 32);
+      ctx.fillRect(px + pw - 5, py + ph / 2 - 16, 10, 32);
     }
 
     // Forma seleccionada: marco punteado + manijas en las esquinas
@@ -239,8 +260,12 @@ export async function editarFoto(evento, alTerminar) {
   // pantalla -> coords normalizadas de la imagen girada completa
   function aImagen(evp) {
     const rect = lienzo.getBoundingClientRect();
-    const cx = (evp.clientX - rect.left) / rect.width;
-    const cy = (evp.clientY - rect.top) / rect.height;
+    let cx = (evp.clientX - rect.left) / rect.width;
+    let cy = (evp.clientY - rect.top) / rect.height;
+    if (modo === 'formas' && zoom.s > 1) {
+      cx = zoom.ox + cx / zoom.s;
+      cy = zoom.oy + cy / zoom.s;
+    }
     if (modo !== 'recortar' && ed.recorte) {
       return [ed.recorte.x + cx * ed.recorte.w, ed.recorte.y + cy * ed.recorte.h];
     }
@@ -255,6 +280,10 @@ export async function editarFoto(evento, alTerminar) {
       fx = (ix - ed.recorte.x) / ed.recorte.w;
       fy = (iy - ed.recorte.y) / ed.recorte.h;
     }
+    if (modo === 'formas' && zoom.s > 1) {
+      fx = (fx - zoom.ox) * zoom.s;
+      fy = (fy - zoom.oy) * zoom.s;
+    }
     return { x: rect.left + fx * rect.width, y: rect.top + fy * rect.height };
   }
 
@@ -265,23 +294,39 @@ export async function editarFoto(evento, alTerminar) {
   const TOL = 26;   // px: zona de agarre pensada para dedo con guante
 
   let arrastre = null;
-  const punteros = new Map();   // pellizco con dos dedos
-  let pellizco = null;
+  const punteros = new Map();   // gestos de dos dedos
+  let pellizco = null;          // dos dedos CON seleccion: escala la forma
+  let vistaPellizco = null;     // dos dedos SIN seleccion: zoom/paneo de la vista
 
   lienzo.addEventListener('pointerdown', (evp) => {
     evp.preventDefault();
     try { lienzo.setPointerCapture(evp.pointerId); } catch (e) { /* punteros sinteticos */ }
     punteros.set(evp.pointerId, { x: evp.clientX, y: evp.clientY });
 
-    // Segundo dedo con una forma seleccionada: empieza el pellizco.
-    if (punteros.size === 2 && seleccion && modo === 'formas') {
+    // Dos dedos en modo formas:
+    //   con forma seleccionada -> escala LA FORMA
+    //   sin seleccion          -> zoom/paneo de LA VISTA
+    if (punteros.size === 2 && modo === 'formas') {
       const [a, b] = Array.from(punteros.values());
-      pellizco = {
-        d0: Math.hypot(a.x - b.x, a.y - b.y),
-        f0: { x1: seleccion.x1, y1: seleccion.y1, x2: seleccion.x2, y2: seleccion.y2 },
-        cx: (seleccion.x1 + seleccion.x2) / 2,
-        cy: (seleccion.y1 + seleccion.y2) / 2,
-      };
+      const d0 = Math.hypot(a.x - b.x, a.y - b.y);
+      if (seleccion) {
+        pellizco = {
+          d0,
+          f0: { x1: seleccion.x1, y1: seleccion.y1, x2: seleccion.x2, y2: seleccion.y2 },
+          cx: (seleccion.x1 + seleccion.x2) / 2,
+          cy: (seleccion.y1 + seleccion.y2) / 2,
+        };
+      } else {
+        const rect = lienzo.getBoundingClientRect();
+        const mx = ((a.x + b.x) / 2 - rect.left) / rect.width;
+        const my = ((a.y + b.y) / 2 - rect.top) / rect.height;
+        vistaPellizco = {
+          d0, s0: zoom.s,
+          // punto de la vista que esta bajo el centro de los dedos
+          px: zoom.ox + mx / zoom.s,
+          py: zoom.oy + my / zoom.s,
+        };
+      }
       arrastre = null;
       return;
     }
@@ -322,7 +367,10 @@ export async function editarFoto(evento, alTerminar) {
           return;
         }
       }
-      // toque en vacio: deseleccionar
+      // toque en vacio: con zoom se panea; sin zoom, deseleccionar
+      if (zoom.s > 1) {
+        arrastre = { tipo: 'pan', x0: evp.clientX, y0: evp.clientY, ox0: zoom.ox, oy0: zoom.oy };
+      }
       seleccion = null;
       pintarBarras();
       pintar();
@@ -331,13 +379,26 @@ export async function editarFoto(evento, alTerminar) {
       const rect = lienzo.getBoundingClientRect();
       const tolX = TOL / rect.width, tolY = TOL / rect.height;
       const cerca = (a, b, tol) => Math.abs(a - b) < tol;
+      const dentroX = ix > r.x - tolX && ix < r.x + r.w + tolX;
+      const dentroY = iy > r.y - tolY && iy < r.y + r.h + tolY;
+
       let esquina = null;
       if (cerca(ix, r.x, tolX) && cerca(iy, r.y, tolY)) esquina = 'no';
       else if (cerca(ix, r.x + r.w, tolX) && cerca(iy, r.y, tolY)) esquina = 'ne';
       else if (cerca(ix, r.x, tolX) && cerca(iy, r.y + r.h, tolY)) esquina = 'so';
       else if (cerca(ix, r.x + r.w, tolX) && cerca(iy, r.y + r.h, tolY)) esquina = 'se';
-      arrastre = esquina
-        ? { tipo: 'esquina', esquina }
+
+      // Sin esquina: ¿agarro un BORDE? (mas facil en pantallas chicas)
+      let lado = null;
+      if (!esquina) {
+        if (cerca(ix, r.x, tolX) && dentroY) lado = 'izq';
+        else if (cerca(ix, r.x + r.w, tolX) && dentroY) lado = 'der';
+        else if (cerca(iy, r.y, tolY) && dentroX) lado = 'arr';
+        else if (cerca(iy, r.y + r.h, tolY) && dentroX) lado = 'aba';
+      }
+
+      arrastre = esquina ? { tipo: 'esquina', esquina }
+        : lado ? { tipo: 'lado', lado }
         : { tipo: 'mover', ix, iy, r0: { ...r } };
     }
   });
@@ -345,6 +406,23 @@ export async function editarFoto(evento, alTerminar) {
   lienzo.addEventListener('pointermove', (evp) => {
     if (punteros.has(evp.pointerId)) {
       punteros.set(evp.pointerId, { x: evp.clientX, y: evp.clientY });
+    }
+
+    // pellizco de VISTA: zoom + paneo siguiendo el centro de los dedos
+    if (vistaPellizco && punteros.size === 2) {
+      evp.preventDefault();
+      const [a, b] = Array.from(punteros.values());
+      const rect = lienzo.getBoundingClientRect();
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      zoom.s = Math.max(1, Math.min(6, vistaPellizco.s0 * d / vistaPellizco.d0));
+      const mx = ((a.x + b.x) / 2 - rect.left) / rect.width;
+      const my = ((a.y + b.y) / 2 - rect.top) / rect.height;
+      zoom.ox = vistaPellizco.px - mx / zoom.s;
+      zoom.oy = vistaPellizco.py - my / zoom.s;
+      zoomAcotar();
+      pintarBarras();   // refresca el boton 1:1
+      pintar();
+      return;
     }
 
     // pellizco: escala la forma seleccionada alrededor de su centro
@@ -371,6 +449,11 @@ export async function editarFoto(evento, alTerminar) {
     if (arrastre.tipo === 'forma') {
       arrastre.forma.x2 = ix;
       arrastre.forma.y2 = iy;
+    } else if (arrastre.tipo === 'pan') {
+      const rect = lienzo.getBoundingClientRect();
+      zoom.ox = arrastre.ox0 - (evp.clientX - arrastre.x0) / rect.width / zoom.s;
+      zoom.oy = arrastre.oy0 - (evp.clientY - arrastre.y0) / rect.height / zoom.s;
+      zoomAcotar();
     } else if (arrastre.tipo === 'moverForma') {
       const dx = ix - arrastre.ix, dy = iy - arrastre.iy;
       seleccion.x1 = arrastre.f0.x1 + dx;
@@ -391,6 +474,14 @@ export async function editarFoto(evento, alTerminar) {
       if (arrastre.esquina === 'so') { r.w = x2 - ix; r.x = ix; r.h = iy - r.y; }
       if (arrastre.esquina === 'se') { r.w = ix - r.x; r.h = iy - r.y; }
       r.w = Math.max(0.05, r.w); r.h = Math.max(0.05, r.h);
+    } else if (arrastre.tipo === 'lado') {
+      const r = ed.recorte;
+      const x2 = r.x + r.w, y2 = r.y + r.h;
+      if (arrastre.lado === 'izq') { r.w = x2 - ix; r.x = ix; }
+      if (arrastre.lado === 'der') { r.w = ix - r.x; }
+      if (arrastre.lado === 'arr') { r.h = y2 - iy; r.y = iy; }
+      if (arrastre.lado === 'aba') { r.h = iy - r.y; }
+      r.w = Math.max(0.05, r.w); r.h = Math.max(0.05, r.h);
     } else if (arrastre.tipo === 'mover') {
       const r = ed.recorte, r0 = arrastre.r0;
       r.x = Math.max(0, Math.min(1 - r.w, r0.x + (ix - arrastre.ix)));
@@ -401,7 +492,7 @@ export async function editarFoto(evento, alTerminar) {
 
   const soltar = (evp) => {
     punteros.delete(evp.pointerId);
-    if (punteros.size < 2) pellizco = null;
+    if (punteros.size < 2) { pellizco = null; vistaPellizco = null; }
 
     if (arrastre && arrastre.tipo === 'forma') {
       const f = arrastre.forma;
@@ -433,6 +524,7 @@ export async function editarFoto(evento, alTerminar) {
       modo = m;
       seleccion = null;
       herramienta = null;
+      zoomReset();
       if (m === 'recortar' && !ed.recorte) ed.recorte = { x: 0, y: 0, w: 1, h: 1 };
       pintarBarras();
       pintar();
@@ -446,14 +538,18 @@ export async function editarFoto(evento, alTerminar) {
     if (modo === 'formas') {
       // La herramienta se desarma sola al dibujar; volver a tocarla la rearma.
       const armar = (t) => { herramienta = herramienta === t ? null : t; seleccion = null; pintarBarras(); pintar(); };
-      barraCtrl.replaceChildren(
+      // replaceChildren no ignora null: filtrar antes.
+      barraCtrl.replaceChildren(...[
         btn('▭', herramienta === 'rect', () => armar('rect'), 'Rectangulo'),
         btn('◯', herramienta === 'circulo', () => armar('circulo'), 'Circulo'),
         btn('↗', herramienta === 'flecha', () => armar('flecha'), 'Flecha'),
         herramienta
           ? h('p.editor__pista', 'Arrastra para dibujar.')
-          : h('p.editor__pista', seleccion ? 'Arrastra para mover · esquinas o 2 dedos para tamaño.' : 'Toca una forma para moverla.'),
+          : h('p.editor__pista', seleccion
+              ? 'Arrastra para mover · esquinas o 2 dedos para tamaño.'
+              : 'Toca una forma para moverla · 2 dedos: zoom.'),
         h('span.crece'),
+        zoom.s > 1 ? btn('1:1', false, () => { zoomReset(); pintarBarras(); pintar(); }, 'Quitar zoom') : null,
         btn('⌫', false, () => {
           if (seleccion) {
             const i2 = ed.formas.indexOf(seleccion);
@@ -465,7 +561,7 @@ export async function editarFoto(evento, alTerminar) {
           pintarBarras();
           pintar();
         }, 'Eliminar forma'),
-      );
+      ].filter(Boolean));
     } else if (modo === 'recortar') {
       barraCtrl.replaceChildren(
         h('p.editor__pista', 'Arrastra las esquinas o mueve el recuadro.'),
@@ -494,6 +590,18 @@ export async function editarFoto(evento, alTerminar) {
         btn('⇋', false, () => { ed.flipH = !ed.flipH; remapear(ed, (x, y) => [1 - x, y]); pintar(); }, 'Voltear horizontal'),
         btn('⇵', false, () => { ed.flipV = !ed.flipV; remapear(ed, (x, y) => [x, 1 - y]); pintar(); }, 'Voltear vertical'),
         slider, etiqueta,
+        btn('↺', false, () => {
+          // Deshacer giros y volteos aplicando los remapeos inversos, para que
+          // recorte y formas regresen a su lugar sobre la imagen original.
+          if (ed.flipH) { remapear(ed, (x, y) => [1 - x, y]); ed.flipH = false; }
+          if (ed.flipV) { remapear(ed, (x, y) => [x, 1 - y]); ed.flipV = false; }
+          const faltan = (4 - ed.pasos90) % 4;
+          for (let k = 0; k < faltan; k++) remapear(ed, (x, y) => [1 - y, x]);
+          ed.pasos90 = 0;
+          ed.fino = 0;
+          pintarBarras();
+          pintar();
+        }, 'Restablecer giros'),
       );
     }
   }
