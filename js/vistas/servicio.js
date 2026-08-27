@@ -9,7 +9,7 @@
 
 import * as db from '../db.js';
 import * as media from '../media.js';
-import { h, campo, campoArea, hoja, aviso, confirmar, fecha, hora, duracion } from '../ui.js';
+import { h, campo, hoja, aviso, confirmar, fecha, hora, duracion } from '../ui.js';
 import { lineaDeTiempo, menuAgregar, galeriaDelTrabajo } from './eventos.js';
 import { editarServicio } from './servicios.js';
 import { generarReporte } from '../reporte.js';
@@ -40,44 +40,13 @@ async function hojaReporte(servicio) {
       (!esProc && pruebasAbiertas) ? h('p.pista', '⚠ ' + pruebasAbiertas + ' prueba(s) sin resultado: saldran como "(pendiente de resultado)".') : null,
       h('p.pista', esProc
         ? 'El PowerPoint se genera en el telefono, sin internet: portada + una diapositiva por paso, con su texto y sus fotos (mas de 4 fotos continua en otra diapositiva).'
-        : 'El Word se genera en el telefono, sin internet. El indice se actualiza solo al abrirlo en Word.')
+        : 'El Word se genera en el telefono, sin internet. El indice se actualiza solo al abrirlo en Word. Las observaciones y recomendaciones se agregan en su seccion, al final del arbol.')
     );
-
-    // Observaciones y recomendaciones: se capturan aqui y salen en el Word.
-    // Se guardan solas mientras escribes; vacias, quedan como marcadores.
-    const cObs = esProc ? null : campoArea('Observaciones', {
-      rows: 3, value: servicio.observaciones || '',
-      placeholder: 'Como quedo la maquina, hallazgos...',
-    });
-    const cRec = esProc ? null : campoArea('Recomendaciones (una por renglon)', {
-      rows: 3, value: servicio.recomendaciones || '',
-      placeholder: 'Cada renglon sale como viñeta',
-    });
-
-    let tmr = null;
-    const guardarTextos = async () => {
-      if (esProc) return;
-      clearTimeout(tmr);
-      const o = cObs.entrada.value.trim();
-      const r = cRec.entrada.value.trim();
-      if (o === (servicio.observaciones || '') && r === (servicio.recomendaciones || '')) return;
-      servicio.observaciones = o;
-      servicio.recomendaciones = r;
-      await db.servicioGuardar(servicio);
-    };
-    if (!esProc) {
-      const alTeclear = () => { clearTimeout(tmr); tmr = setTimeout(guardarTextos, 700); };
-      cObs.entrada.addEventListener('input', alTeclear);
-      cRec.entrada.addEventListener('input', alTeclear);
-      cObs.entrada.addEventListener('change', guardarTextos);
-      cRec.entrada.addEventListener('change', guardarTextos);
-    }
 
     const estado = h('p.pista', '');
 
     const entregar = async (modo) => {
       estado.textContent = 'Generando...';
-      await guardarTextos();
       try {
         const { blob, nombreArchivo } = esProc
           ? await (await import('../presentacion.js')).generarPresentacion(servicio.id)
@@ -105,11 +74,11 @@ async function hojaReporte(servicio) {
     };
 
     return h('div',
-      resumen, cObs, cRec, estado,
+      resumen, estado,
       esProc ? null : h('div.hoja__acciones',
         h('button.btn.btn--fantasma.crece', {
           type: 'button',
-          onclick: async () => { await guardarTextos(); await vistaPreviaReporte(servicio.id); }
+          onclick: () => vistaPreviaReporte(servicio.id)
         }, '👁  Vista previa del reporte')
       ),
       h('div.hoja__acciones',
@@ -192,6 +161,7 @@ function menuRama(actividad, conteo, refrescar) {
 
 function rama(servicio, actividad, eventos, refrescar, numeroPaso) {
   const esGeneral = actividad.id === db.GENERAL;
+  const esObs = actividad.id === db.OBSERVACIONES;
   const esProc = (servicio.tipo === 'procedimiento');
   const sinResultado = eventos.filter(e => e.tipo === 'prueba' && !e.datos.resultado).length;
   const nombreVisible = numeroPaso ? numeroPaso + '. ' + actividad.nombre : actividad.nombre;
@@ -202,20 +172,27 @@ function rama(servicio, actividad, eventos, refrescar, numeroPaso) {
     eventos.length ? h('span.rama__conteo', String(eventos.length)) : null,
     sinResultado ? h('span.rama__pendiente', sinResultado + ' sin resultado') : null,
     h('span.crece'),
-    esGeneral ? null : menuRama(actividad, eventos.length, refrescar)
+    (esGeneral || esObs) ? null : menuRama(actividad, eventos.length, refrescar)
   );
 
   // El + va al FINAL de la linea de tiempo: el siguiente nodo de la secuencia.
   // En procedimientos cada paso es una diapositiva: texto, imagenes, tablas
-  // y pendientes (sin pruebas).
+  // y pendientes (sin pruebas). En la seccion fija de observaciones solo
+  // entran textos e imagenes: cada texto sera una viñeta del reporte.
+  const opciones = esObs ? ['camara', 'galeria', 'nota']
+    : esProc ? ['camara', 'galeria', 'nota', 'tabla', 'pendiente']
+    : null;
+
   const agregar = h('button.rama__agregar', {
     type: 'button', 'aria-label': 'Agregar en ' + actividad.nombre,
-    onclick: () => menuAgregar(servicio.id, actividad.id, refrescar, nombreVisible,
-      esProc ? ['camara', 'galeria', 'nota', 'tabla', 'pendiente'] : null, esProc),
+    onclick: () => menuAgregar(servicio.id, actividad.id, refrescar, nombreVisible, opciones, esProc),
   }, '+');
 
-  return h('section.rama', { dataset: { rama: actividad.id } },
+  return h('section.rama' + (esObs ? '.rama--fija' : ''), { dataset: { rama: actividad.id } },
     cabeza,
+    esObs && !eventos.length
+      ? h('p.rama__pista', 'Como quedo la maquina y que se recomienda. Cada texto sale como viñeta en el reporte.')
+      : null,
     h('div.rama__cuerpo',
       eventos.length ? lineaDeTiempo(eventos, refrescar) : null,
       agregar
@@ -227,6 +204,17 @@ export async function render(contenedor, refrescar, params) {
   media.liberarUrls();
   const servicio = await db.servicioLeer(params.sid);
   if (!servicio) { location.replace('#/'); return; }
+
+  // v3.18 guardaba observaciones/recomendaciones como campos de texto; hoy son
+  // registros de la seccion fija. Migra al abrir (cada renglon, una viñeta).
+  if ((servicio.observaciones || '').trim() || (servicio.recomendaciones || '').trim()) {
+    const lineas = ((servicio.observaciones || '') + '\n' + (servicio.recomendaciones || ''))
+      .split('\n').map(s => s.trim()).filter(Boolean);
+    for (const texto of lineas) await db.eventoNuevo(servicio.id, db.OBSERVACIONES, 'nota', { texto });
+    servicio.observaciones = '';
+    servicio.recomendaciones = '';
+    await db.servicioGuardar(servicio);
+  }
 
   const actividades = await db.equiposDeServicio(servicio.id);
   const eventos = await db.eventosDeServicio(servicio.id);
@@ -302,7 +290,11 @@ export async function render(contenedor, refrescar, params) {
     },
       h('span.rama-nueva__rombo', '+'),
       h('span', esProc ? 'Nuevo paso' : 'Nueva actividad')
-    )
+    ),
+    // Seccion fija al final: observaciones y recomendaciones del reporte.
+    esProc ? null : rama(servicio,
+      { id: db.OBSERVACIONES, nombre: 'Observaciones y recomendaciones' },
+      porRama[db.OBSERVACIONES] || [], alRefrescar)
   );
   cont.append(arbol);
   contenedor.append(cabecera, cont);

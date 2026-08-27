@@ -457,14 +457,22 @@ async function generarConPlantilla(servicioId) {
     for (const p of pendientes) cuerpo.push(parVineta((p.datos.texto || '').replace(/\n+/g, ' ')));
   }
 
-  cuerpo.push(titulo1('Observaciones'));
-  cuerpo.push((servicio.observaciones || '').trim()
-    ? parrafosDe(servicio.observaciones)
-    : par([{ t: '(Redactar observaciones)', i: true, color: '808080' }]));
-  cuerpo.push(titulo1('Recomendaciones'));
-  const recos = (servicio.recomendaciones || '').split('\n').map(s => s.trim()).filter(Boolean);
-  if (recos.length) for (const r of recos) cuerpo.push(parVineta(r));
-  else cuerpo.push(parVineta('(Redactar recomendaciones)'));
+  // La seccion fija del arbol: cada texto sale como viñeta (renglon por
+  // renglon) y las fotos como figuras numeradas.
+  cuerpo.push(titulo1('Observaciones y recomendaciones'));
+  let hayObs = false;
+  for (const ev of (porRama[db.OBSERVACIONES] || [])) {
+    if (ev.tipo === 'nota') {
+      for (const linea of (ev.datos.texto || '').split('\n').map(s => s.trim()).filter(Boolean)) {
+        cuerpo.push(parVineta(linea));
+        hayObs = true;
+      }
+    } else {
+      const x = await eventoXml(ev);
+      if (x) { cuerpo.push(x); hayObs = true; }
+    }
+  }
+  if (!hayObs) cuerpo.push(parVineta('(Redactar observaciones y recomendaciones)'));
 
   // Rellenar tokens del documento y del encabezado
   const fecha = fechaLarga(servicio.inicio);
@@ -627,15 +635,21 @@ async function generarReporteBasico(servicioId) {
     }
   }
 
-  // Cierre: lo capturado en la app, o marcadores editables en Word
-  cuerpo.push(titulo1('Observaciones'));
-  cuerpo.push((servicio.observaciones || '').trim()
-    ? parrafosDe(servicio.observaciones)
-    : par([{ t: '(Redactar observaciones)', i: true, color: '808080' }]));
-  cuerpo.push(titulo1('Recomendaciones'));
-  const recosB = (servicio.recomendaciones || '').split('\n').map(s => s.trim()).filter(Boolean);
-  if (recosB.length) for (const r of recosB) cuerpo.push(par([{ t: '— ', b: true }, { t: r }], { esp: [0, 80] }));
-  else cuerpo.push(par([{ t: '(Redactar recomendaciones)', i: true, color: '808080' }]));
+  // Cierre: la seccion fija del arbol (textos como viñetas, fotos como figuras)
+  cuerpo.push(titulo1('Observaciones y recomendaciones'));
+  let hayObsB = false;
+  for (const ev of (porRama[db.OBSERVACIONES] || [])) {
+    if (ev.tipo === 'nota') {
+      for (const linea of (ev.datos.texto || '').split('\n').map(s => s.trim()).filter(Boolean)) {
+        cuerpo.push(par([{ t: '— ', b: true }, { t: linea }], { esp: [0, 80] }));
+        hayObsB = true;
+      }
+    } else {
+      const x = await eventoXml(ev);
+      if (x) { cuerpo.push(x); hayObsB = true; }
+    }
+  }
+  if (!hayObsB) cuerpo.push(par([{ t: '(Redactar observaciones y recomendaciones)', i: true, color: '808080' }]));
 
   const sectPr =
     '<w:sectPr>' +

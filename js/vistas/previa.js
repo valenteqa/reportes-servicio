@@ -121,15 +121,25 @@ export async function vistaPreviaReporte(servicioId) {
         h('li', (p.datos.texto || '').replace(/\n+/g, ' ')))));
   }
 
-  cuerpo.push(h('h2.previa__h', 'Observaciones'));
-  const obs = (servicio.observaciones || '').trim();
-  cuerpo.push(obs ? parrafos(obs) : gris('(Redactar observaciones)'));
-
-  cuerpo.push(h('h2.previa__h', 'Recomendaciones'));
-  const recos = (servicio.recomendaciones || '').split('\n').map(s => s.trim()).filter(Boolean);
-  cuerpo.push(recos.length
-    ? h('ul.previa__lista', recos.map(r => h('li', r)))
-    : gris('(Redactar recomendaciones)'));
+  // La seccion fija del arbol: textos como viñetas, fotos como figuras.
+  cuerpo.push(h('h2.previa__h', 'Observaciones y recomendaciones'));
+  const evObs = porRama[db.OBSERVACIONES] || [];
+  const nodosObs = [];
+  let vinetas = [];
+  const soltarVinetas = () => {
+    if (vinetas.length) { nodosObs.push(h('ul.previa__lista', vinetas)); vinetas = []; }
+  };
+  for (const ev of evObs) {
+    if (ev.tipo === 'nota') {
+      for (const linea of (ev.datos.texto || '').split('\n').map(s => s.trim()).filter(Boolean))
+        vinetas.push(h('li', linea));
+    } else {
+      soltarVinetas();
+      nodosObs.push(await eventoNodo(ev));
+    }
+  }
+  soltarVinetas();
+  cuerpo.push(nodosObs.length ? nodosObs : gris('(Redactar observaciones y recomendaciones)'));
 
   const pagina = h('div.previa__pagina', cuerpo);
 

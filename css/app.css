@@ -564,6 +564,18 @@ button { font-family: inherit; font-size: inherit; }
 
 .rama__cuerpo { padding: 0 0 .2rem .55rem; }
 
+/* Seccion fija de observaciones y recomendaciones, al final del arbol */
+.rama--fija { margin-top: .9rem; }
+.rama--fija .rama__rombo { border-color: var(--primario); }
+.rama--fija .rama__nombre {
+  color: var(--primario);
+  text-transform: uppercase; letter-spacing: .05em; font-size: .82rem;
+}
+.rama__pista {
+  margin: .1rem 0 .2rem 1.55rem;
+  font-size: .78rem; color: var(--tinta-tenue);
+}
+
 .rama-nueva {
   display: flex; align-items: center; gap: .55rem;
   margin-left: .8rem; min-height: 52px; padding: .3rem .35rem;
