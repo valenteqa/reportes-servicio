@@ -69,6 +69,16 @@ async function hojaReporte(servicio) {
     estado.textContent = 'Preparando el archivo...';
     preparar().catch(() => { estado.textContent = ''; });
 
+    // La URL vive 90 s: en telefonos lentos la descarga tarda en arrancar y
+    // revocarla antes la cancela sin ningun aviso.
+    const descargar = (blob, nombreArchivo) => {
+      const url = URL.createObjectURL(blob);
+      const a = h('a', { href: url, download: nombreArchivo });
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 90000);
+    };
+
     const entregar = async (modo) => {
       let res;
       try {
@@ -82,27 +92,36 @@ async function hojaReporte(servicio) {
       }
 
       const { blob, nombreArchivo } = res;
-      const archivo = new File([blob], nombreArchivo, { type: blob.type });
 
-      if (modo === 'compartir' && navigator.canShare && navigator.canShare({ files: [archivo] })) {
+      // Se intenta compartir siempre que el navegador tenga la funcion
+      // (canShare a veces es mas estricto que share y miente que no).
+      if (modo === 'compartir' && navigator.share) {
+        const archivo = new File([blob], nombreArchivo, { type: blob.type });
+        const t0 = Date.now();
         try {
           await navigator.share({ files: [archivo], title: nombreArchivo });
-          estado.textContent = 'Compartido.';
+          const seg = Math.round((Date.now() - t0) / 100) / 10;
+          estado.textContent = 'Compartido en ' + seg + ' s.'
+            + (seg < 1.5 ? ' Fue tan rapido que Android no mostro el menu: avisame si no se abrio ninguna app.' : '');
           aviso('Reporte compartido', 'ok');
         } catch (e) {
-          if (e && e.name === 'AbortError') { estado.textContent = 'Archivo listo.'; return; }
-          // El toque caduco mientras se generaba (pasa la primera vez en
-          // telefonos lentos). El archivo ya quedo listo: basta otro toque.
           console.error(e);
-          estado.textContent = 'El archivo ya esta listo. Toca Compartir otra vez para abrir el menu.';
+          if (e && e.name === 'AbortError') {
+            estado.textContent = 'Menu cerrado sin elegir app. El archivo sigue listo.';
+          } else if (e && e.name === 'NotAllowedError') {
+            estado.textContent = 'El archivo ya esta listo. Toca Compartir otra vez para abrir el menu.';
+          } else {
+            descargar(blob, nombreArchivo);
+            estado.textContent = 'Android no dejo compartir el archivo (' + (e && e.name ? e.name : e) +
+              '); se descargo en su lugar. Busca "' + nombreArchivo + '" en la carpeta Descargas.';
+          }
         }
       } else {
-        const url = URL.createObjectURL(blob);
-        const a = h('a', { href: url, download: nombreArchivo });
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 4000);
-        estado.textContent = 'Descargado: ' + nombreArchivo;
+        descargar(blob, nombreArchivo);
+        estado.textContent = (modo === 'compartir'
+          ? 'Este navegador no comparte archivos; se descargo en su lugar. '
+          : 'Descarga enviada. ')
+          + 'Busca "' + nombreArchivo + '" en la carpeta Descargas o en las notificaciones de Android.';
         aviso('Reporte generado', 'ok');
       }
     };
