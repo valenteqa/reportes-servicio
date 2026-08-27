@@ -45,31 +45,65 @@ async function hojaReporte(servicio) {
 
     const estado = h('p.pista', '');
 
-    const entregar = async (modo) => {
-      estado.textContent = 'Generando...';
-      try {
-        const { blob, nombreArchivo } = esProc
-          ? await (await import('../presentacion.js')).generarPresentacion(servicio.id)
-          : await generarReporte(servicio.id);
-        const archivo = new File([blob], nombreArchivo, { type: blob.type });
+    // Android solo abre el menu de compartir si se pide "recien tocado el
+    // boton" (la activacion del toque caduca en ~5 s). Generar el archivo
+    // toma segundos, asi que se prepara desde que abre esta hoja: al tocar
+    // Compartir ya esta listo y el menu abre al instante.
+    let preparado = null;
+    let prepPromesa = null;
+    const preparar = () => {
+      if (preparado) return Promise.resolve(preparado);
+      if (!prepPromesa) {
+        prepPromesa = (esProc
+          ? import('../presentacion.js').then(m => m.generarPresentacion(servicio.id))
+          : generarReporte(servicio.id))
+          .then(res => {
+            preparado = res;
+            estado.textContent = 'Archivo listo.';
+            return res;
+          })
+          .catch(e => { prepPromesa = null; throw e; });
+      }
+      return prepPromesa;
+    };
+    estado.textContent = 'Preparando el archivo...';
+    preparar().catch(() => { estado.textContent = ''; });
 
-        if (modo === 'compartir' && navigator.canShare && navigator.canShare({ files: [archivo] })) {
+    const entregar = async (modo) => {
+      let res;
+      try {
+        if (!preparado) estado.textContent = 'Generando...';
+        res = await preparar();
+      } catch (e) {
+        console.error(e);
+        estado.textContent = 'Fallo al generar: ' + (e && e.message ? e.message : e);
+        aviso('No se pudo generar el reporte', 'error');
+        return;
+      }
+
+      const { blob, nombreArchivo } = res;
+      const archivo = new File([blob], nombreArchivo, { type: blob.type });
+
+      if (modo === 'compartir' && navigator.canShare && navigator.canShare({ files: [archivo] })) {
+        try {
           await navigator.share({ files: [archivo], title: nombreArchivo });
           estado.textContent = 'Compartido.';
-        } else {
-          const url = URL.createObjectURL(blob);
-          const a = h('a', { href: url, download: nombreArchivo });
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 4000);
-          estado.textContent = 'Descargado: ' + nombreArchivo;
+          aviso('Reporte compartido', 'ok');
+        } catch (e) {
+          if (e && e.name === 'AbortError') { estado.textContent = 'Archivo listo.'; return; }
+          // El toque caduco mientras se generaba (pasa la primera vez en
+          // telefonos lentos). El archivo ya quedo listo: basta otro toque.
+          console.error(e);
+          estado.textContent = 'El archivo ya esta listo. Toca Compartir otra vez para abrir el menu.';
         }
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = h('a', { href: url, download: nombreArchivo });
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 4000);
+        estado.textContent = 'Descargado: ' + nombreArchivo;
         aviso('Reporte generado', 'ok');
-      } catch (e) {
-        if (e && e.name === 'AbortError') { estado.textContent = ''; return; }
-        console.error(e);
-        estado.textContent = 'Fallo: ' + (e && e.message ? e.message : e);
-        aviso('No se pudo generar el reporte', 'error');
       }
     };
 
