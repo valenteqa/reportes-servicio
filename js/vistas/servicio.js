@@ -19,20 +19,26 @@ import { generarReporte } from '../reporte.js';
 /* ---------------------------------------------------------------- */
 
 async function hojaReporte(servicio) {
+  const esProc = servicio.tipo === 'procedimiento';
   const eventos = await db.eventosDeServicio(servicio.id);
   const incluidos = eventos.filter(e => e.incluir !== false);
   const excluidos = eventos.length - incluidos.length;
   const n = (tipo) => incluidos.filter(e => e.tipo === tipo).length;
   const pruebasAbiertas = incluidos.filter(e => e.tipo === 'prueba' && !e.datos.resultado).length;
+  const pasosConContenido = new Set(incluidos.map(e => e.equipoId)).size;
 
-  await hoja('📄  Generar reporte', (cerrar) => {
+  await hoja(esProc ? '📊  Generar presentacion' : '📄  Generar reporte', (cerrar) => {
     const resumen = h('div.reporte-resumen',
-      h('p.parrafo',
-        n('nota') + ' notas · ' + n('tabla') + ' tablas · ' + n('foto') + ' fotos · ' +
-        n('prueba') + ' pruebas · ' + n('pendiente') + ' pendientes'),
+      esProc
+        ? h('p.parrafo', pasosConContenido + ' pasos con contenido · ' + n('nota') + ' notas · ' + n('foto') + ' fotos')
+        : h('p.parrafo',
+            n('nota') + ' notas · ' + n('tabla') + ' tablas · ' + n('foto') + ' fotos · ' +
+            n('prueba') + ' pruebas · ' + n('pendiente') + ' pendientes'),
       excluidos ? h('p.pista', excluidos + ' registro(s) marcados "fuera del reporte" no saldran.') : null,
-      pruebasAbiertas ? h('p.pista', '⚠ ' + pruebasAbiertas + ' prueba(s) sin resultado: saldran como "(pendiente de resultado)".') : null,
-      h('p.pista', 'El Word se genera en el telefono, sin internet. El indice se actualiza solo al abrirlo en Word. Observaciones y recomendaciones se redactan al final, ya en Word.')
+      (!esProc && pruebasAbiertas) ? h('p.pista', '⚠ ' + pruebasAbiertas + ' prueba(s) sin resultado: saldran como "(pendiente de resultado)".') : null,
+      h('p.pista', esProc
+        ? 'El PowerPoint se genera en el telefono, sin internet: portada + una diapositiva por paso, con su texto y sus fotos (mas de 4 fotos continua en otra diapositiva).'
+        : 'El Word se genera en el telefono, sin internet. El indice se actualiza solo al abrirlo en Word. Observaciones y recomendaciones se redactan al final, ya en Word.')
     );
 
     const estado = h('p.pista', '');
@@ -40,7 +46,9 @@ async function hojaReporte(servicio) {
     const entregar = async (modo) => {
       estado.textContent = 'Generando...';
       try {
-        const { blob, nombreArchivo } = await generarReporte(servicio.id);
+        const { blob, nombreArchivo } = esProc
+          ? await (await import('../presentacion.js')).generarPresentacion(servicio.id)
+          : await generarReporte(servicio.id);
         const archivo = new File([blob], nombreArchivo, { type: blob.type });
 
         if (modo === 'compartir' && navigator.canShare && navigator.canShare({ files: [archivo] })) {
@@ -73,12 +81,12 @@ async function hojaReporte(servicio) {
   });
 }
 
-export async function agregarActividad(servicioId) {
-  const catalogo = await db.catalogoEquipos();
+export async function agregarActividad(servicioId, esPaso) {
+  const catalogo = esPaso ? [] : await db.catalogoEquipos();
 
-  const nombre = await hoja('Nueva actividad', (cerrar) => {
-    const cNombre = campo('Titulo de la actividad', {
-      placeholder: 'Pruebas de tarjeta IPC',
+  const nombre = await hoja(esPaso ? 'Nuevo paso' : 'Nueva actividad', (cerrar) => {
+    const cNombre = campo(esPaso ? 'Titulo del paso' : 'Titulo de la actividad', {
+      placeholder: esPaso ? 'Retirar guarda de seguridad' : 'Pruebas de tarjeta IPC',
       autocomplete: 'off',
     });
 
@@ -94,19 +102,21 @@ export async function agregarActividad(servicioId) {
 
     return h('div',
       cNombre, rapidas,
-      h('p.pista', 'Cada actividad es una rama del arbol: ahi caen sus notas, tablas, fotos y pruebas. En el reporte sera una seccion.'),
+      h('p.pista', esPaso
+        ? 'Cada paso sera una diapositiva de la presentacion, con su texto y sus fotos.'
+        : 'Cada actividad es una rama del arbol: ahi caen sus notas, tablas, fotos y pruebas. En el reporte sera una seccion.'),
       h('div.hoja__acciones',
         h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
         h('button.btn.btn--primario', {
           type: 'button', onclick: () => cerrar(cNombre.entrada.value.trim())
-        }, 'Crear rama')
+        }, esPaso ? 'Crear paso' : 'Crear rama')
       )
     );
   });
 
   if (!nombre) return null;
   const actividad = await db.equipoNuevo(servicioId, { nombre });
-  aviso('Actividad creada', 'ok');
+  aviso(esPaso ? 'Paso creado' : 'Actividad creada', 'ok');
   return actividad;
 }
 
@@ -141,13 +151,15 @@ function menuRama(actividad, conteo, refrescar) {
   }, '⋯');
 }
 
-function rama(servicio, actividad, eventos, refrescar) {
+function rama(servicio, actividad, eventos, refrescar, numeroPaso) {
   const esGeneral = actividad.id === db.GENERAL;
+  const esProc = (servicio.tipo === 'procedimiento');
   const sinResultado = eventos.filter(e => e.tipo === 'prueba' && !e.datos.resultado).length;
+  const nombreVisible = numeroPaso ? numeroPaso + '. ' + actividad.nombre : actividad.nombre;
 
   const cabeza = h('div.rama__cabeza',
     h('span.rama__rombo'),
-    h('span.rama__nombre', actividad.nombre),
+    h('span.rama__nombre', nombreVisible),
     eventos.length ? h('span.rama__conteo', String(eventos.length)) : null,
     sinResultado ? h('span.rama__pendiente', sinResultado + ' sin resultado') : null,
     h('span.crece'),
@@ -155,9 +167,11 @@ function rama(servicio, actividad, eventos, refrescar) {
   );
 
   // El + va al FINAL de la linea de tiempo: el siguiente nodo de la secuencia.
+  // En procedimientos cada paso es una diapositiva: solo texto e imagenes.
   const agregar = h('button.rama__agregar', {
     type: 'button', 'aria-label': 'Agregar en ' + actividad.nombre,
-    onclick: () => menuAgregar(servicio.id, actividad.id, refrescar, actividad.nombre),
+    onclick: () => menuAgregar(servicio.id, actividad.id, refrescar, nombreVisible,
+      esProc ? ['camara', 'galeria', 'nota'] : null),
   }, '+');
 
   return h('section.rama', { dataset: { rama: actividad.id } },
@@ -233,16 +247,21 @@ export async function render(contenedor, refrescar, params) {
     )
   );
 
+  const esProc = servicio.tipo === 'procedimiento';
   const general = { id: db.GENERAL, nombre: 'General' };
+  const evGeneral = porRama[db.GENERAL] || [];
+
   const arbol = h('div.arbol',
-    rama(servicio, general, porRama[db.GENERAL] || [], alRefrescar),
-    actividades.map(a => rama(servicio, a, porRama[a.id] || [], alRefrescar)),
+    // En procedimientos el tronco General se oculta si esta vacio: ahi solo
+    // cuentan los pasos (cada uno una diapositiva).
+    (esProc && !evGeneral.length) ? null : rama(servicio, general, evGeneral, alRefrescar),
+    actividades.map((a, i) => rama(servicio, a, porRama[a.id] || [], alRefrescar, esProc ? i + 1 : 0)),
     h('button.rama-nueva', {
       type: 'button',
-      onclick: async () => { if (await agregarActividad(servicio.id)) alRefrescar(); }
+      onclick: async () => { if (await agregarActividad(servicio.id, esProc)) alRefrescar(); }
     },
       h('span.rama-nueva__rombo', '+'),
-      h('span', 'Nueva actividad')
+      h('span', esProc ? 'Nuevo paso' : 'Nueva actividad')
     )
   );
   cont.append(arbol);

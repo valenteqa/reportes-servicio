@@ -15,7 +15,7 @@
 
 import * as db from './db.js';
 
-const EMPRESA = {
+export const EMPRESA = {
   titulo: 'GRUPO DE SERVICIOS Y PROCESOS PLÁSTICOS',
   razon: 'GRUPO DE SERVICIOS Y PROCESOS PLASTICOS, S.A. DE C.V.',
   direccion: 'MARTIN CHIMALTECATL NO. 211, BARRIO DE SANTA MARIA, C.P. 52740, OCOYOACAC, ESTADO DE MEXICO',
@@ -153,7 +153,7 @@ export function leerZip(buf) {
 /* Piezas OOXML                                                      */
 /* ---------------------------------------------------------------- */
 
-function esc(s) {
+export function esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&apos;');

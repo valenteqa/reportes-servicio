@@ -37,14 +37,20 @@ export async function capturarFoto(servicioId, equipoId, { galeria = false } = {
  * Menu "+" de una rama: que agregar en esa actividad. Sustituye a la barra
  * inferior — se agrega directo donde tocaste, sin concepto de rama activa.
  */
-export async function menuAgregar(servicioId, equipoId, refrescar, nombreRama) {
+export async function menuAgregar(servicioId, equipoId, refrescar, nombreRama, opciones) {
+  const TODAS = [
+    ['camara',    '📷  Tomar foto'],
+    ['galeria',   '🖼  Foto de la galeria'],
+    ['nota',      '📝  Nota'],
+    ['tabla',     '▦  Tabla'],
+    ['prueba',    '🧪  Prueba'],
+    ['pendiente', '⏳  Pendiente'],
+  ];
+  const lista = opciones ? TODAS.filter(([k]) => opciones.includes(k)) : TODAS;
+
   const accion = await hoja('＋  ' + (nombreRama || 'Agregar'), (cerrar) => h('div.lista-acciones',
-    h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('camara') },   '📷  Tomar foto'),
-    h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('galeria') },  '🖼  Foto de la galeria'),
-    h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('nota') },     '📝  Nota'),
-    h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('tabla') },    '▦  Tabla'),
-    h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('prueba') },   '🧪  Prueba'),
-    h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('pendiente') },'⏳  Pendiente')
+    lista.map(([k, texto]) =>
+      h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar(k) }, texto))
   ));
   if (!accion) return;
 

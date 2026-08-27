@@ -9,9 +9,10 @@ export const GENERAL = '__general__';
 // No todo lo que se registra es un servicio. El tipo se elige al crear y define
 // como se rotula en las listas y en el reporte.
 export const TIPOS = {
-  servicio:    { nombre: 'Servicio',              icono: '🔧' },
-  laboratorio: { nombre: 'Pruebas de laboratorio', icono: '🧪' },
-  general:     { nombre: 'General',                icono: '📋' },
+  servicio:      { nombre: 'Servicio',               icono: '🔧' },
+  laboratorio:   { nombre: 'Pruebas de laboratorio', icono: '🧪' },
+  general:       { nombre: 'General',                icono: '📋' },
+  procedimiento: { nombre: 'Procedimiento',          icono: '📑' },
 };
 
 export function tipoDe(trabajo) {

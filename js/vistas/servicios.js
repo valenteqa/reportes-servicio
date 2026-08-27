@@ -71,9 +71,10 @@ async function bannerAlmacenamiento() {
 /* ---------------------------------------------------------------- */
 
 const PISTA_TIPO = {
-  servicio:    'Mantenimiento o reparacion en sitio',
-  laboratorio: 'Pruebas y mediciones en banco',
-  general:     'Cualquier otro registro',
+  servicio:      'Mantenimiento o reparacion en sitio',
+  laboratorio:   'Pruebas y mediciones en banco',
+  general:       'Cualquier otro registro',
+  procedimiento: 'Guia paso a paso — genera PowerPoint',
 };
 
 function elegirTipo() {
@@ -105,7 +106,9 @@ async function formularioTrabajo(existente, tipoClave) {
     if (!esServicio) {
       const cTitulo = campo('Titulo', {
         value: previo.titulo || '',
-        placeholder: tipoClave === 'laboratorio' ? 'Pruebas de tarjeta IPC' : 'Revision mensual',
+        placeholder: tipoClave === 'laboratorio' ? 'Pruebas de tarjeta IPC'
+          : tipoClave === 'procedimiento' ? 'Cambio de sellos de bomba hidraulica'
+          : 'Revision mensual',
       });
       return h('div',
         cTitulo,
