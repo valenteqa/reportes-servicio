@@ -185,9 +185,9 @@ export async function render(contenedor, refrescar, params) {
   const tipo = db.tipoDe(servicio);
   const esServicio = (servicio.tipo || 'servicio') === 'servicio';
 
-  // Titulo: la falla es el nombre del trabajo. Debajo, cliente y sede.
+  // Titulo: icono del tipo + la falla. Debajo, cliente y sede.
   const titulo = esServicio && servicio.descripcion
-    ? 'SERVICIO: ' + servicio.descripcion
+    ? tipo.icono + ' ' + servicio.descripcion
     : (servicio.titulo || servicio.cliente || servicio.planta || tipo.nombre);
   const sub = esServicio
     ? [servicio.cliente, servicio.planta].filter(Boolean).join(' · ')

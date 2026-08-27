@@ -993,7 +993,25 @@ button { font-family: inherit; font-size: inherit; }
   min-width: 42px; text-align: right;
   font-family: var(--mono); font-size: .82rem; color: #cdd6df;
 }
-.editor__pista { font-size: .76rem; color: #8a99a8; }
+.editor__pista { font-size: .72rem; color: #8a99a8; line-height: 1.25; }
+
+/* Vista previa a tamaño completo antes de guardar */
+.editor-previa {
+  position: fixed; inset: 0; z-index: 85;
+  display: flex; flex-direction: column;
+  background: #04060a;
+}
+.editor-previa__zona {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  overflow: hidden; padding: calc(var(--sup) + 10px) 10px 10px;
+}
+.editor-previa__zona img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.editor-previa__barra {
+  display: flex; gap: .5rem;
+  padding: .6rem .7rem calc(.7rem + var(--inf));
+  background: #0d141b; border-top: 1px solid #1d2632;
+}
+.editor-previa__barra .btn { flex: 1; }
 
 /* ---------------------------------------------------------------- */
 /* Estado vacio                                                      */
