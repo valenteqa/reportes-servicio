@@ -14,6 +14,7 @@ import { lineaDeTiempo, menuAgregar, galeriaDelTrabajo } from './eventos.js';
 import { editarServicio } from './servicios.js';
 import { generarReporte } from '../reporte.js';
 import { vistaPreviaReporte } from './previa.js';
+import { esNativa, compartirArchivoNativo } from '../nativo.js';
 
 /* ---------------------------------------------------------------- */
 /* Generar el reporte Word y entregarlo (compartir o descargar)      */
@@ -126,11 +127,21 @@ async function hojaReporte(servicio) {
     };
 
     // Compartir: el menu nativo de Android (apps, imprimir, Drive...).
-    // OJO: Android solo lo abre si se pide EN el mismo toque, sin ningun
-    // await de por medio — por eso esta funcion no es async antes del share.
-    // Si falla, solo se explica en el estado: los botones ya estan aqui.
+    // En el APK (Capacitor) va por el puente nativo: acepta Word/PowerPoint.
+    // En navegador, Android solo lo abre si se pide EN el mismo toque, sin
+    // ningun await antes del share — por eso la parte web no es async.
     const compartir = (res) => {
       const { blob, nombreArchivo } = res;
+      if (esNativa()) {
+        compartirArchivoNativo(blob, nombreArchivo, nombreArchivo)
+          .then(() => { estado.textContent = 'Compartido.'; aviso('Reporte compartido', 'ok'); })
+          .catch((e) => {
+            if (e && /cancel/i.test((e.message || '') + e)) { estado.textContent = 'Menu cerrado sin elegir app.'; return; }
+            console.error(e);
+            estado.textContent = 'No se pudo compartir [' + (e && e.message ? e.message : e) + ']. Usa Descargar.';
+          });
+        return;
+      }
       if (!navigator.share) {
         estado.textContent = 'Este navegador no tiene menu de compartir. Usa Descargar.';
         return;

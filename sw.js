@@ -14,7 +14,7 @@
 // Subir VERSION en cada publicacion (junto con APP_VERSION en js/version.js):
 // eso dispara un re-precacheo completo, que es la via mas confiable.
 
-const VERSION = 'v59';
+const VERSION = 'v60';
 const CACHE = 'reportes-' + VERSION;
 
 const CASCARON = [
@@ -25,6 +25,7 @@ const CASCARON = [
   'js/app.js',
   'js/version.js',
   'js/tema.js',
+  'js/nativo.js',
   'js/reporte.js',
   'js/respaldo.js',
   'js/editor-foto.js',

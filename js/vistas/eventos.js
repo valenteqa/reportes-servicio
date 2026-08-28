@@ -4,6 +4,7 @@ import * as db from '../db.js';
 import * as media from '../media.js';
 import { h, hora, fecha, aviso, hoja, confirmar, campoArea, vacio, anclarCapa, bloquearScroll, liberarScroll, icono, orientarLibre, orientarHorizontal, orientarNormal } from '../ui.js';
 import { editarFoto } from '../editor-foto.js';
+import { esNativa, compartirArchivoNativo } from '../nativo.js';
 
 /* ---------------------------------------------------------------- */
 /* Acciones de captura                                               */
@@ -511,8 +512,17 @@ export async function verFoto(eventoInicial, alCambiar) {
         // Las fotos JPEG SI pasan por el menu de Android (Word no).
         // Sin esperas antes del share: debe pedirse en el toque mismo.
         onclick: () => {
-          if (!navigator.share) { aviso('Este navegador no comparte archivos', 'error'); return; }
           const nombre = 'foto-' + hora(evento.ts).replace(/[^0-9]/g, '') + '.jpg';
+          if (esNativa()) {
+            compartirArchivoNativo(foto.blob, nombre, evento.datos.pie || nombre)
+              .catch((e) => {
+                if (e && /cancel/i.test((e.message || '') + e)) return;
+                console.error(e);
+                aviso('No se pudo compartir la foto', 'error');
+              });
+            return;
+          }
+          if (!navigator.share) { aviso('Este navegador no comparte archivos', 'error'); return; }
           const archivo = new File([foto.blob], nombre, { type: 'image/jpeg' });
           navigator.share({ files: [archivo], title: evento.datos.pie || nombre })
             .catch((e) => {
