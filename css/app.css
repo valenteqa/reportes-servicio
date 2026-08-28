@@ -1055,7 +1055,7 @@ body.pantalla-ancha #app { max-width: none; }
    Revertir. Si no cabe (zoom alto en pantalla angosta) se corta con "…". */
 .editor__modo {
   flex: 1; min-width: 0; text-align: center;
-  color: var(--primario); font-size: .84rem; font-weight: 700;
+  color: var(--primario); font-size: 1rem; font-weight: 700;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .editor__revertir { color: var(--aviso); padding: .5rem .4rem; font-size: .82rem; }
