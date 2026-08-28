@@ -5,7 +5,7 @@
 // horizontal, y guardado automatico (nunca hay que acordarse de un boton Guardar).
 
 import * as db from '../db.js';
-import { h, hoja, aviso, confirmar, campo, hora, fecha } from '../ui.js';
+import { h, hoja, aviso, confirmar, campo, hora, fecha, orientarLibre, orientarHorizontal, orientarNormal } from '../ui.js';
 
 let guardadoPendiente = null;
 
@@ -101,10 +101,24 @@ export async function render(contenedor, refrescar, params) {
     oninput: () => { evento.datos.titulo = cTitulo.value; guardarPronto(evento, indicador); },
   });
 
+  // En tablas el giro queda libre (para capturar a lo ancho); el boton 🔁
+  // fuerza horizontal. Al salir de la pantalla se vuelve a anclar vertical.
+  let horizontal = false;
+  orientarLibre();
+  window.addEventListener('hashchange', orientarNormal, { once: true });
+
   const cabecera = h('header.cabecera',
     h('div.cabecera__fila',
       h('button.icono-btn', { type: 'button', 'aria-label': 'Volver', onclick: volver }, '←'),
       h('div.cabecera__titulo', cTitulo),
+      h('button.icono-btn', {
+        type: 'button', 'aria-label': 'Girar pantalla',
+        onclick: async () => {
+          const ok = horizontal ? await orientarLibre() : await orientarHorizontal();
+          if (!ok) { aviso('Este dispositivo no deja girar la pantalla desde la app', 'error'); return; }
+          horizontal = !horizontal;
+        }
+      }, '🔁'),
       indicador
     ),
     h('div.cabecera__meta',

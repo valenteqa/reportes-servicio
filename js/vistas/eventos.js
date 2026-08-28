@@ -2,7 +2,7 @@
 
 import * as db from '../db.js';
 import * as media from '../media.js';
-import { h, hora, fecha, aviso, hoja, confirmar, campoArea, vacio, anclarCapa, bloquearScroll, liberarScroll, icono } from '../ui.js';
+import { h, hora, fecha, aviso, hoja, confirmar, campoArea, vacio, anclarCapa, bloquearScroll, liberarScroll, icono, orientarLibre, orientarHorizontal, orientarNormal } from '../ui.js';
 import { editarFoto } from '../editor-foto.js';
 
 /* ---------------------------------------------------------------- */
@@ -302,6 +302,7 @@ export async function verFoto(evento, alCambiar) {
   const cerrar = async (guardar) => {
     if (resuelto) return;
     resuelto = true;
+    orientarNormal();   // de vuelta a vertical al salir del visor
     if (guardar) {
       evento.datos.pie = pie.value.trim();
       await db.eventoGuardar(evento);
@@ -384,10 +385,23 @@ export async function verFoto(evento, alCambiar) {
   lienzoV.addEventListener('pointerup', soltarV);
   lienzoV.addEventListener('pointercancel', soltarV);
 
+  // En el visor el giro queda libre (el resto de la app va anclada a
+  // vertical); el boton 🔁 fuerza horizontal y vuelve a dejarlo libre.
+  let horizontal = false;
+  orientarLibre();
+
   const capa = h('div.visor',
     h('div.visor__barra',
       h('button.icono-btn.icono-btn--claro', { type: 'button', onclick: () => cerrar(true) }, '✕'),
       h('span.visor__hora', hora(evento.ts)),
+      h('button.icono-btn.icono-btn--claro', {
+        type: 'button', 'aria-label': 'Girar pantalla',
+        onclick: async () => {
+          const ok = horizontal ? await orientarLibre() : await orientarHorizontal();
+          if (!ok) { aviso('Este dispositivo no deja girar la pantalla desde la app', 'error'); return; }
+          horizontal = !horizontal;
+        }
+      }, '🔁'),
       h('button.icono-btn.icono-btn--claro', {
         type: 'button', 'aria-label': 'Compartir foto',
         // Las fotos JPEG SI pasan por el menu de Android (Word no).

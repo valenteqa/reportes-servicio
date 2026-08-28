@@ -76,6 +76,31 @@ export function icono(nombre) {
   return h('span.icono-svg', { innerHTML: ICONOS[nombre] || '' });
 }
 
+/* Orientacion de pantalla: la app va anclada a vertical (manifest); el visor
+   de fotos y las tablas LIBERAN el giro del telefono o fuerzan horizontal. */
+
+export async function orientarLibre() {
+  try { await screen.orientation.lock('any'); return true; }
+  catch (e) { return false; }
+}
+
+export async function orientarHorizontal() {
+  try { await screen.orientation.lock('landscape'); return true; }
+  catch (e) {
+    // En pestaña de navegador el bloqueo exige pantalla completa.
+    try {
+      await document.documentElement.requestFullscreen();
+      await screen.orientation.lock('landscape');
+      return true;
+    } catch (e2) { return false; }
+  }
+}
+
+export function orientarNormal() {
+  try { screen.orientation.unlock(); } catch (e) {}
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+}
+
 export function vaciar(el) {
   while (el.firstChild) el.removeChild(el.firstChild);
   return el;
