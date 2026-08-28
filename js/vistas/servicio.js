@@ -125,38 +125,14 @@ async function hojaReporte(servicio) {
       }
     };
 
-    // Menu propio de entrega: el plan B cuando el menu de Android no abre.
-    // El motivo se muestra DENTRO del menu (el texto de abajo queda tapado).
-    const menuEntrega = async (res, motivo) => {
-      if (motivo) estado.textContent = motivo;
-      const accion = await hoja('¿Como lo entregamos?', (cerrar) => h('div',
-        motivo ? h('p.pista', motivo) : null,
-        h('div.lista-acciones',
-          h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('guardar') },
-            icono('descargar'), '  Descargar (elige carpeta u OneDrive)'),
-          h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('descargar') },
-            '⬇  Descarga rapida a la carpeta Descargas'),
-          esProc ? null : h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('previa') },
-            '🖨  Vista previa para imprimir')
-        )
-      ));
-      if (accion === 'guardar') await guardarEn(res);
-      if (accion === 'descargar') {
-        descargar(res.blob, res.nombreArchivo);
-        estado.textContent = 'Descarga enviada. Busca "' + res.nombreArchivo + '" en la carpeta Descargas.';
-        aviso('Reporte descargado', 'ok');
-      }
-      if (accion === 'previa') await vistaPreviaReporte(servicio.id);
-    };
-
     // Compartir: el menu nativo de Android (apps, imprimir, Drive...).
     // OJO: Android solo lo abre si se pide EN el mismo toque, sin ningun
     // await de por medio — por eso esta funcion no es async antes del share.
-    // Si aun asi el telefono lo niega, sale nuestro menu de entrega.
+    // Si falla, solo se explica en el estado: los botones ya estan aqui.
     const compartir = (res) => {
       const { blob, nombreArchivo } = res;
       if (!navigator.share) {
-        menuEntrega(res, 'Este navegador no tiene menu de compartir.');
+        estado.textContent = 'Este navegador no tiene menu de compartir. Usa Descargar.';
         return;
       }
       const archivo = new File([blob], nombreArchivo, { type: blob.type });
@@ -172,13 +148,10 @@ async function hojaReporte(servicio) {
           console.error(e);
           if (e && e.name === 'AbortError') { estado.textContent = 'Menu cerrado sin elegir app.'; return; }
           // Chrome tiene lista fija de tipos compartibles (fotos, video,
-          // audio, texto, PDF); Word y PowerPoint NO estan — el rechazo es
-          // del navegador, no de este telefono.
-          const motivo = (e && e.name === 'NotAllowedError')
-            ? 'Chrome no deja pasar archivos de Word o PowerPoint por el menu de Android (solo fotos, video y PDF). Descargar te deja elegir OneDrive:'
-            : 'Android nego el menu de compartir [' + (e && e.name ? e.name : '') +
-              (e && e.message ? ': ' + e.message : '') + '].';
-          menuEntrega(res, motivo);
+          // audio, texto, PDF); Word y PowerPoint NO estan.
+          estado.textContent = (e && e.name === 'NotAllowedError')
+            ? 'Chrome no deja pasar Word/PowerPoint por el menu de Android. Usa Descargar: ahi eliges OneDrive.'
+            : 'No se pudo compartir [' + (e && e.name ? e.name : e) + ']. Usa Descargar.';
         });
     };
 

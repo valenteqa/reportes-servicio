@@ -71,12 +71,87 @@ async function hojaConfiguracion() {
       h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('catalogo') },
         '🗂  Clientes y datos de maquina'),
       h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('zoom') },
-        '🔍  Tamaño de la interfaz')
+        '🔍  Tamaño de la interfaz'),
+      h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('papelera') },
+        '🗑  Papelera de fotos')
     ),
     h('p.pista', 'Administra las sugerencias que salen al crear o editar un servicio. Los servicios y reportes ya guardados no se tocan.')
   ));
   if (accion === 'catalogo') await hojaCampoCatalogo();
   if (accion === 'zoom') await hojaZoom();
+  if (accion === 'papelera') await hojaPapelera();
+}
+
+// Fotos eliminadas: se restauran a su linea de tiempo o se van para siempre.
+async function hojaPapelera() {
+  for (;;) {
+    const lista = await db.papeleraFotos();
+
+    const elegido = await hoja('🗑  Papelera de fotos', (cerrar) => {
+      const cont = h('div');
+      if (!lista.length) {
+        cont.append(h('p.pista', 'Vacia. Las fotos que elimines llegan aqui y se pueden restaurar.'));
+        return cont;
+      }
+      const rejilla = h('div.galeria-rejilla');
+      for (const ev of lista) {
+        const marco = h('span.galeria-item__marco');
+        rejilla.append(h('button.galeria-item', { type: 'button', onclick: () => cerrar(ev) },
+          marco,
+          h('span.galeria-item__pie', ev.datos.pie || fecha(ev.ts))));
+        db.fotoLeer(ev.datos.fotoId).then(f => {
+          if (!f) { marco.append(h('span.galeria-item__falta', '✕')); return; }
+          const img = h('img', { alt: '' });
+          marco.append(img);
+          img.src = media.urlDe(f.mini || f.blob);
+        });
+      }
+      cont.append(
+        h('p.pista', 'Toca una foto para restaurarla o eliminarla para siempre.'),
+        rejilla,
+        h('div.hoja__acciones',
+          h('button.btn.btn--peligro', { type: 'button', onclick: () => cerrar('vaciar') }, 'Vaciar papelera'))
+      );
+      return cont;
+    }, { altura: 'alta' });
+
+    if (!elegido) return;
+
+    if (elegido === 'vaciar') {
+      if (await confirmar('Se eliminan DEFINITIVAMENTE ' + lista.length + ' foto(s). Esto no se puede deshacer.', { textoOk: 'Vaciar' })) {
+        for (const ev of lista) await db.eventoBorrar(ev.id);
+        aviso('Papelera vaciada', 'ok');
+      }
+      continue;
+    }
+
+    const servicio = await db.servicioLeer(elegido.servicioId);
+    const accion2 = await hoja(elegido.datos.pie || 'Foto', (cerrar) => h('div',
+      h('p.pista',
+        (servicio
+          ? 'Del trabajo: ' + (servicio.descripcion || servicio.titulo || servicio.cliente || 'sin nombre') + '. '
+          : 'El trabajo original ya no existe. ')
+        + 'Eliminada el ' + fecha(elegido.borrado) + '.'),
+      h('div.lista-acciones',
+        servicio
+          ? h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('restaurar') },
+              '↩  Restaurar a su linea de tiempo')
+          : null,
+        h('button.lista-acciones__item.lista-acciones__item--peligro',
+          { type: 'button', onclick: () => cerrar('definitivo') }, '🗑  Eliminar definitivamente')
+      )
+    ));
+
+    if (accion2 === 'restaurar') {
+      await db.eventoRestaurar(elegido.id);
+      aviso('Foto restaurada', 'ok');
+    } else if (accion2 === 'definitivo') {
+      if (await confirmar('Se elimina la foto para siempre.', { textoOk: 'Eliminar' })) {
+        await db.eventoBorrar(elegido.id);
+        aviso('Foto eliminada');
+      }
+    }
+  }
 }
 
 async function hojaZoom() {

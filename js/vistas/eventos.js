@@ -338,9 +338,9 @@ export async function verFoto(evento, alCambiar) {
       h('button.icono-btn.icono-btn--claro', {
         type: 'button',
         onclick: async () => {
-          if (await confirmar('Se elimina la foto de forma permanente.')) {
-            await db.eventoBorrar(evento.id);
-            aviso('Foto eliminada');
+          if (await confirmar('La foto se manda a la papelera. Puedes restaurarla desde ⚙ Configuracion.', { textoOk: 'Eliminar' })) {
+            await db.eventoAPapelera(evento.id);
+            aviso('Foto enviada a la papelera');
             cerrar(false);
           }
         }
@@ -522,7 +522,14 @@ function menuEvento(evento, refrescar) {
         aviso(evento.incluir ? 'Se incluira en el reporte' : 'Excluido del reporte');
         refrescar();
       } else if (accion === 'borrar') {
-        if (await confirmar('Se elimina este registro de forma permanente.')) {
+        if (evento.tipo === 'foto') {
+          // Las fotos van a la papelera; lo demas se elimina de una vez.
+          if (await confirmar('La foto se manda a la papelera. Puedes restaurarla desde ⚙ Configuracion.', { textoOk: 'Eliminar' })) {
+            await db.eventoAPapelera(evento.id);
+            aviso('Foto enviada a la papelera');
+            refrescar();
+          }
+        } else if (await confirmar('Se elimina este registro de forma permanente.')) {
           await db.eventoBorrar(evento.id);
           aviso('Eliminado');
           refrescar();

@@ -345,7 +345,35 @@ export function eventosDeEquipo(equipoId) {
 
 export function eventosDeServicio(servicioId) {
   return tx('eventos', 'readonly', st => porIndice(st.eventos, 'porServicioTs',
-    IDBKeyRange.bound([servicioId, 0], [servicioId, Infinity])));
+    IDBKeyRange.bound([servicioId, 0], [servicioId, Infinity])))
+    .then(lista => lista.filter(e => !e.borrado));   // lo borrado vive en la papelera
+}
+
+/* Papelera de fotos: eliminar una foto la manda aqui (evento.borrado =
+   fecha). Se restaura o se elimina definitivo desde ⚙ Configuracion. */
+
+export function eventoAPapelera(id) {
+  return tx('eventos', 'readwrite', async (st) => {
+    const ev = await pedir(st.eventos.get(id));
+    if (!ev) return;
+    ev.borrado = Date.now();
+    st.eventos.put(ev);
+  });
+}
+
+export function eventoRestaurar(id) {
+  return tx('eventos', 'readwrite', async (st) => {
+    const ev = await pedir(st.eventos.get(id));
+    if (!ev) return;
+    delete ev.borrado;
+    st.eventos.put(ev);
+  });
+}
+
+export function papeleraFotos() {
+  return tx('eventos', 'readonly', st => pedir(st.eventos.getAll()))
+    .then(todos => todos.filter(e => e.borrado && e.tipo === 'foto')
+      .sort((a, b) => b.borrado - a.borrado));
 }
 
 export function resumenPorEquipo(servicioId) {
