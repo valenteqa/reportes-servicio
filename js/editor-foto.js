@@ -12,6 +12,7 @@
 // grueso sin relleno (rectangulo, circulo, flecha) para señalar.
 
 import * as db from './db.js';
+import { codificarJpeg } from './media.js';
 import { h, aviso, confirmar, anclarCapa, bloquearScroll, liberarScroll, ocupado, libre } from './ui.js';
 
 const ROJO = '#FF2222';
@@ -127,8 +128,9 @@ function renderFinal(bitmap, ed, cap) {
   return cv;
 }
 
+// Codificacion sincrona compartida: toBlob se atora segundos en WebView.
 function aBlob(cv, calidad) {
-  return new Promise(res => cv.toBlob(res, 'image/jpeg', calidad));
+  return codificarJpeg(cv, calidad);
 }
 
 /* ---------------------------------------------------------------- */

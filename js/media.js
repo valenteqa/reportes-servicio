@@ -109,10 +109,29 @@ function escalar(origen, ladoMax, calidad) {
   ctx.imageSmoothingQuality = 'medium';
   ctx.drawImage(origen, 0, 0, w, h);
 
+  return codificar(lienzo, calidad).then(blob => ({ blob, w, h, lienzo }));
+}
+
+// Convierte el lienzo a JPEG por la via SINCRONA (toDataURL): las vias
+// asincronas (toBlob / convertToBlob) pasan por una cola interna del motor
+// que en varios WebView se atora SEGUNDOS por foto (medido: 11 ms contra
+// 13,000 ms en el mismo telefono). Si algo falla, cae a toBlob.
+export async function codificarJpeg(lienzo, calidad) {
+  try {
+    const durl = lienzo.toDataURL('image/jpeg', calidad);
+    if (durl && durl.indexOf('data:image/jpeg') === 0) {
+      const b64 = durl.slice(durl.indexOf(',') + 1);
+      const bin = atob(b64);
+      const arr = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      return new Blob([arr], { type: 'image/jpeg' });
+    }
+  } catch (e) { /* cae a toBlob */ }
   return new Promise((resolve) => {
-    lienzo.toBlob(blob => resolve({ blob, w, h, lienzo }), 'image/jpeg', calidad);
+    lienzo.toBlob(resolve, 'image/jpeg', calidad);
   });
 }
+const codificar = codificarJpeg;
 
 /**
  * Toma el archivo crudo de la camara y devuelve el registro listo para guardar:

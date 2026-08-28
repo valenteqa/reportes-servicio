@@ -74,13 +74,76 @@ async function hojaConfiguracion() {
       h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('catalogo') },
         '🗂  Clientes y datos de maquina'),
       h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('zoom') },
-        '🔍  Tamaño de la interfaz')
+        '🔍  Tamaño de la interfaz'),
+      h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('diag') },
+        '🩺  Diagnostico de foto')
     ),
     h('p.pista', 'Administra las sugerencias que salen al crear o editar un servicio. Los servicios y reportes ya guardados no se tocan.')
   ));
   if (accion === 'tecnico') await hojaTecnico();
   if (accion === 'catalogo') await hojaCampoCatalogo();
   if (accion === 'zoom') await hojaZoom();
+  if (accion === 'diag') await hojaDiagnostico();
+}
+
+// Micro-pruebas del pipeline de foto EN ESTE telefono: mide cada forma de
+// comprimir un lienzo 1600x1200 y la version del motor. Para cazar WebViews
+// con rutas rotas sin adivinar desde fuera.
+async function hojaDiagnostico() {
+  await hoja('🩺  Diagnostico de foto', (cerrar) => {
+    const salida = h('pre.diag', 'Corriendo pruebas (unos segundos)...');
+
+    (async () => {
+      const L = [];
+      const linea = (s) => { L.push(s); salida.textContent = L.join('\n'); };
+      linea('Motor: ' + ((navigator.userAgent.match(/Chrome\/[\d.]+/) || ['?'])[0]));
+      linea('Nativa: ' + (esNativa() ? 'si (APK)' : 'no (navegador)'));
+
+      const cv = document.createElement('canvas');
+      cv.width = 1600; cv.height = 1200;
+      const ctx = cv.getContext('2d', { willReadFrequently: true });
+      const g = ctx.createLinearGradient(0, 0, 1600, 1200);
+      g.addColorStop(0, '#f60'); g.addColorStop(1, '#06f');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, 1600, 1200);
+      ctx.fillStyle = '#fff'; ctx.font = '90px sans-serif'; ctx.fillText('PRUEBA', 500, 620);
+
+      const t = async (nombre, fn) => {
+        const a = performance.now();
+        try {
+          await fn();
+          linea(nombre + ': ' + Math.round(performance.now() - a) + ' ms');
+        } catch (e) {
+          linea(nombre + ': ERROR ' + (e && e.message ? e.message : e));
+        }
+      };
+      const tb = (tipo, q) => new Promise((res, rej) => {
+        try { cv.toBlob(b => b ? res(b) : rej(new Error('blob nulo')), tipo, q); }
+        catch (e) { rej(e); }
+      });
+      const ctb = async () => {
+        const oc = new OffscreenCanvas(1600, 1200);
+        oc.getContext('2d').drawImage(cv, 0, 0);
+        return oc.convertToBlob({ type: 'image/jpeg', quality: 0.82 });
+      };
+
+      await t('toBlob JPEG (1a)', () => tb('image/jpeg', 0.82));
+      await t('toBlob JPEG (2a)', () => tb('image/jpeg', 0.82));
+      await t('toBlob WEBP', () => tb('image/webp', 0.82));
+      await t('toBlob PNG', () => tb('image/png'));
+      await t('toDataURL JPEG', async () => cv.toDataURL('image/jpeg', 0.82));
+      await t('convertToBlob (1a)', ctb);
+      await t('convertToBlob (2a)', ctb);
+      await t('latencia del sistema', () => new Promise(r => setTimeout(r, 0)));
+      linea('');
+      linea('LISTO — mandame una captura de esta pantalla.');
+    })();
+
+    return h('div',
+      salida,
+      h('div.hoja__acciones',
+        h('button.btn.btn--primario', { type: 'button', onclick: () => cerrar(true) }, 'Cerrar'))
+    );
+  }, { altura: 'alta' });
 }
 
 // Cada telefono tiene su tecnico: es quien firma los reportes nuevos.
