@@ -763,6 +763,12 @@ body.pantalla-ancha #app { max-width: none; }
   white-space: pre-wrap; word-break: break-word; color: var(--tinta);
 }
 
+.tag-web {
+  flex: 0 0 auto; padding: .1rem .45rem;
+  border: 1px solid var(--aviso); color: var(--aviso);
+  font-size: .66rem; font-weight: 800; letter-spacing: .12em;
+}
+
 .config-conteo {
   margin-left: auto; padding-left: .6rem;
   font-size: .78rem; color: var(--tinta-tenue); white-space: nowrap;

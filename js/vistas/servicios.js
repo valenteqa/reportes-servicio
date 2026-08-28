@@ -804,6 +804,9 @@ export async function render(contenedor, refrescar) {
   const cabecera = h('header.cabecera',
     h('div.cabecera__fila',
       h('h1', 'Trabajos'),
+      // Etiqueta para distinguir la version de navegador del APK: ambos
+      // comparten icono y nombre, y confundirlos divide los datos.
+      esNativa() ? null : h('span.tag-web', 'WEB'),
       h('button.icono-btn', {
         type: 'button', 'aria-label': 'Cambiar tema',
         onclick: (ev) => {
