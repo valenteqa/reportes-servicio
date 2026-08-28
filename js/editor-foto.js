@@ -259,18 +259,29 @@ export async function editarFoto(evento, alTerminar) {
       ctx.fillRect(0, py + ph, lienzo.width, lienzo.height - py - ph);
       ctx.fillRect(0, py, px, ph);
       ctx.fillRect(px + pw, py, lienzo.width - px - pw, ph);
-      ctx.strokeStyle = '#fff';
+      // En tema claro el marco va NEGRO (el blanco se pierde); cada manija
+      // lleva un filo del color opuesto para verse sobre cualquier foto.
+      const esClaro = document.documentElement.dataset.tema === 'claro';
+      const cRec = esClaro ? '#000' : '#fff';
+      const cFilo = esClaro ? '#fff' : '#000';
+      ctx.strokeStyle = cRec;
       ctx.lineWidth = 2;
       ctx.strokeRect(px, py, pw, ph);
-      ctx.fillStyle = '#fff';
+      const manija = (x, y, w2, h2) => {
+        ctx.fillStyle = cRec;
+        ctx.fillRect(x, y, w2, h2);
+        ctx.strokeStyle = cFilo;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(x + .5, y + .5, w2 - 1, h2 - 1);
+      };
       for (const [hx, hy] of [[px, py], [px + pw, py], [px, py + ph], [px + pw, py + ph]]) {
-        ctx.fillRect(hx - 8, hy - 8, 16, 16);
+        manija(hx - 8, hy - 8, 16, 16);
       }
       // manijas de BORDE (barras al centro de cada lado)
-      ctx.fillRect(px + pw / 2 - 16, py - 5, 32, 10);
-      ctx.fillRect(px + pw / 2 - 16, py + ph - 5, 32, 10);
-      ctx.fillRect(px - 5, py + ph / 2 - 16, 10, 32);
-      ctx.fillRect(px + pw - 5, py + ph / 2 - 16, 10, 32);
+      manija(px + pw / 2 - 16, py - 5, 32, 10);
+      manija(px + pw / 2 - 16, py + ph - 5, 32, 10);
+      manija(px - 5, py + ph / 2 - 16, 10, 32);
+      manija(px + pw - 5, py + ph / 2 - 16, 10, 32);
     }
 
     // Forma seleccionada: marco punteado + manijas en las esquinas
@@ -596,7 +607,8 @@ export async function editarFoto(evento, alTerminar) {
         btn('▭', herramienta === 'rect', () => armar('rect'), 'Rectangulo'),
         btn('◯', herramienta === 'circulo', () => armar('circulo'), 'Circulo'),
         btn('↗', herramienta === 'flecha', () => armar('flecha'), 'Flecha'),
-        btn('↷', herramienta === 'flechaCurva', () => armar('flechaCurva'), 'Flecha curva'),
+        // (la flecha curva se descarto; el dibujo de 'flechaCurva' se queda
+        //  por si alguna receta vieja la trae)
         herramienta
           ? h('p.editor__pista', 'Toca (tamaño mediano) o arrastra.')
           : h('p.editor__pista', seleccion
