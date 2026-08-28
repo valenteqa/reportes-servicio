@@ -40,19 +40,63 @@ export function nombreSeguro(s) {
   return String(s || '').replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim().slice(0, 60) || 'sin-nombre';
 }
 
+const MIMES = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+  zip: 'application/zip',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  pdf: 'application/pdf',
+};
+
+// Via oficial de Android (MediaStore, puente del cascaron): la UNICA que
+// acepta DOCUMENTOS (.docx/.zip) en Documentos sin permisos. Por trozos,
+// para no cruzar archivos grandes en un solo string.
+async function guardarPorMediaStore(blob, ruta) {
+  const AN = window.ArchivosNativos;
+  if (!AN || !AN.abrir) throw new Error('sin puente de archivos');
+  const corte = ruta.lastIndexOf('/');
+  const nombre = corte === -1 ? ruta : ruta.slice(corte + 1);
+  const subruta = corte === -1 ? '' : ruta.slice(0, corte);
+  const ext = (nombre.split('.').pop() || '').toLowerCase();
+  const id = AN.abrir(nombre, subruta, MIMES[ext] || 'application/octet-stream');
+  if (String(id).indexOf('ERROR') === 0) throw new Error('MediaStore: ' + id);
+  try {
+    const TROZO = 768 * 1024;   // bytes de blob por escritura
+    for (let i = 0; i < blob.size; i += TROZO) {
+      const b64 = await aBase64(blob.slice(i, i + TROZO));
+      const r = AN.escribir(id, b64);
+      if (String(r).indexOf('ERROR') === 0) throw new Error('MediaStore: ' + r);
+    }
+    const fin = AN.cerrar(id);
+    if (String(fin).indexOf('ERROR') === 0) throw new Error('MediaStore: ' + fin);
+    return 'Documents/' + CARPETA + '/' + ruta;
+  } catch (e) {
+    try { AN.cancelar(id); } catch (e2) {}
+    throw e;
+  }
+}
+
 // Guarda el blob en Documentos/ReportesServicio/<ruta> (crea las carpetas).
+// Primero la ruta directa del plugin (rapida; imagenes siempre pasan); si
+// Android la niega (EACCES con .docx/.zip en varios equipos), MediaStore.
 export async function guardarEnCarpetaNativa(blob, ruta) {
   const P = window.Capacitor.Plugins;
-  const datos = await aBase64(blob);
   const path = CARPETA + '/' + ruta;
-  const escribir = () => P.Filesystem.writeFile({
-    path, data: datos, directory: 'DOCUMENTS', recursive: true,
-  });
   try {
-    return (await escribir()).uri;
+    const datos = await aBase64(blob);
+    return (await P.Filesystem.writeFile({
+      path, data: datos, directory: 'DOCUMENTS', recursive: true,
+    })).uri;
   } catch (e) {
-    // Android viejo puede pedir permiso de almacenamiento: pedirlo y reintentar.
-    try { await P.Filesystem.requestPermissions(); } catch (e2) {}
-    return (await escribir()).uri;
+    try {
+      return await guardarPorMediaStore(blob, ruta);
+    } catch (e2) {
+      // Android viejo (sin MediaStore moderno): pedir permiso y reintentar directo.
+      try { await P.Filesystem.requestPermissions(); } catch (e3) {}
+      const datos = await aBase64(blob);
+      return (await P.Filesystem.writeFile({
+        path, data: datos, directory: 'DOCUMENTS', recursive: true,
+      })).uri;
+    }
   }
 }
