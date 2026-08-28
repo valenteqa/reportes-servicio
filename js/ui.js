@@ -76,6 +76,28 @@ export function icono(nombre) {
   return h('span.icono-svg', { innerHTML: ICONOS[nombre] || '' });
 }
 
+/* Velo de ocupado: cubre TODA la pantalla con un mensaje y un spinner
+   mientras corre un trabajo pesado (procesar una foto, guardar la edicion).
+   Bloquea los toques: sin el, el usuario cree que la app no respondio y
+   vuelve a picarle, causando capturas dobles y guardados encimados. */
+
+let velo = null;
+
+export function ocupado(mensaje) {
+  if (!velo) {
+    velo = h('div.velo',
+      h('div.velo__caja', h('span.velo__giro'), h('span.velo__texto')));
+    document.body.appendChild(velo);
+  }
+  velo.querySelector('.velo__texto').textContent = mensaje || 'Trabajando...';
+  velo.style.display = '';
+  document.body.appendChild(velo);   // siempre hasta arriba de la capa actual
+}
+
+export function libre() {
+  if (velo) velo.style.display = 'none';
+}
+
 /* Orientacion de pantalla: la app va anclada a vertical (manifest); el visor
    de fotos y las tablas LIBERAN el giro del telefono o fuerzan horizontal. */
 

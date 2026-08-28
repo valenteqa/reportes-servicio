@@ -12,7 +12,7 @@
 // grueso sin relleno (rectangulo, circulo, flecha) para señalar.
 
 import * as db from './db.js';
-import { h, aviso, confirmar, anclarCapa, bloquearScroll, liberarScroll } from './ui.js';
+import { h, aviso, confirmar, anclarCapa, bloquearScroll, liberarScroll, ocupado, libre } from './ui.js';
 
 const ROJO = '#FF2222';
 
@@ -155,13 +155,20 @@ function remapear(ed, fn) {
 /* ---------------------------------------------------------------- */
 
 export async function editarFoto(evento, alTerminar) {
-  const foto = await db.fotoLeer(evento.datos.fotoId);
-  if (!foto) { aviso('La imagen no se encontro', 'error'); return false; }
+  // Cargar y decodificar la foto toma su tiempo: velo mientras abre.
+  ocupado('Abriendo el editor...');
+  let foto, bitmap;
+  try {
+    foto = await db.fotoLeer(evento.datos.fotoId);
+    if (!foto) { aviso('La imagen no se encontro', 'error'); return false; }
 
-  // Preservar el original la primera vez que se edita.
-  if (!foto.blobOriginal) foto.blobOriginal = foto.blob;
+    // Preservar el original la primera vez que se edita.
+    if (!foto.blobOriginal) foto.blobOriginal = foto.blob;
 
-  const bitmap = await createImageBitmap(foto.blobOriginal);
+    bitmap = await createImageBitmap(foto.blobOriginal);
+  } finally {
+    libre();
+  }
   const ed = foto.edicion
     ? JSON.parse(JSON.stringify(foto.edicion))
     : edicionVacia();
@@ -780,58 +787,80 @@ export async function editarFoto(evento, alTerminar) {
     });
   }
 
+  // Renderizar y guardar toman segundos en el telefono: velo + candado para
+  // que picarle de mas no encime renders ni pantallas fantasma.
+  let aplicando = false;
   async function aplicar() {
-    normalizarRecorte();
-    const final = renderFinal(bitmap, ed, LADO_MAX);
-    const blob = await aBlob(final, 0.85);
+    if (aplicando) return;
+    aplicando = true;
+    try {
+      ocupado('Preparando la vista previa...');
+      normalizarRecorte();
+      const final = renderFinal(bitmap, ed, LADO_MAX);
+      const blob = await aBlob(final, 0.85);
+      libre();
 
-    const conf = await confirmarPrevia(blob);
-    if (!conf) {
-      if (!ed.recorte && modo === 'recortar') ed.recorte = { x: 0, y: 0, w: 1, h: 1 };
-      pintar();
-      return;   // de vuelta al editor
+      const conf = await confirmarPrevia(blob);
+      if (!conf) {
+        if (!ed.recorte && modo === 'recortar') ed.recorte = { x: 0, y: 0, w: 1, h: 1 };
+        pintar();
+        return;   // de vuelta al editor
+      }
+
+      ocupado('Guardando la foto...');
+
+      // La leyenda vive en el evento (igual que al editarla en el visor).
+      if (evento.datos && conf.pie !== (evento.datos.pie || '')) {
+        evento.datos.pie = conf.pie;
+        await db.eventoGuardar(evento);
+      }
+
+      const miniCv = renderFinal(bitmap, ed, LADO_MINI);
+      const mini = await aBlob(miniCv, 0.7);
+
+      foto.blob = blob;
+      foto.mini = mini;
+      foto.ancho = final.width;
+      foto.alto = final.height;
+      foto.bytes = blob.size;
+      foto.edicion = esVacia(ed) ? null : ed;
+      await db.fotoGuardar(foto);
+      guardado = true;
+      aviso('Foto guardada', 'ok');
+      cerrar();
+    } finally {
+      aplicando = false;
+      libre();
     }
-
-    // La leyenda vive en el evento (igual que al editarla en el visor).
-    if (evento.datos && conf.pie !== (evento.datos.pie || '')) {
-      evento.datos.pie = conf.pie;
-      await db.eventoGuardar(evento);
-    }
-
-    const miniCv = renderFinal(bitmap, ed, LADO_MINI);
-    const mini = await aBlob(miniCv, 0.7);
-
-    foto.blob = blob;
-    foto.mini = mini;
-    foto.ancho = final.width;
-    foto.alto = final.height;
-    foto.bytes = blob.size;
-    foto.edicion = esVacia(ed) ? null : ed;
-    await db.fotoGuardar(foto);
-    guardado = true;
-    aviso('Foto guardada', 'ok');
-    cerrar();
   }
 
   async function revertir() {
+    if (aplicando) return;
     if (!(await confirmar('Se quitan recorte, giros y formas: la foto vuelve al original.', { textoOk: 'Revertir', peligro: false }))) return;
-    const orig = await createImageBitmap(foto.blobOriginal);
-    const cv = document.createElement('canvas');
-    const escMini = Math.min(1, LADO_MINI / Math.max(orig.width, orig.height));
-    cv.width = Math.max(1, Math.round(orig.width * escMini));
-    cv.height = Math.max(1, Math.round(orig.height * escMini));
-    cv.getContext('2d').drawImage(orig, 0, 0, cv.width, cv.height);
-    foto.blob = foto.blobOriginal;
-    foto.mini = await aBlob(cv, 0.7);
-    foto.ancho = orig.width;
-    foto.alto = orig.height;
-    foto.bytes = foto.blobOriginal.size;
-    foto.edicion = null;
-    orig.close && orig.close();
-    await db.fotoGuardar(foto);
-    guardado = true;
-    aviso('Foto restaurada al original', 'ok');
-    cerrar();
+    aplicando = true;
+    ocupado('Restaurando el original...');
+    try {
+      const orig = await createImageBitmap(foto.blobOriginal);
+      const cv = document.createElement('canvas');
+      const escMini = Math.min(1, LADO_MINI / Math.max(orig.width, orig.height));
+      cv.width = Math.max(1, Math.round(orig.width * escMini));
+      cv.height = Math.max(1, Math.round(orig.height * escMini));
+      cv.getContext('2d').drawImage(orig, 0, 0, cv.width, cv.height);
+      foto.blob = foto.blobOriginal;
+      foto.mini = await aBlob(cv, 0.7);
+      foto.ancho = orig.width;
+      foto.alto = orig.height;
+      foto.bytes = foto.blobOriginal.size;
+      foto.edicion = null;
+      orig.close && orig.close();
+      await db.fotoGuardar(foto);
+      guardado = true;
+      aviso('Foto restaurada al original', 'ok');
+      cerrar();
+    } finally {
+      aplicando = false;
+      libre();
+    }
   }
 
   let resuelto = false;

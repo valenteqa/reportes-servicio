@@ -2,7 +2,7 @@
 
 import * as db from '../db.js';
 import * as media from '../media.js';
-import { h, hora, fecha, aviso, hoja, confirmar, campoArea, vacio, anclarCapa, bloquearScroll, liberarScroll, icono, orientarLibre, orientarHorizontal, orientarNormal } from '../ui.js';
+import { h, hora, fecha, aviso, hoja, confirmar, campoArea, vacio, anclarCapa, bloquearScroll, liberarScroll, icono, orientarLibre, orientarHorizontal, orientarNormal, ocupado, libre } from '../ui.js';
 import { editarFoto } from '../editor-foto.js';
 import { esNativa, compartirArchivoNativo, guardarEnCarpetaNativa, nombreSeguro } from '../nativo.js';
 
@@ -28,17 +28,25 @@ export async function capturarFoto(servicioId, equipoId, { galeria = false } = {
   const archivos = await media.elegirImagenes({ camara: !galeria, multiple: galeria });
   if (!archivos.length) return null;
 
+  // Procesar una foto de camara toma varios segundos en el telefono; sin
+  // señal visible el usuario cree que no se tomo y vuelve a intentar.
+  ocupado(archivos.length > 1 ? 'Procesando ' + archivos.length + ' fotos...' : 'Procesando la foto...');
+
   let ultimo = null;
-  for (const archivo of archivos) {
-    try {
-      const procesada = await media.procesarImagen(archivo);
-      const fotoId = db.nuevoId();
-      await db.fotoGuardar(Object.assign({ id: fotoId }, procesada));
-      ultimo = await db.eventoNuevo(servicioId, equipoId, 'foto', { fotoId, pie: '' });
-      copiaACarpetaNativa(servicioId, ultimo, procesada.blob);
-    } catch (e) {
-      aviso('No se pudo procesar una foto: ' + e.message, 'error');
+  try {
+    for (const archivo of archivos) {
+      try {
+        const procesada = await media.procesarImagen(archivo);
+        const fotoId = db.nuevoId();
+        await db.fotoGuardar(Object.assign({ id: fotoId }, procesada));
+        ultimo = await db.eventoNuevo(servicioId, equipoId, 'foto', { fotoId, pie: '' });
+        copiaACarpetaNativa(servicioId, ultimo, procesada.blob);
+      } catch (e) {
+        aviso('No se pudo procesar una foto: ' + e.message, 'error');
+      }
     }
+  } finally {
+    libre();
   }
   if (ultimo) aviso(archivos.length > 1 ? archivos.length + ' fotos agregadas' : 'Foto agregada', 'ok');
 

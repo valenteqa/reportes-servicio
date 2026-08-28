@@ -1301,6 +1301,26 @@ body.pantalla-ancha #app { max-width: none; }
 }
 .previa__tabla th { background: #1f3864; color: #fff; font-weight: 700; }
 
+/* Velo de ocupado: siempre oscuro, encima de cualquier capa (menos avisos) */
+.velo {
+  position: fixed; inset: 0; z-index: 85;
+  display: grid; place-items: center;
+  background: rgba(4, 6, 10, .62);
+}
+.velo__caja {
+  display: flex; align-items: center; gap: .8rem;
+  padding: 1rem 1.4rem;
+  background: #0d1219; border: 1px solid #46586e; color: #eef4fa;
+  font-size: 1rem; font-weight: 600;
+}
+.velo__giro {
+  width: 24px; height: 24px; flex: 0 0 auto;
+  border: 3px solid #46586e; border-top-color: #35e0f2;
+  border-radius: 50%;
+  animation: velogiro .8s linear infinite;
+}
+@keyframes velogiro { to { transform: rotate(360deg); } }
+
 /* Imprimir la vista previa: solo la pagina blanca, a lo largo de las hojas */
 @media print {
   body.imprimiendo { overflow: visible !important; }
