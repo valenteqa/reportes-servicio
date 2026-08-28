@@ -68,6 +68,8 @@ const CAMPOS_CATALOGO = [
 async function hojaConfiguracion() {
   const accion = await hoja('⚙  Configuracion', (cerrar) => h('div',
     h('div.lista-acciones',
+      h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('tecnico') },
+        '👤  Nombre del tecnico'),
       h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('catalogo') },
         '🗂  Clientes y datos de maquina'),
       h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('zoom') },
@@ -75,8 +77,34 @@ async function hojaConfiguracion() {
     ),
     h('p.pista', 'Administra las sugerencias que salen al crear o editar un servicio. Los servicios y reportes ya guardados no se tocan.')
   ));
+  if (accion === 'tecnico') await hojaTecnico();
   if (accion === 'catalogo') await hojaCampoCatalogo();
   if (accion === 'zoom') await hojaZoom();
+}
+
+// Cada telefono tiene su tecnico: es quien firma los reportes nuevos.
+async function hojaTecnico() {
+  const actual = await db.ajusteLeer('usuario', 'Usuario');
+  await hoja('👤  Nombre del tecnico', (cerrar) => {
+    const cNombre = campo('Nombre completo', { value: actual });
+    return h('div',
+      cNombre,
+      h('p.pista', 'Aparece como Tecnico en los reportes que generes en este telefono. Los servicios ya creados conservan el suyo.'),
+      h('div.hoja__acciones',
+        h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+        h('button.btn.btn--primario', {
+          type: 'button',
+          onclick: async () => {
+            const nombre = cNombre.entrada.value.trim();
+            if (!nombre) { aviso('Escribe el nombre', 'error'); return; }
+            await db.ajusteGuardar('usuario', nombre);
+            aviso('Nombre guardado', 'ok');
+            cerrar(true);
+          }
+        }, 'Guardar')
+      )
+    );
+  });
 }
 
 async function hojaZoom() {
