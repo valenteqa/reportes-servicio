@@ -217,7 +217,10 @@ export async function procesarImagen(archivo) {
   if (bitmap.close) bitmap.close();
   const t2 = performance.now();
 
-  const mini = await escalar(grande.lienzo, LADO_MINI, CALIDAD_MINI);
+  // Miniatura en DOS pasos (1600→640→320): reducir 5x de un jalon con
+  // 'medium' deja serrucho; el paso intermedio lo elimina y cuesta ~10ms.
+  const medio = await escalar(grande.lienzo, 640, 0.9);
+  const mini = await escalar(medio.lienzo, LADO_MINI, CALIDAD_MINI);
 
   return {
     blob:  grande.blob,

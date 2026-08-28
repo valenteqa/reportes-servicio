@@ -858,7 +858,10 @@ function tarjetaFoto(evento, refrescar) {
     // aun desprendido del documento, la carga puede quedarse colgada.
     const img = h('img', { alt: '' });
     marco.append(img);
-    img.src = media.urlDe(foto.mini || foto.blob);
+    // La tarjeta es casi de pantalla completa: va la foto REAL (1600px).
+    // La miniatura de 320px es para las rejillas chicas (galeria/papelera);
+    // aqui estirada se veia pixeleada.
+    img.src = media.urlDe(foto.blob || foto.mini);
   });
 
   return cont;
