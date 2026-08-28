@@ -312,6 +312,22 @@ export async function verFoto(evento, alCambiar) {
       h('button.icono-btn.icono-btn--claro', { type: 'button', onclick: () => cerrar(true) }, '✕'),
       h('span.visor__hora', hora(evento.ts)),
       h('button.icono-btn.icono-btn--claro', {
+        type: 'button', 'aria-label': 'Compartir foto',
+        // Las fotos JPEG SI pasan por el menu de Android (Word no).
+        // Sin esperas antes del share: debe pedirse en el toque mismo.
+        onclick: () => {
+          if (!navigator.share) { aviso('Este navegador no comparte archivos', 'error'); return; }
+          const nombre = 'foto-' + hora(evento.ts).replace(/[^0-9]/g, '') + '.jpg';
+          const archivo = new File([foto.blob], nombre, { type: 'image/jpeg' });
+          navigator.share({ files: [archivo], title: evento.datos.pie || nombre })
+            .catch((e) => {
+              if (e && e.name === 'AbortError') return;
+              console.error(e);
+              aviso('Android nego compartir la foto (' + (e && e.name ? e.name : e) + ')', 'error');
+            });
+        }
+      }, '📤'),
+      h('button.icono-btn.icono-btn--claro', {
         type: 'button', 'aria-label': 'Editar foto',
         onclick: async () => {
           await cerrar(true);                 // guarda la leyenda y cierra el visor

@@ -126,15 +126,19 @@ async function hojaReporte(servicio) {
     };
 
     // Menu propio de entrega: el plan B cuando el menu de Android no abre.
+    // El motivo se muestra DENTRO del menu (el texto de abajo queda tapado).
     const menuEntrega = async (res, motivo) => {
       if (motivo) estado.textContent = motivo;
-      const accion = await hoja('¿Como lo entregamos?', (cerrar) => h('div.lista-acciones',
-        h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('guardar') },
-          '💾  Guardar en... (carpeta u OneDrive)'),
-        h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('descargar') },
-          '⬇  Descargar directo'),
-        esProc ? null : h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('previa') },
-          '🖨  Vista previa para imprimir')
+      const accion = await hoja('¿Como lo entregamos?', (cerrar) => h('div',
+        motivo ? h('p.pista', motivo) : null,
+        h('div.lista-acciones',
+          h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('guardar') },
+            '💾  Guardar en... (carpeta u OneDrive)'),
+          h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('descargar') },
+            '⬇  Descargar directo'),
+          esProc ? null : h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('previa') },
+            '🖨  Vista previa para imprimir')
+        )
       ));
       if (accion === 'guardar') await guardarEn(res);
       if (accion === 'descargar') {
@@ -167,12 +171,14 @@ async function hojaReporte(servicio) {
         .catch((e) => {
           console.error(e);
           if (e && e.name === 'AbortError') { estado.textContent = 'Menu cerrado sin elegir app.'; return; }
-          const detalle = (e && e.name ? e.name : '') + (e && e.message ? ': ' + e.message : '');
-          const instalada = matchMedia('(display-mode: standalone)').matches;
-          menuEntrega(res, 'Android nego el menu de compartir [' + detalle + ']' +
-            (instalada && e && e.name === 'NotAllowedError'
-              ? ' Suele arreglarse reinstalando la app: manten presionado el icono y desinstala, abre la pagina en Chrome y usa menu ⋮ → Instalar app. Mientras, Guardar en... llega igual a OneDrive.'
-              : ''));
+          // Chrome tiene lista fija de tipos compartibles (fotos, video,
+          // audio, texto, PDF); Word y PowerPoint NO estan — el rechazo es
+          // del navegador, no de este telefono.
+          const motivo = (e && e.name === 'NotAllowedError')
+            ? 'Chrome no deja pasar archivos de Word o PowerPoint por el menu de Android (solo fotos, video y PDF). Guardar en... llega igual a OneDrive:'
+            : 'Android nego el menu de compartir [' + (e && e.name ? e.name : '') +
+              (e && e.message ? ': ' + e.message : '') + '].';
+          menuEntrega(res, motivo);
         });
     };
 
@@ -185,13 +191,14 @@ async function hojaReporte(servicio) {
         }, '👁  Vista previa del reporte')
       ),
       h('div.hoja__acciones',
-        h('button.btn.btn--fantasma', { type: 'button', onclick: () => conArchivo(guardarEn) }, '💾  Guardar en...'),
-        h('button.btn.btn--primario', {
+        h('button.btn.btn--fantasma', {
           type: 'button',
           // Con el archivo ya listo, compartir se lanza EN el toque mismo;
           // solo la primera vez (aun generando) pasa por la espera.
           onclick: () => { if (preparado) compartir(preparado); else conArchivo(compartir); }
-        }, 'Compartir  →  OneDrive')
+        }, 'Compartir'),
+        h('button.btn.btn--primario', { type: 'button', onclick: () => conArchivo(guardarEn) },
+          '💾  Guardar en...  (OneDrive)')
       )
     );
   });
