@@ -646,11 +646,14 @@ export async function editarFoto(evento, alTerminar) {
         pie
       );
 
+      let preguntando = false;
       async function terminar(ok) {
-        if (listo) return;
+        if (listo || preguntando) return;
         if (ok && !pie.value.trim()) {
+          preguntando = true;
           const sinLeyenda = await confirmar('La foto va sin leyenda. ¿Guardar asi?',
             { textoOk: 'Guardar sin leyenda' });
+          preguntando = false;
           if (!sinLeyenda) { pie.focus(); return; }   // a escribirla
           if (listo) return;
         }

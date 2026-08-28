@@ -947,8 +947,10 @@ button { font-family: inherit; font-size: inherit; }
 /* Visor de foto                                                     */
 /* ---------------------------------------------------------------- */
 
+/* Todas las capas de pantalla completa comparten z-index 60: la ultima en
+   abrirse queda encima por orden del DOM (hojas de confirmacion incluidas). */
 .visor {
-  position: fixed; inset: 0; z-index: 70;
+  position: fixed; inset: 0; z-index: 60;
   display: flex; flex-direction: column;
   background: #04060a;
 }
@@ -997,7 +999,7 @@ button { font-family: inherit; font-size: inherit; }
 /* ---------------------------------------------------------------- */
 
 .editor {
-  position: fixed; inset: 0; z-index: 80;
+  position: fixed; inset: 0; z-index: 60;
   display: flex; flex-direction: column;
   background: var(--fondo);
   touch-action: none;
@@ -1070,7 +1072,7 @@ button { font-family: inherit; font-size: inherit; }
 
 /* Vista previa a tamaño completo antes de guardar */
 .editor-previa {
-  position: fixed; inset: 0; z-index: 85;
+  position: fixed; inset: 0; z-index: 60;
   display: flex; flex-direction: column;
   background: var(--fondo);
 }
@@ -1157,7 +1159,7 @@ button { font-family: inherit; font-size: inherit; }
 
 /* Vista previa del reporte: pagina blanca tipo Word, sin importar el tema */
 .previa {
-  position: fixed; inset: 0; z-index: 70;
+  position: fixed; inset: 0; z-index: 60;
   display: flex; flex-direction: column;
   background: #202225;
 }
