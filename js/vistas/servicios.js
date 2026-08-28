@@ -776,9 +776,13 @@ async function hojaAlmacenamiento(refrescar) {
     return h('div',
       h('p.parrafo', 'Usado: ' + media.formatoBytes(i.usado) +
         (i.cuota ? ' de ' + media.formatoBytes(i.cuota) + ' disponibles' : '')),
-      h('p.parrafo', i.persistente
-        ? '✓ Los datos estan protegidos contra borrado automatico.'
-        : '⚠ Los datos NO estan protegidos. Instala la app desde el menu de Chrome y toca "Proteger".'),
+      // En el APK los datos viven en el almacen privado de la app: siempre
+      // protegidos, y el permiso de Chrome ni existe.
+      h('p.parrafo', esNativa()
+        ? '✓ Los datos estan protegidos en el almacen de la app.'
+        : (i.persistente
+          ? '✓ Los datos estan protegidos contra borrado automatico.'
+          : '⚠ Los datos NO estan protegidos. Instala la app desde el menu de Chrome y toca "Proteger".')),
       h('p.pista', 'Todo se guarda unicamente en este telefono. El respaldo es un ZIP con todos tus trabajos y fotos: guardalo en OneDrive de vez en cuando, y con el puedes migrar a otro telefono.'),
       h('div.hoja__acciones',
         h('button.btn.btn--fantasma', { type: 'button', onclick: restaurar }, 'Restaurar'),

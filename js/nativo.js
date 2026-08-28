@@ -88,6 +88,11 @@ export async function guardarEnCarpetaNativa(blob, ruta) {
       path, data: datos, directory: 'DOCUMENTS', recursive: true,
     })).uri;
   } catch (e) {
+    // Android nego la ruta directa. Si el cascaron no trae el puente de
+    // MediaStore, es un APK viejo: decirlo CLARO en vez del EACCES criptico.
+    if (!window.ArchivosNativos && !/jpe?g|png$/i.test(ruta)) {
+      throw new Error('Este telefono necesita la version 1.3 del APK para guardar documentos en la carpeta. Instala ReportesServicio-v1.3.apk (o usa Compartir).');
+    }
     try {
       return await guardarPorMediaStore(blob, ruta);
     } catch (e2) {
