@@ -14,7 +14,7 @@ import { lineaDeTiempo, menuAgregar, galeriaDelTrabajo } from './eventos.js';
 import { editarServicio } from './servicios.js';
 import { generarReporte } from '../reporte.js';
 import { vistaPreviaReporte } from './previa.js';
-import { esNativa, compartirArchivoNativo } from '../nativo.js';
+import { esNativa, compartirArchivoNativo, guardarEnCarpetaNativa } from '../nativo.js';
 
 /* ---------------------------------------------------------------- */
 /* Generar el reporte Word y entregarlo (compartir o descargar)      */
@@ -99,17 +99,16 @@ async function hojaReporte(servicio) {
     // (ahi tambien aparece OneDrive). Si el navegador no tiene el selector,
     // cae a la descarga directa.
     const guardarEn = async ({ blob, nombreArchivo }) => {
-      // En el APK no hay selector de carpeta ni descargas del WebView: todo
-      // sale por el share sheet nativo (ahi estan OneDrive y Archivos).
+      // En el APK, Descargar guarda DIRECTO en la carpeta de la app:
+      // Documentos/ReportesServicio/Reportes. Compartir queda para OneDrive.
       if (esNativa()) {
         try {
-          await compartirArchivoNativo(blob, nombreArchivo, nombreArchivo);
-          estado.textContent = 'Entregado por el menu de Android.';
-          aviso('Reporte entregado', 'ok');
+          await guardarEnCarpetaNativa(blob, 'Reportes/' + nombreArchivo);
+          estado.textContent = 'Guardado en Documentos/ReportesServicio/Reportes/' + nombreArchivo;
+          aviso('Reporte guardado en la carpeta de la app', 'ok');
         } catch (e) {
-          if (e && /cancel/i.test((e.message || '') + e)) { estado.textContent = 'Menu cerrado sin elegir app.'; return; }
           console.error(e);
-          estado.textContent = 'No se pudo entregar [' + (e && e.message ? e.message : e) + '].';
+          estado.textContent = 'No se pudo guardar [' + (e && e.message ? e.message : e) + ']. Usa Compartir.';
         }
         return;
       }

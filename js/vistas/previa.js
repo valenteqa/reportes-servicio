@@ -165,12 +165,17 @@ export async function vistaPreviaReporte(servicioId) {
     }
 
     // Imprimir: solo sale la pagina blanca (CSS @media print + body.imprimiendo).
+    // En el APK, window.print() no existe de verdad: va por el puente nativo.
     const imprimir = () => {
       document.body.classList.add('imprimiendo');
       const fin = () => document.body.classList.remove('imprimiendo');
       window.addEventListener('afterprint', fin, { once: true });
-      setTimeout(fin, 2000);   // respaldo por si afterprint no dispara
-      window.print();
+      setTimeout(fin, 4000);   // respaldo por si afterprint no dispara
+      if (window.ImpresoraNativa && window.ImpresoraNativa.imprimir) {
+        window.ImpresoraNativa.imprimir();
+      } else {
+        window.print();
+      }
     };
 
     const capa = h('div.previa',
