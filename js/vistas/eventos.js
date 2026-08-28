@@ -25,11 +25,15 @@ function copiaACarpetaNativa(servicioId, ev, blob) {
 }
 
 export async function capturarFoto(servicioId, equipoId, { galeria = false } = {}) {
-  const archivos = await media.elegirImagenes({ camara: !galeria, multiple: galeria });
-  if (!archivos.length) return null;
+  // El velo sale desde que REGRESAS de la camara (aunque el archivo aun no
+  // llegue): sin el, ese hueco mostraba la linea de tiempo y parecia fallo.
+  const archivos = await media.elegirImagenes({
+    camara: !galeria,
+    multiple: galeria,
+    alRegresar: () => ocupado('Procesando la foto...'),
+  });
+  if (!archivos.length) { libre(); return null; }
 
-  // Procesar una foto de camara toma varios segundos en el telefono; sin
-  // señal visible el usuario cree que no se tomo y vuelve a intentar.
   ocupado(archivos.length > 1 ? 'Procesando ' + archivos.length + ' fotos...' : 'Procesando la foto...');
 
   let ultimo = null;

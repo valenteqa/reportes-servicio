@@ -15,7 +15,7 @@ const CALIDAD_MINI = 0.7;
  * Se usa un <input type=file> en vez de getUserMedia a proposito: asi se usa
  * la app de camara real del telefono, con su enfoque, HDR y flash.
  */
-export function elegirImagenes({ camara = true, multiple = false } = {}) {
+export function elegirImagenes({ camara = true, multiple = false, alRegresar = null } = {}) {
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -46,8 +46,14 @@ export function elegirImagenes({ camara = true, multiple = false } = {}) {
     // cancelacion (eso descartaba fotos lentas): 'change'/'cancel' siguen
     // escuchando. Ultimo recurso a los 2 minutos para no colgar la promesa.
     let sondeando = false;
+    let avisado = false;
     const alVolver = () => {
-      if (resuelto || sondeando) return;
+      if (resuelto) return;
+      // Avisar al que llamo que YA volvimos de la camara/galeria: asi puede
+      // poner su velo de "Procesando..." ANTES de que llegue el archivo
+      // (ese hueco mostraba la pantalla anterior y parecia que fallo).
+      if (!avisado && alRegresar) { avisado = true; try { alRegresar(); } catch (e) {} }
+      if (sondeando) return;
       sondeando = true;
       let intentos = 0;
       const sondeo = setInterval(() => {
