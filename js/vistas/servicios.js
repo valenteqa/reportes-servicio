@@ -185,6 +185,20 @@ async function hojaEditarValor(campo, valor) {
 }
 
 async function bannerAlmacenamiento() {
+  // En el APK los datos viven en el almacen privado de la app: Android no
+  // los purga por espacio y el permiso de persistencia ni aplica. En vez
+  // del banner, la primera vez se orienta la migracion desde Chrome.
+  if (esNativa()) {
+    const trabajos = await db.serviciosTodos();
+    if (trabajos.length) return null;
+    return h('div.banner',
+      h('div',
+        h('strong', '¿Vienes de la version de Chrome?'),
+        h('p', 'Tus trabajos no se copian solos: en la app de Chrome entra a ⛁ y toca Respaldar; luego aqui entra a ⛁ y toca Restaurar con ese ZIP.')
+      )
+    );
+  }
+
   const info = await db.estadoAlmacenamiento();
   if (!info.soportado || info.persistente) return null;
 
