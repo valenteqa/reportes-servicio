@@ -148,6 +148,21 @@ export async function leerUltimoRespaldo(info) {
   return new Blob(pedazos, { type: 'application/zip' });
 }
 
+// Actualizador integrado (APK 1.9+): escribe el APK ya descargado y
+// VERIFICADO al cache propio (por partes, como todo lo grande) y abre el
+// instalador de Android via el plugin. Android muestra su confirmacion y
+// solo acepta el APK si viene firmado con nuestra llave.
+export async function instalarActualizacionApk(blob) {
+  const P = window.Capacitor.Plugins;
+  const nombre = 'SerProApp-actualizacion.apk';
+  for (let i = 0, n = 0; i < blob.size; i += TROZO_COPIA, n++) {
+    const datos = await aBase64(blob.slice(i, i + TROZO_COPIA));
+    if (n === 0) await P.Filesystem.writeFile({ path: nombre, data: datos, directory: 'CACHE' });
+    else await P.Filesystem.appendFile({ path: nombre, data: datos, directory: 'CACHE' });
+  }
+  await P.Puente.instalarApk({ nombre });
+}
+
 // Guarda el blob en Documentos/ReportesServicio/<ruta> (crea las carpetas).
 // Primero la ruta directa del plugin (rapida; imagenes siempre pasan); si
 // Android la niega (EACCES con .docx/.zip en varios equipos), MediaStore.

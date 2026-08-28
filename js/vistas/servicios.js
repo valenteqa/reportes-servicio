@@ -1,11 +1,11 @@
 // Pantalla inicial: lista de trabajos (servicios, pruebas de laboratorio, generales).
 
 import * as db from '../db.js';
-import { h, campo, campoArea, hoja, aviso, confirmar, fecha, vacio } from '../ui.js';
+import { h, campo, campoArea, hoja, aviso, confirmar, fecha, vacio, ocupado, libre } from '../ui.js';
 import * as media from '../media.js';
 import { APP_VERSION } from '../version.js';
 import { temaActual, alternarTema, zoomActual, aplicarZoom } from '../tema.js';
-import { esNativa, compartirArchivoNativo, guardarEnCarpetaNativa, nombreSeguro, guardarUltimoRespaldo, leerUltimoRespaldo } from '../nativo.js';
+import { esNativa, compartirArchivoNativo, guardarEnCarpetaNativa, nombreSeguro, guardarUltimoRespaldo, leerUltimoRespaldo, instalarActualizacionApk } from '../nativo.js';
 
 // Catalogo precargado: clientes y maquinas conocidos aunque el telefono aun
 // no tenga historial propio. El primero es el del reporte de referencia.
@@ -300,6 +300,74 @@ async function bannerAlmacenamiento() {
     }, 'Proteger')
   );
   return banner;
+}
+
+/* Aviso de cascaron (APK) nuevo. Compara la version instalada contra
+   apk/version.json publicado junto a la web. Desde el APK 1.9 el boton
+   descarga, verifica la huella SHA-256 y abre el instalador de Android;
+   en cascarones anteriores solo avisa (el 1.9 se instala a mano una vez). */
+
+let apkPospuesto = 0;   // "Despues" oculta el aviso hasta reabrir la app
+
+async function bannerActualizacion() {
+  if (!esNativa()) return null;
+  let v, build;
+  try {
+    const res = await fetch('apk/version.json', { cache: 'no-cache' });
+    if (!res.ok) return null;
+    v = await res.json();
+    build = parseInt((await window.Capacitor.Plugins.App.getInfo()).build, 10);
+  } catch (e) { return null; }   // sin señal o sin datos: silencio
+  if (!v || !v.versionCode || !(build < v.versionCode) || apkPospuesto === v.versionCode) return null;
+
+  const conBoton = build >= 10;   // el instalador integrado nacio en el 1.9
+  const banner = h('div.banner.banner--aviso',
+    h('div',
+      h('strong', 'Nueva version del APK: ' + (v.versionName || v.versionCode)),
+      h('p', conBoton
+        ? 'Toca Actualizar: se descarga y Android te pide confirmar. Tus datos se conservan.'
+        : 'Pidele el archivo a Vale e instalalo encima. Tus datos se conservan.')
+    ),
+    conBoton ? h('button.btn.btn--pequeno', {
+      type: 'button', onclick: () => actualizarCascaron(v)
+    }, 'Actualizar') : null,
+    h('button.btn.btn--pequeno.btn--fantasma', {
+      type: 'button', onclick: () => { apkPospuesto = v.versionCode; banner.remove(); }
+    }, 'Despues')
+  );
+  return banner;
+}
+
+async function actualizarCascaron(v) {
+  const Puente = window.Capacitor.Plugins.Puente;
+  try {
+    const p = await Puente.puedeInstalar();
+    if (!p || !p.ok) {
+      const ir = await confirmar(
+        'Android va a pedir permitir que Ser Pro App instale sus actualizaciones. Es un permiso SOLO para esta app. Activalo en el ajuste que se abre, regresa y vuelve a tocar Actualizar.',
+        { textoOk: 'Abrir ajuste', peligro: false });
+      if (ir) await Puente.pedirPermisoInstalar();
+      return;
+    }
+  } catch (e) { console.error(e); }
+
+  ocupado('Descargando la actualizacion...');
+  try {
+    const r = await fetch(v.archivo || 'apk/SerProApp.apk', { cache: 'no-cache' });
+    if (!r.ok) throw new Error('descarga fallo (' + r.status + ')');
+    const blob = await r.blob();
+    if (v.sha256) {
+      const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()))]
+        .map(b => b.toString(16).padStart(2, '0')).join('');
+      if (hash !== v.sha256) throw new Error('el archivo descargado no coincide con la huella publicada');
+    }
+    await instalarActualizacionApk(blob);
+    libre();
+  } catch (e) {
+    libre();
+    console.error(e);
+    aviso('No se pudo actualizar: ' + (e && e.message ? e.message : e), 'error');
+  }
 }
 
 /* ---------------------------------------------------------------- */
@@ -903,6 +971,9 @@ export async function render(contenedor, refrescar) {
   const lista = h('div.lista-servicios');
   const banner = await bannerAlmacenamiento();
   if (banner) lista.append(banner);
+  // El aviso de APK nuevo consulta la red: se agrega cuando responda,
+  // sin frenar el pintado de la lista.
+  bannerActualizacion().then(b => { if (b) lista.prepend(b); }).catch(() => {});
 
   if (!trabajos.length) {
     lista.append(vacio('🔧', 'Aun no hay trabajos',

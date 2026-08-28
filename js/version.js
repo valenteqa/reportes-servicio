@@ -1,2 +1,2 @@
 // Version visible de la app. Subirla en cada publicacion, junto con VERSION en sw.js.
-export const APP_VERSION = '3.72';
+export const APP_VERSION = '3.73';
