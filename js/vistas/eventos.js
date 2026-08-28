@@ -274,6 +274,17 @@ export async function verFoto(evento, alCambiar) {
 
   const url = media.urlDe(foto.blob);
 
+  // Deslizar a los lados pasa a la foto anterior/siguiente del trabajo
+  // (orden cronologico, el mismo de la galeria).
+  const fotosLista = (await db.eventosDeServicio(evento.servicioId)).filter(e => e.tipo === 'foto');
+  const idxFoto = fotosLista.findIndex(e => e.id === evento.id);
+  const irOtra = async (delta) => {
+    const destino = fotosLista[idxFoto + delta];
+    if (!destino) return;             // primera/ultima: no hay a donde ir
+    await cerrar(true);               // guarda la leyenda y cierra este visor
+    verFoto(destino, alCambiar);
+  };
+
   // La leyenda se MUESTRA compacta (texto blanco bajo la foto, con ✎);
   // tocarla abre el renglon de edicion, que se oculta al guardar.
   const guardarPie = async () => {
@@ -360,7 +371,7 @@ export async function verFoto(evento, alCambiar) {
   }
 
   const punterosV = new Map();
-  let pinchV = null, panV = null, ultimoTap = 0;
+  let pinchV = null, panV = null, swipeV = null, ultimoTap = 0;
 
   lienzoV.addEventListener('pointerdown', (evp) => {
     evp.preventDefault();
@@ -370,8 +381,13 @@ export async function verFoto(evento, alCambiar) {
       const [a, b] = Array.from(punterosV.values());
       pinchV = { d0: Math.hypot(a.x - b.x, a.y - b.y), s0: zv.s };
       panV = null;
+      swipeV = null;
+      aplicarZoomV();
     } else if (zv.s > 1) {
       panV = { x0: evp.clientX, y0: evp.clientY, tx0: zv.tx, ty0: zv.ty };
+    } else {
+      // sin zoom: el arrastre horizontal pasa de foto
+      swipeV = { x0: evp.clientX, y0: evp.clientY, dx: 0 };
     }
   });
   lienzoV.addEventListener('pointermove', (evp) => {
@@ -386,11 +402,31 @@ export async function verFoto(evento, alCambiar) {
       zv.tx = panV.tx0 + (evp.clientX - panV.x0);
       zv.ty = panV.ty0 + (evp.clientY - panV.y0);
       aplicarZoomV();
+    } else if (swipeV && punterosV.size === 1) {
+      swipeV.dx = evp.clientX - swipeV.x0;
+      if (Math.abs(swipeV.dx) > Math.abs(evp.clientY - swipeV.y0)) {
+        evp.preventDefault();
+        // la foto sigue al dedo, de retroalimentacion
+        imgEl.style.transform = 'translateX(' + swipeV.dx + 'px)';
+      }
     }
   });
   const soltarV = (evp) => {
+    const sw = swipeV;
+    swipeV = null;
+    if (sw) {
+      aplicarZoomV();   // regresa la foto a su lugar
+      const dy = Math.abs(evp.clientY - sw.y0);
+      if (Math.abs(sw.dx) > 60 && Math.abs(sw.dx) > dy) {
+        punterosV.delete(evp.pointerId);
+        ultimoTap = 0;
+        irOtra(sw.dx < 0 ? 1 : -1);   // izquierda = siguiente
+        return;
+      }
+    }
+    const fueArrastre = sw && (Math.abs(sw.dx) > 10 || Math.abs(evp.clientY - sw.y0) > 10);
     // doble toque: acercar al doble / regresar
-    if (punterosV.size === 1 && !panV && !pinchV) {
+    if (punterosV.size === 1 && !panV && !pinchV && !fueArrastre) {
       const ahora = Date.now();
       if (ahora - ultimoTap < 320) {
         if (zv.s > 1) { zv.s = 1; zv.tx = 0; zv.ty = 0; }
@@ -401,6 +437,7 @@ export async function verFoto(evento, alCambiar) {
         ultimoTap = ahora;
       }
     }
+    if (fueArrastre) ultimoTap = 0;
     punterosV.delete(evp.pointerId);
     if (punterosV.size < 2) pinchV = null;
     if (!punterosV.size) panV = null;
@@ -416,7 +453,8 @@ export async function verFoto(evento, alCambiar) {
   const capa = h('div.visor',
     h('div.visor__barra',
       h('button.icono-btn.icono-btn--claro', { type: 'button', onclick: () => cerrar(true) }, '✕'),
-      h('span.visor__hora', hora(evento.ts)),
+      h('span.visor__hora', hora(evento.ts) +
+        (fotosLista.length > 1 ? '  ·  ' + (idxFoto + 1) + '/' + fotosLista.length : '')),
       h('button.icono-btn.icono-btn--claro', {
         type: 'button', 'aria-label': 'Girar pantalla',
         onclick: async () => {
