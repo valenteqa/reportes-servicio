@@ -145,27 +145,35 @@ async function hojaReporte(servicio) {
       if (accion === 'previa') await vistaPreviaReporte(servicio.id);
     };
 
-    // Compartir: primero el menu nativo de Android (apps, imprimir, Drive...).
-    // Si este telefono no lo abre, sale nuestro menu de entrega.
-    const compartir = async (res) => {
+    // Compartir: el menu nativo de Android (apps, imprimir, Drive...).
+    // OJO: Android solo lo abre si se pide EN el mismo toque, sin ningun
+    // await de por medio — por eso esta funcion no es async antes del share.
+    // Si aun asi el telefono lo niega, sale nuestro menu de entrega.
+    const compartir = (res) => {
       const { blob, nombreArchivo } = res;
       if (!navigator.share) {
-        await menuEntrega(res, 'Este navegador no tiene menu de compartir.');
+        menuEntrega(res, 'Este navegador no tiene menu de compartir.');
         return;
       }
       const archivo = new File([blob], nombreArchivo, { type: blob.type });
       const t0 = Date.now();
-      try {
-        await navigator.share({ files: [archivo], title: nombreArchivo });
-        const seg = Math.round((Date.now() - t0) / 100) / 10;
-        estado.textContent = 'Compartido en ' + seg + ' s.'
-          + (seg < 1.5 ? ' Si no se abrio ninguna app, usa Guardar en...' : '');
-        aviso('Reporte compartido', 'ok');
-      } catch (e) {
-        console.error(e);
-        if (e && e.name === 'AbortError') { estado.textContent = 'Menu cerrado sin elegir app.'; return; }
-        await menuEntrega(res, 'El menu de Android no abrio (' + (e && e.name ? e.name : e) + ').');
-      }
+      navigator.share({ files: [archivo], title: nombreArchivo })
+        .then(() => {
+          const seg = Math.round((Date.now() - t0) / 100) / 10;
+          estado.textContent = 'Compartido en ' + seg + ' s.'
+            + (seg < 1.5 ? ' Si no se abrio ninguna app, usa Guardar en...' : '');
+          aviso('Reporte compartido', 'ok');
+        })
+        .catch((e) => {
+          console.error(e);
+          if (e && e.name === 'AbortError') { estado.textContent = 'Menu cerrado sin elegir app.'; return; }
+          const detalle = (e && e.name ? e.name : '') + (e && e.message ? ': ' + e.message : '');
+          const instalada = matchMedia('(display-mode: standalone)').matches;
+          menuEntrega(res, 'Android nego el menu de compartir [' + detalle + ']' +
+            (instalada && e && e.name === 'NotAllowedError'
+              ? ' Suele arreglarse reinstalando la app: manten presionado el icono y desinstala, abre la pagina en Chrome y usa menu ⋮ → Instalar app. Mientras, Guardar en... llega igual a OneDrive.'
+              : ''));
+        });
     };
 
     return h('div',
@@ -178,7 +186,12 @@ async function hojaReporte(servicio) {
       ),
       h('div.hoja__acciones',
         h('button.btn.btn--fantasma', { type: 'button', onclick: () => conArchivo(guardarEn) }, '💾  Guardar en...'),
-        h('button.btn.btn--primario', { type: 'button', onclick: () => conArchivo(compartir) }, 'Compartir  →  OneDrive')
+        h('button.btn.btn--primario', {
+          type: 'button',
+          // Con el archivo ya listo, compartir se lanza EN el toque mismo;
+          // solo la primera vez (aun generando) pasa por la espera.
+          onclick: () => { if (preparado) compartir(preparado); else conArchivo(compartir); }
+        }, 'Compartir  →  OneDrive')
       )
     );
   });
