@@ -732,13 +732,19 @@ async function hojaAlmacenamiento(refrescar) {
         const r = await crearRespaldo();
 
         // Copia privada del ultimo respaldo (solo APK): alimenta el boton
-        // "Restaurar > Ultimo respaldo". No es fatal si falla.
+        // "Restaurar > Ultimo respaldo". No es fatal si falla, pero se avisa
+        // en el estado para poder diagnosticarlo desde el telefono.
+        let notaCopia = '';
         if (esNativa()) {
           try {
             await guardarUltimoRespaldo(r.blob);
             await db.ajusteGuardar('ultimoRespaldo',
               { fecha: Date.now(), nombre: r.nombreArchivo, tam: r.blob.size });
-          } catch (e2) { console.error('copia del ultimo respaldo', e2); }
+            notaCopia = ' · Copia lista para Restaurar.';
+          } catch (e2) {
+            console.error('copia del ultimo respaldo', e2);
+            notaCopia = ' · Sin copia para Restaurar: ' + (e2 && e2.message ? e2.message : e2);
+          }
         }
 
         // En el APK: "Respaldar" guarda DIRECTO en la carpeta de la app
@@ -748,7 +754,7 @@ async function hojaAlmacenamiento(refrescar) {
           if (modo === 'compartir') {
             await guardarEnCarpetaNativa(r.blob, 'Respaldos/' + r.nombreArchivo);
             estado.textContent = 'Guardado en Documentos/ReportesServicio/Respaldos/' + r.nombreArchivo +
-              ' · ' + r.resumen.trabajos + ' trabajos, ' + r.resumen.fotos + ' fotos.';
+              ' · ' + r.resumen.trabajos + ' trabajos, ' + r.resumen.fotos + ' fotos.' + notaCopia;
             aviso('Respaldo guardado en la carpeta de la app', 'ok');
             return;
           }
@@ -766,7 +772,7 @@ async function hojaAlmacenamiento(refrescar) {
           }
         }
         estado.textContent = 'Respaldo listo: ' + r.resumen.trabajos + ' trabajos, ' +
-          r.resumen.registros + ' registros, ' + r.resumen.fotos + ' fotos.';
+          r.resumen.registros + ' registros, ' + r.resumen.fotos + ' fotos.' + notaCopia;
         aviso('Respaldo generado', 'ok');
       } catch (e) {
         if (e && (e.name === 'AbortError' || /cancel/i.test((e.message || '') + e))) { estado.textContent = ''; return; }
