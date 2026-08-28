@@ -646,6 +646,21 @@ export async function editarFoto(evento, alTerminar) {
         pie
       );
 
+      // Desliza la leyenda al centro del hueco visible entre la foto y los
+      // botones. Es un transform: el resto del acomodo no se mueve ni un px.
+      // Nunca sube mas alla del borde inferior de la foto.
+      const centrarLeyenda = () => {
+        leyenda.style.transform = '';
+        const im = previa.querySelector('.editor-previa__zona img');
+        const a = im.getBoundingClientRect();
+        const l = leyenda.getBoundingClientRect();
+        const b = previa.querySelector('.editor-previa__barra').getBoundingClientRect();
+        if (!a.height || !l.height) return;
+        const deseado = a.bottom + (b.top - a.bottom - l.height) / 2;
+        const corrimiento = Math.min(0, Math.max(a.bottom - l.top, deseado - l.top));
+        leyenda.style.transform = 'translateY(' + Math.round(corrimiento) + 'px)';
+      };
+
       let preguntando = false;
       async function terminar(ok) {
         if (listo || preguntando) return;
@@ -658,6 +673,7 @@ export async function editarFoto(evento, alTerminar) {
           if (listo) return;
         }
         listo = true;
+        window.removeEventListener('resize', centrarLeyenda);
         URL.revokeObjectURL(url);
         previa.remove();
         if (porBack) ancla.desdePop();
@@ -666,7 +682,7 @@ export async function editarFoto(evento, alTerminar) {
       }
 
       const previa = h('div.editor-previa',
-        h('div.editor-previa__zona', h('img', { src: url, alt: 'Vista previa' })),
+        h('div.editor-previa__zona', h('img', { src: url, alt: 'Vista previa', onload: centrarLeyenda })),
         leyenda,
         h('div.editor-previa__barra',
           h('button.btn.btn--fantasma', { type: 'button', onclick: () => terminar(false) }, '← Seguir editando'),
@@ -674,6 +690,10 @@ export async function editarFoto(evento, alTerminar) {
         )
       );
       document.body.appendChild(previa);
+      // Doble disparo (sin rAF): cubre layouts tardios; resize cubre el teclado.
+      setTimeout(centrarLeyenda, 0);
+      setTimeout(centrarLeyenda, 150);
+      window.addEventListener('resize', centrarLeyenda);
     });
   }
 
