@@ -1079,6 +1079,13 @@ button { font-family: inherit; font-size: inherit; }
   overflow: hidden; padding: calc(var(--sup) + 10px) 10px 10px;
 }
 .editor-previa__zona img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.editor-previa__pie {
+  margin: .5rem .7rem 0;
+  padding: .6rem .7rem;
+  background: #0d141b; border: 1px solid #1d2632;
+  color: #e8edf2; font-size: .95rem;
+}
+.editor-previa__pie::placeholder { color: #5c6975; }
 .editor-previa__barra {
   display: flex; gap: .5rem;
   padding: .6rem .7rem calc(.7rem + var(--inf));

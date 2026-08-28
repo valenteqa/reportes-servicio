@@ -625,7 +625,8 @@ export async function editarFoto(evento, alTerminar) {
   }
 
   // Vista previa en grande antes de guardar: asi se ve EXACTAMENTE como
-  // quedara la foto, y se confirma o se vuelve a editar.
+  // quedara la foto, se pone la leyenda ahi mismo, y se confirma o se
+  // vuelve a editar. Resuelve { pie } al confirmar, o null para volver.
   function confirmarPrevia(blobFinal) {
     return new Promise((res) => {
       const url = URL.createObjectURL(blobFinal);
@@ -633,18 +634,33 @@ export async function editarFoto(evento, alTerminar) {
       let porBack = false;
       const ancla = anclarCapa(() => { porBack = true; terminar(false); });
 
+      const pie = h('input.editor-previa__pie', {
+        type: 'text',
+        placeholder: 'Leyenda de la foto (aparece en el reporte)',
+        value: (evento.datos && evento.datos.pie) || '',
+        enterkeyhint: 'done',
+        onkeydown: (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); pie.blur(); } },
+      });
+
       async function terminar(ok) {
         if (listo) return;
+        if (ok && !pie.value.trim()) {
+          const sinLeyenda = await confirmar('La foto va sin leyenda. ¿Guardar asi?',
+            { textoOk: 'Guardar sin leyenda' });
+          if (!sinLeyenda) { pie.focus(); return; }   // a escribirla
+          if (listo) return;
+        }
         listo = true;
         URL.revokeObjectURL(url);
         previa.remove();
         if (porBack) ancla.desdePop();
         else await ancla.liberar();
-        res(ok);
+        res(ok ? { pie: pie.value.trim() } : null);
       }
 
       const previa = h('div.editor-previa',
         h('div.editor-previa__zona', h('img', { src: url, alt: 'Vista previa' })),
+        pie,
         h('div.editor-previa__barra',
           h('button.btn.btn--fantasma', { type: 'button', onclick: () => terminar(false) }, '← Seguir editando'),
           h('button.btn.btn--primario', { type: 'button', onclick: () => terminar(true) }, 'Confirmar y guardar')
@@ -659,10 +675,17 @@ export async function editarFoto(evento, alTerminar) {
     const final = renderFinal(bitmap, ed, LADO_MAX);
     const blob = await aBlob(final, 0.85);
 
-    if (!(await confirmarPrevia(blob))) {
+    const conf = await confirmarPrevia(blob);
+    if (!conf) {
       if (!ed.recorte && modo === 'recortar') ed.recorte = { x: 0, y: 0, w: 1, h: 1 };
       pintar();
       return;   // de vuelta al editor
+    }
+
+    // La leyenda vive en el evento (igual que al editarla en el visor).
+    if (evento.datos && conf.pie !== (evento.datos.pie || '')) {
+      evento.datos.pie = conf.pie;
+      await db.eventoGuardar(evento);
     }
 
     const miniCv = renderFinal(bitmap, ed, LADO_MINI);
