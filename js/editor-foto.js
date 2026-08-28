@@ -15,6 +15,11 @@ import * as db from './db.js';
 import { h, aviso, confirmar, anclarCapa, bloquearScroll, liberarScroll } from './ui.js';
 
 const ROJO = '#FF2222';
+
+// Colores y grosores disponibles para las formas. El estilo elegido se
+// recuerda (localStorage) y cada forma guarda el suyo en la receta.
+const COLORES_FORMA = ['#FF2222', '#FFD400', '#2979FF', '#2ECC40', '#FFFFFF'];
+const GROSORES = { 1: 0.6, 2: 1, 3: 1.7 };
 const LADO_MAX = 1600;
 const LADO_MINI = 320;
 
@@ -58,15 +63,26 @@ function dibujarFormas(ctx, formas, w, h, recorte) {
   // si hay recorte se desplazan para caer donde corresponde.
   const rx = recorte ? recorte.x : 0, ry = recorte ? recorte.y : 0;
   const rw = recorte ? recorte.w : 1, rh = recorte ? recorte.h : 1;
-  const lw = Math.max(4, Math.round(Math.hypot(w, h) * 0.006));
-  ctx.strokeStyle = ROJO;
-  ctx.lineWidth = lw;
+  const lwBase = Math.max(4, Math.round(Math.hypot(w, h) * 0.006));
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
   for (const f of formas) {
+    // Recetas viejas no traen color/grosor: rojo y grosor medio.
+    const lw = Math.max(2, Math.round(lwBase * (GROSORES[f.grosor] || 1)));
+    ctx.strokeStyle = f.color || ROJO;
+    ctx.lineWidth = lw;
     const x1 = (f.x1 - rx) / rw * w, y1 = (f.y1 - ry) / rh * h;
     const x2 = (f.x2 - rx) / rw * w, y2 = (f.y2 - ry) / rh * h;
+
+    const cabezaEn = (px, py, ang) => {
+      const cabeza = lw * 4;
+      ctx.moveTo(px, py);
+      ctx.lineTo(px - cabeza * Math.cos(ang - 0.45), py - cabeza * Math.sin(ang - 0.45));
+      ctx.moveTo(px, py);
+      ctx.lineTo(px - cabeza * Math.cos(ang + 0.45), py - cabeza * Math.sin(ang + 0.45));
+    };
+
     ctx.beginPath();
     if (f.tipo === 'rect') {
       ctx.strokeRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
@@ -75,12 +91,18 @@ function dibujarFormas(ctx, formas, w, h, recorte) {
       ctx.stroke();
     } else if (f.tipo === 'flecha') {
       ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
-      const ang = Math.atan2(y2 - y1, x2 - x1);
-      const cabeza = lw * 4;
-      ctx.moveTo(x2, y2);
-      ctx.lineTo(x2 - cabeza * Math.cos(ang - 0.45), y2 - cabeza * Math.sin(ang - 0.45));
-      ctx.moveTo(x2, y2);
-      ctx.lineTo(x2 - cabeza * Math.cos(ang + 0.45), y2 - cabeza * Math.sin(ang + 0.45));
+      cabezaEn(x2, y2, Math.atan2(y2 - y1, x2 - x1));
+      ctx.stroke();
+    } else if (f.tipo === 'flechaCurva') {
+      // Curva cuadratica con comba perpendicular (30% del largo) y cabeza
+      // alineada a la tangente final.
+      const dx = x2 - x1, dy = y2 - y1;
+      const L = Math.hypot(dx, dy) || 1;
+      const cx = (x1 + x2) / 2 - dy * 0.3;
+      const cy = (y1 + y2) / 2 + dx * 0.3;
+      ctx.moveTo(x1, y1);
+      ctx.quadraticCurveTo(cx, cy, x2, y2);
+      cabezaEn(x2, y2, Math.atan2(y2 - cy, x2 - cx));
       ctx.stroke();
     }
   }
@@ -146,7 +168,19 @@ export async function editarFoto(evento, alTerminar) {
   if (!ed.formas) ed.formas = [];
 
   let modo = 'recortar';      // arranca en recortar | formas | girar
-  let herramienta = null;     // rect | circulo | flecha | null (manipular)
+  let herramienta = null;     // rect | circulo | flecha | flechaCurva | null (manipular)
+
+  // Estilo para formas nuevas (se recuerda entre sesiones). Con una forma
+  // seleccionada, los botones de color/grosor la re-estilizan al momento.
+  const estilo = { color: ROJO, grosor: 2 };
+  try {
+    const g = JSON.parse(localStorage.getItem('estiloFormas') || '{}');
+    if (COLORES_FORMA.includes(g.color)) estilo.color = g.color;
+    if (GROSORES[g.grosor]) estilo.grosor = g.grosor;
+  } catch (e) {}
+  const guardarEstilo = () => {
+    try { localStorage.setItem('estiloFormas', JSON.stringify(estilo)); } catch (e) {}
+  };
   let seleccion = null;       // forma seleccionada para mover/redimensionar
   let guardado = false;
 
@@ -345,8 +379,9 @@ export async function editarFoto(evento, alTerminar) {
 
     if (modo === 'formas') {
       if (herramienta) {
-        // dibujar una forma nueva
-        const forma = { tipo: herramienta, x1: ix, y1: iy, x2: ix, y2: iy };
+        // dibujar una forma nueva con el estilo elegido
+        const forma = { tipo: herramienta, x1: ix, y1: iy, x2: ix, y2: iy,
+          color: estilo.color, grosor: estilo.grosor };
         ed.formas.push(forma);
         arrastre = { tipo: 'forma', forma };
         return;
@@ -556,13 +591,14 @@ export async function editarFoto(evento, alTerminar) {
     if (modo === 'formas') {
       // La herramienta se desarma sola al dibujar; volver a tocarla la rearma.
       const armar = (t) => { herramienta = herramienta === t ? null : t; seleccion = null; pintarBarras(); pintar(); };
-      // replaceChildren no ignora null: filtrar antes.
-      barraCtrl.replaceChildren(...[
+
+      const filaHerr = h('div.editor__fila', ...[
         btn('▭', herramienta === 'rect', () => armar('rect'), 'Rectangulo'),
         btn('◯', herramienta === 'circulo', () => armar('circulo'), 'Circulo'),
         btn('↗', herramienta === 'flecha', () => armar('flecha'), 'Flecha'),
+        btn('↷', herramienta === 'flechaCurva', () => armar('flechaCurva'), 'Flecha curva'),
         herramienta
-          ? h('p.editor__pista', 'Arrastra para dibujar.')
+          ? h('p.editor__pista', 'Toca (tamaño mediano) o arrastra.')
           : h('p.editor__pista', seleccion
               ? 'Arrastra para mover · esquinas o 2 dedos para tamaño.'
               : 'Toca una forma para moverla · 2 dedos: zoom.'),
@@ -579,6 +615,34 @@ export async function editarFoto(evento, alTerminar) {
           pintar();
         }, 'Eliminar forma'),
       ].filter(Boolean));
+
+      // Color y grosor: aplican a la forma seleccionada, o quedan como el
+      // estilo de la siguiente que dibujes.
+      const colorActivo = seleccion ? (seleccion.color || ROJO) : estilo.color;
+      const grosorActivo = seleccion ? (seleccion.grosor || 2) : estilo.grosor;
+      const aplicarEstilo = (cambio) => {
+        Object.assign(estilo, cambio);
+        guardarEstilo();
+        if (seleccion) Object.assign(seleccion, cambio);
+        pintarBarras();
+        pintar();
+      };
+      const filaEstilo = h('div.editor__fila',
+        COLORES_FORMA.map(c =>
+          h('button.editor__color' + (c === colorActivo ? '.editor__color--activo' : ''), {
+            type: 'button', 'aria-label': 'Color ' + c,
+            style: { background: c },
+            onclick: () => aplicarEstilo({ color: c }),
+          })),
+        h('span.crece'),
+        [1, 2, 3].map(g =>
+          h('button.editor__grosor' + (g === grosorActivo ? '.editor__grosor--activo' : ''), {
+            type: 'button', 'aria-label': 'Grosor ' + g,
+            onclick: () => aplicarEstilo({ grosor: g }),
+          }, h('span', { style: { height: (g * 2 + 1) + 'px' } })))
+      );
+
+      barraCtrl.replaceChildren(filaHerr, filaEstilo);
     } else if (modo === 'recortar') {
       barraCtrl.replaceChildren(
         h('p.editor__pista', 'Arrastra las esquinas o mueve el recuadro.'),

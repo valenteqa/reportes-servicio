@@ -1053,6 +1053,23 @@ button { font-family: inherit; font-size: inherit; }
   padding: .45rem .6rem;
   background: var(--superficie); border-top: 1px solid var(--borde);
 }
+.editor__controles { flex-wrap: wrap; }
+.editor__fila { display: flex; align-items: center; gap: .35rem; width: 100%; }
+
+/* Selector de color y grosor de formas */
+.editor__color {
+  width: 36px; height: 36px; flex: 0 0 auto; padding: 0;
+  border: 2px solid var(--borde-fuerte); cursor: pointer;
+}
+.editor__color--activo { border-color: var(--tinta); outline: 2px solid var(--primario); outline-offset: 1px; }
+.editor__grosor {
+  min-width: 44px; height: 36px; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--borde-fuerte); background: var(--superficie-2);
+  color: var(--tinta); cursor: pointer;
+}
+.editor__grosor--activo { border-color: var(--primario); background: var(--primario-suave); color: var(--primario); }
+.editor__grosor span { display: block; width: 22px; background: currentColor; }
 .editor__modos { padding-bottom: calc(.55rem + var(--inf)); }
 
 .editor__btn {
