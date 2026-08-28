@@ -878,7 +878,7 @@ export async function render(contenedor, refrescar) {
   const cabecera = h('header.cabecera',
     h('div.cabecera__fila',
       h('img.cabecera__logo', { src: 'icons/icono-192.png', alt: 'Grupo Ser Pro' }),
-      h('h1', 'Trabajos'),
+      h('h1', 'Ser Pro App'),
       // Etiqueta para distinguir la version de navegador del APK: ambos
       // comparten icono y nombre, y confundirlos divide los datos.
       esNativa() ? null : h('span.tag-web', 'WEB'),
