@@ -95,6 +95,30 @@ async function guardarPorMediaStore(blob, ruta) {
   }
 }
 
+/* Copia privada del ULTIMO respaldo, en el almacen interno de la app: con
+   ella "Restaurar" puede ofrecer el ultimo respaldo sin pedir buscar el
+   archivo. Solo una copia (se sobreescribe); si la app se desinstala se
+   pierde, pero el respaldo real de Documentos/ReportesServicio/ sobrevive
+   y queda la via "Buscar otro archivo". */
+
+export async function guardarUltimoRespaldo(blob) {
+  const P = window.Capacitor.Plugins;
+  await P.Filesystem.writeFile({
+    path: 'ultimo-respaldo.zip',
+    data: await aBase64(blob),
+    directory: 'DATA',
+  });
+}
+
+export async function leerUltimoRespaldo() {
+  const P = window.Capacitor.Plugins;
+  const r = await P.Filesystem.readFile({ path: 'ultimo-respaldo.zip', directory: 'DATA' });
+  const bin = atob(r.data);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: 'application/zip' });
+}
+
 // Guarda el blob en Documentos/ReportesServicio/<ruta> (crea las carpetas).
 // Primero la ruta directa del plugin (rapida; imagenes siempre pasan); si
 // Android la niega (EACCES con .docx/.zip en varios equipos), MediaStore.

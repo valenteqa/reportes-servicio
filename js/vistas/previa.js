@@ -84,7 +84,7 @@ export async function vistaPreviaReporte(servicioId) {
   const cuerpo = [];
 
   cuerpo.push(h('div.previa__membrete',
-    h('p.previa__logo', 'SP'),
+    h('img.previa__logo', { src: 'icons/logo-serpro.png', alt: 'Grupo Ser Pro' }),
     h('div',
       h('p.previa__emp', 'REPORTE DE SERVICIO'),
       h('p.previa__folio', 'Folio ' + (servicio.folio || folioDe(servicio)) + ' · ' + fechaLarga(servicio.inicio))

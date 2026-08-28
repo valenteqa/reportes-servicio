@@ -14,7 +14,7 @@
 // Subir VERSION en cada publicacion (junto con APP_VERSION en js/version.js):
 // eso dispara un re-precacheo completo, que es la via mas confiable.
 
-const VERSION = 'v79';
+const VERSION = 'v80';
 const CACHE = 'reportes-' + VERSION;
 
 const CASCARON = [
@@ -40,6 +40,8 @@ const CASCARON = [
   'js/vistas/previa.js',
   'icons/icono-192.png',
   'icons/icono-512.png',
+  'icons/icono-maskable-512.png',
+  'icons/logo-serpro.png',
   // Plantilla del reporte Word (logos, estilos, marca de agua): sin esto
   // el modo plantilla no funciona sin señal.
   'plantilla/app-props.xml',

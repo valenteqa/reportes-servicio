@@ -1289,11 +1289,8 @@ body.pantalla-ancha #app { max-width: none; }
   display: flex; align-items: center; gap: .8rem;
   border-bottom: 3px solid #1f3864; padding-bottom: .6rem; margin-bottom: 1rem;
 }
-.previa__logo {
-  flex: 0 0 auto; width: 44px; height: 44px;
-  display: grid; place-items: center;
-  background: #1f3864; color: #fff; font-weight: 800;
-}
+.previa__logo { flex: 0 0 auto; height: 56px; width: auto; }
+.cabecera__logo { flex: 0 0 auto; height: 30px; width: auto; }
 .previa__emp { font-weight: 800; color: #1f3864; letter-spacing: .04em; }
 .previa__folio { font-size: .8rem; color: #555; }
 .previa__datos { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }

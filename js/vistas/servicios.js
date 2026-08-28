@@ -5,7 +5,7 @@ import { h, campo, campoArea, hoja, aviso, confirmar, fecha, vacio } from '../ui
 import * as media from '../media.js';
 import { APP_VERSION } from '../version.js';
 import { temaActual, alternarTema, zoomActual, aplicarZoom } from '../tema.js';
-import { esNativa, compartirArchivoNativo, guardarEnCarpetaNativa, nombreSeguro } from '../nativo.js';
+import { esNativa, compartirArchivoNativo, guardarEnCarpetaNativa, nombreSeguro, guardarUltimoRespaldo, leerUltimoRespaldo } from '../nativo.js';
 
 // Catalogo precargado: clientes y maquinas conocidos aunque el telefono aun
 // no tenga historial propio. El primero es el del reporte de referencia.
@@ -66,6 +66,25 @@ const CAMPOS_CATALOGO = [
   ['serie',   'Numeros de serie'],
 ];
 
+// Linea con la version de la app (web) y la del cascaron APK. La del APK
+// se pregunta al plugin App y llega un instante despues.
+function version() {
+  const linea = h('p.pista', { style: { marginTop: '.6rem' } },
+    'Version de la app: ' + APP_VERSION + (esNativa() ? '' : ' · WEB (navegador)'));
+  if (esNativa()) {
+    (async () => {
+      try {
+        const info = await window.Capacitor.Plugins.App.getInfo();
+        linea.textContent = 'Version de la app: ' + APP_VERSION +
+          ' · APK ' + info.version + ' (' + info.build + ')';
+      } catch (e) {
+        linea.textContent = 'Version de la app: ' + APP_VERSION + ' · APK';
+      }
+    })();
+  }
+  return linea;
+}
+
 async function hojaConfiguracion() {
   const accion = await hoja('⚙  Configuracion', (cerrar) => h('div',
     h('div.lista-acciones',
@@ -78,7 +97,8 @@ async function hojaConfiguracion() {
       h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('diag') },
         '🩺  Diagnostico de foto')
     ),
-    h('p.pista', 'Administra las sugerencias que salen al crear o editar un servicio. Los servicios y reportes ya guardados no se tocan.')
+    h('p.pista', 'Administra las sugerencias que salen al crear o editar un servicio. Los servicios y reportes ya guardados no se tocan.'),
+    version()
   ));
   if (accion === 'tecnico') await hojaTecnico();
   if (accion === 'catalogo') await hojaCampoCatalogo();
@@ -711,6 +731,16 @@ async function hojaAlmacenamiento(refrescar) {
         const { crearRespaldo } = await import('../respaldo.js');
         const r = await crearRespaldo();
 
+        // Copia privada del ultimo respaldo (solo APK): alimenta el boton
+        // "Restaurar > Ultimo respaldo". No es fatal si falla.
+        if (esNativa()) {
+          try {
+            await guardarUltimoRespaldo(r.blob);
+            await db.ajusteGuardar('ultimoRespaldo',
+              { fecha: Date.now(), nombre: r.nombreArchivo, tam: r.blob.size });
+          } catch (e2) { console.error('copia del ultimo respaldo', e2); }
+        }
+
         // En el APK: "Respaldar" guarda DIRECTO en la carpeta de la app
         // (Documentos/ReportesServicio/Respaldos) y "Compartir" abre el menu
         // nativo. El ancla de descarga web no funciona en el WebView.
@@ -746,31 +776,64 @@ async function hojaAlmacenamiento(refrescar) {
       }
     };
 
-    const restaurar = () => {
+    const ejecutarRestauracion = async (archivo, nombre) => {
+      const ok = await confirmar(
+        'Se restaurara "' + nombre + '". Lo del respaldo se MEZCLA con lo que ya hay (mismos trabajos se sobreescriben, nada se borra). ¿Continuar?',
+        { textoOk: 'Restaurar', peligro: false });
+      if (!ok) return;
+      estado.textContent = 'Restaurando...';
+      try {
+        const { restaurarRespaldo } = await import('../respaldo.js');
+        const r = await restaurarRespaldo(archivo);
+        estado.textContent = 'Restaurado: ' + r.trabajos + ' trabajos, ' + r.fotos + ' fotos.';
+        aviso('Respaldo restaurado', 'ok');
+        refrescar();
+      } catch (e) {
+        console.error(e);
+        estado.textContent = 'Fallo: ' + (e && e.message ? e.message : e);
+        aviso('No se pudo restaurar', 'error');
+      }
+    };
+
+    const buscarArchivo = () => {
       const input = h('input', { type: 'file', accept: '.zip,application/zip', style: { display: 'none' } });
       document.body.appendChild(input);
-      input.addEventListener('change', async () => {
+      input.addEventListener('change', () => {
         const archivo = input.files && input.files[0];
         input.remove();
         if (!archivo) return;
-        const ok = await confirmar(
-          'Se restaurara "' + archivo.name + '". Lo del respaldo se MEZCLA con lo que ya hay (mismos trabajos se sobreescriben, nada se borra). ¿Continuar?',
-          { textoOk: 'Restaurar', peligro: false });
-        if (!ok) return;
-        estado.textContent = 'Restaurando...';
-        try {
-          const { restaurarRespaldo } = await import('../respaldo.js');
-          const r = await restaurarRespaldo(archivo);
-          estado.textContent = 'Restaurado: ' + r.trabajos + ' trabajos, ' + r.fotos + ' fotos.';
-          aviso('Respaldo restaurado', 'ok');
-          refrescar();
-        } catch (e) {
-          console.error(e);
-          estado.textContent = 'Fallo: ' + (e && e.message ? e.message : e);
-          aviso('No se pudo restaurar', 'error');
-        }
+        ejecutarRestauracion(archivo, archivo.name);
       });
       input.click();
+    };
+
+    const restaurar = async () => {
+      // Con copia privada del ultimo respaldo (APK): ofrecer restaurarla
+      // directo, sin obligar a buscar el archivo. Sin copia: buscador directo.
+      const ult = esNativa() ? await db.ajusteLeer('ultimoRespaldo') : null;
+      if (!ult) return buscarArchivo();
+
+      const cuando = new Date(ult.fecha).toLocaleString('es-MX',
+        { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      const eleccion = await hoja('Restaurar respaldo', (cerrarMenu) => h('div',
+        h('div.lista-acciones',
+          h('button.lista-acciones__item', { type: 'button', onclick: () => cerrarMenu('ultimo') },
+            '⏪  Ultimo respaldo (' + cuando + ' · ' + media.formatoBytes(ult.tam || 0) + ')'),
+          h('button.lista-acciones__item', { type: 'button', onclick: () => cerrarMenu('buscar') },
+            '📁  Buscar otro archivo')
+        ),
+        h('p.pista', 'El ultimo respaldo es el mas reciente que hiciste aqui con Respaldar o Compartir.')
+      ));
+      if (eleccion === 'buscar') return buscarArchivo();
+      if (eleccion !== 'ultimo') return;
+      try {
+        const blob = await leerUltimoRespaldo();
+        await ejecutarRestauracion(blob, ult.nombre || 'ultimo respaldo');
+      } catch (e) {
+        console.error(e);
+        aviso('No se encontro la copia del ultimo respaldo; busca el archivo', 'error');
+        buscarArchivo();
+      }
     };
 
     return h('div',
@@ -792,7 +855,7 @@ async function hojaAlmacenamiento(refrescar) {
           esNativa() ? '💾 Respaldar a la carpeta' : 'Respaldar')
       ),
       estado,
-      h('p.pista', { style: { marginTop: '.6rem' } }, 'Version de la app: ' + APP_VERSION)
+      version()
     );
   });
 }
@@ -803,6 +866,7 @@ export async function render(contenedor, refrescar) {
 
   const cabecera = h('header.cabecera',
     h('div.cabecera__fila',
+      h('img.cabecera__logo', { src: 'icons/icono-192.png', alt: 'Grupo Ser Pro' }),
       h('h1', 'Trabajos'),
       // Etiqueta para distinguir la version de navegador del APK: ambos
       // comparten icono y nombre, y confundirlos divide los datos.
