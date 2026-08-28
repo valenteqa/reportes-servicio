@@ -37,10 +37,15 @@ export async function capturarFoto(servicioId, equipoId, { galeria = false } = {
   ocupado(archivos.length > 1 ? 'Procesando ' + archivos.length + ' fotos...' : 'Procesando la foto...');
 
   let ultimo = null;
+  let msTotal = 0;
   try {
     for (const archivo of archivos) {
       try {
-        const procesada = await media.procesarImagen(archivo);
+        const { _ms, ...procesada } = await media.procesarImagen(archivo);
+        if (_ms) {
+          msTotal += _ms.decodificar + _ms.escalar;
+          console.log('[foto]', _ms.decodificar + 'ms decodificar, ' + _ms.escalar + 'ms escalar');
+        }
         const fotoId = db.nuevoId();
         await db.fotoGuardar(Object.assign({ id: fotoId }, procesada));
         ultimo = await db.eventoNuevo(servicioId, equipoId, 'foto', { fotoId, pie: '' });
@@ -52,7 +57,9 @@ export async function capturarFoto(servicioId, equipoId, { galeria = false } = {
   } finally {
     libre();
   }
-  if (ultimo) aviso(archivos.length > 1 ? archivos.length + ' fotos agregadas' : 'Foto agregada', 'ok');
+  // El tiempo va en el aviso para poder diagnosticar telefonos lentos.
+  const seg = msTotal >= 100 ? ' (' + (Math.round(msTotal / 100) / 10) + ' s)' : '';
+  if (ultimo) aviso((archivos.length > 1 ? archivos.length + ' fotos agregadas' : 'Foto agregada') + seg, 'ok');
 
   // Una sola imagen: abrir el editor de inmediato (recortar, girar, señalar).
   // Con varias de la galeria no: se editan una por una al abrirlas.

@@ -50,7 +50,7 @@ function lienzoTransformado(bitmap, ed, cap) {
   cv.width = Math.max(1, Math.round(d.w * escala));
   cv.height = Math.max(1, Math.round(d.h * escala));
   const ctx = cv.getContext('2d');
-  ctx.imageSmoothingQuality = 'high';
+  ctx.imageSmoothingQuality = 'medium';   // 'high' tarda segundos en WebView
   ctx.translate(cv.width / 2, cv.height / 2);
   ctx.rotate(angulo * Math.PI / 180);
   ctx.scale(ed.flipH ? -escala : escala, ed.flipV ? -escala : escala);
@@ -119,7 +119,7 @@ function renderFinal(bitmap, ed, cap) {
   cv.width = Math.max(1, Math.round(sw * escala));
   cv.height = Math.max(1, Math.round(sh * escala));
   const ctx = cv.getContext('2d');
-  ctx.imageSmoothingQuality = 'high';
+  ctx.imageSmoothingQuality = 'medium';   // 'high' tarda segundos en WebView
   ctx.drawImage(t, r.x * t.width, r.y * t.height, sw, sh, 0, 0, cv.width, cv.height);
   dibujarFormas(ctx, ed.formas, cv.width, cv.height, ed.recorte);
   return cv;

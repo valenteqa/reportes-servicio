@@ -102,7 +102,10 @@ function escalar(origen, ladoMax, calidad) {
   lienzo.width = w;
   lienzo.height = h;
   const ctx = lienzo.getContext('2d');
-  ctx.imageSmoothingQuality = 'high';
+  // 'medium' y no 'high': en el WebView de Android, 'high' cae a una ruta
+  // de software que tarda SEGUNDOS con fotos de camara; a 1600px no se
+  // distingue y es hasta 10x mas rapido.
+  ctx.imageSmoothingQuality = 'medium';
   ctx.drawImage(origen, 0, 0, w, h);
 
   return new Promise((resolve) => {
@@ -118,9 +121,12 @@ function escalar(origen, ladoMax, calidad) {
  * reescalar dos veces el archivo completo duplicaba el tiempo por foto.
  */
 export async function procesarImagen(archivo) {
+  const t0 = performance.now();
   const bitmap = await aBitmap(archivo);
+  const t1 = performance.now();
   const grande = await escalar(bitmap, LADO_MAX, CALIDAD);
   if (bitmap.close) bitmap.close();
+  const t2 = performance.now();
 
   const mini = await escalar(grande.lienzo, LADO_MINI, CALIDAD_MINI);
 
@@ -132,6 +138,8 @@ export async function procesarImagen(archivo) {
     bytes: grande.blob.size,
     original: archivo.size,
     creado: Date.now(),
+    // cronometro de diagnostico (no se guarda en la base)
+    _ms: { decodificar: Math.round(t1 - t0), escalar: Math.round(t2 - t1) },
   };
 }
 
