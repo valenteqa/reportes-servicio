@@ -22,12 +22,18 @@ const PRECARGADOS = [
 
 const norm = (x) => (x || '').trim().toLowerCase();
 
-// Historial para sugerir: servicios previos + catalogo precargado (el
-// historial real va primero, asi gana en autorrellenos y en el orden).
-async function historialServicios(exceptoId) {
-  return (await db.serviciosTodos())
-    .filter(t => t.tipo === 'servicio' && t.id !== exceptoId)
-    .concat(PRECARGADOS);
+// Las sugerencias salen del CATALOGO de maquinas (administrable en ⚙
+// Configuracion). La primera vez se siembra con lo precargado y con los
+// servicios ya capturados; despues cada servicio nuevo/editado lo alimenta.
+async function historialServicios() {
+  if (!(await db.ajusteLeer('catalogoMaquinas1', false))) {
+    for (const m of PRECARGADOS) await db.maquinaRecordar(m);
+    for (const t of await db.serviciosTodos()) {
+      if ((t.tipo || 'servicio') === 'servicio') await db.maquinaRecordar(t);
+    }
+    await db.ajusteGuardar('catalogoMaquinas1', true);
+  }
+  return db.maquinasCatalogo();
 }
 
 // Valores distintos de un campo, filtrados por lo ya elegido, en orden a-z.
@@ -43,6 +49,86 @@ function distintosDe(historial, campoDe, filtro) {
     if (val && !vistos.has(val.toLowerCase())) vistos.set(val.toLowerCase(), val);
   }
   return Array.from(vistos.values()).sort((a, b) => a.localeCompare(b, 'es'));
+}
+
+/* ---------------------------------------------------------------- */
+/* Configuracion: administrar el catalogo de sugerencias.            */
+/* Renombrar o eliminar aqui NO toca servicios ni reportes ya        */
+/* guardados: ellos llevan sus propios datos.                        */
+/* ---------------------------------------------------------------- */
+
+const CAMPOS_CATALOGO = [
+  ['cliente', 'Clientes'],
+  ['planta',  'Plantas / sitios'],
+  ['marca',   'Tipos de maquina'],
+  ['modelo',  'Modelos'],
+  ['serie',   'Numeros de serie'],
+];
+
+async function hojaConfiguracion() {
+  const accion = await hoja('⚙  Configuracion', (cerrar) => h('div',
+    h('div.lista-acciones',
+      h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('catalogo') },
+        '🗂  Clientes y datos de maquina')
+    ),
+    h('p.pista', 'Administra las sugerencias que salen al crear o editar un servicio. Los servicios y reportes ya guardados no se tocan.')
+  ));
+  if (accion === 'catalogo') await hojaCampoCatalogo();
+}
+
+async function hojaCampoCatalogo() {
+  await historialServicios();   // garantiza el catalogo sembrado
+  for (;;) {
+    const campo = await hoja('🗂  ¿Que quieres modificar?', (cerrar) => h('div.lista-acciones',
+      CAMPOS_CATALOGO.map(([k, titulo]) =>
+        h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar(k) }, titulo))
+    ));
+    if (!campo) return;
+    await hojaValoresCatalogo(campo);
+  }
+}
+
+async function hojaValoresCatalogo(campo) {
+  const titulo = CAMPOS_CATALOGO.find(c => c[0] === campo)[1];
+  for (;;) {
+    const maquinas = await db.maquinasCatalogo();
+    const valores = distintosDe(maquinas, campo, {});
+    const elegido = await hoja(titulo, (cerrar) => h('div',
+      valores.length
+        ? h('div.lista-acciones', valores.map(v =>
+            h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar(v) },
+              v,
+              h('span.config-conteo', 'en ' + maquinas.filter(m => norm(m[campo]) === norm(v)).length + ' maquina(s)'))))
+        : h('p.pista', 'No hay valores guardados todavia.'),
+      valores.length ? h('p.pista', 'Toca uno para renombrarlo o quitarlo de las sugerencias.') : null
+    ), { altura: 'alta' });
+    if (!elegido) return;
+    await hojaEditarValor(campo, elegido);
+  }
+}
+
+async function hojaEditarValor(campo, valor) {
+  const accion = await hoja(valor, (cerrar) => h('div',
+    h('p.pista', 'Los servicios y reportes ya guardados NO cambian ni se eliminan: esto solo afecta las sugerencias para nuevos servicios.'),
+    h('div.lista-acciones',
+      h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('renombrar') }, '✎  Renombrar'),
+      h('button.lista-acciones__item.lista-acciones__item--peligro',
+        { type: 'button', onclick: () => cerrar('eliminar') }, '🗑  Quitar de las sugerencias')
+    )
+  ));
+
+  if (accion === 'renombrar') {
+    const nuevo = await editarTextoCampo('Renombrar "' + valor + '"', valor, false);
+    if (nuevo === null || !nuevo.trim() || nuevo.trim() === valor) return;
+    const n = await db.maquinasRenombrar(campo, valor, nuevo.trim());
+    aviso('Renombrado en ' + n + ' registro(s) de sugerencias', 'ok');
+  } else if (accion === 'eliminar') {
+    const ok = await confirmar('Se quita "' + valor + '" de las sugerencias, junto con sus maquinas asociadas. Los servicios y reportes ya guardados NO cambian ni se eliminan.',
+      { textoOk: 'Quitar' });
+    if (!ok) return;
+    const n = await db.maquinasEliminarValor(campo, valor);
+    aviso('Quitado de las sugerencias (' + n + ' registro(s))', 'ok');
+  }
 }
 
 async function bannerAlmacenamiento() {
@@ -275,6 +361,7 @@ export async function nuevoServicio() {
 
   const usuario = await db.ajusteLeer('usuario', 'Usuario');
   const trabajo = await db.servicioNuevo(Object.assign({ tipo, tecnico: usuario }, datos));
+  if (tipo === 'servicio') db.maquinaRecordar(trabajo);   // alimenta las sugerencias
   location.hash = '#/s/' + trabajo.id;
 }
 
@@ -383,6 +470,7 @@ async function editarServicioMenu(trabajo) {
       }
       trabajo[c.k] = nuevo;
       await db.servicioGuardar(trabajo);
+      db.maquinaRecordar(trabajo);   // alimenta las sugerencias
       cambio = true;
       pintar();
     }
@@ -576,7 +664,11 @@ export async function render(contenedor, refrescar) {
       h('button.icono-btn', {
         type: 'button', 'aria-label': 'Almacenamiento y respaldo',
         onclick: () => hojaAlmacenamiento(refrescar)
-      }, '⛁')
+      }, '⛁'),
+      h('button.icono-btn', {
+        type: 'button', 'aria-label': 'Configuracion',
+        onclick: () => hojaConfiguracion()
+      }, '⚙')
     )
   );
 

@@ -244,6 +244,68 @@ export function catalogoEquipos() {
 }
 
 /* ---------------------------------------------------------------- */
+/* Catalogo de maquinas: alimenta las sugerencias del asistente.     */
+/* Se administra en Configuracion; los servicios y reportes ya       */
+/* guardados NO dependen de el (llevan sus propios datos).           */
+/* ---------------------------------------------------------------- */
+
+const CAMPOS_MAQUINA = ['cliente', 'planta', 'marca', 'modelo', 'serie', 'noMaquina'];
+
+function claveMaquina(m) {
+  return 'maquina:' + CAMPOS_MAQUINA.map(c => (m[c] || '').trim().toLowerCase()).join('|');
+}
+
+export function maquinasCatalogo() {
+  return tx('catalogo', 'readonly',
+    st => porIndice(st.catalogo, 'tipo', IDBKeyRange.only('maquina')));
+}
+
+// Upsert: la clave es la combinacion normalizada, asi no hay duplicados.
+export function maquinaRecordar(datos) {
+  const m = {};
+  for (const c of CAMPOS_MAQUINA) m[c] = ((datos && datos[c]) || '').trim();
+  if (!m.cliente && !m.marca && !m.modelo && !m.serie) return Promise.resolve(null);
+  m.clave = claveMaquina(m);
+  m.tipo = 'maquina';
+  m.ultimoUso = Date.now();
+  return tx('catalogo', 'readwrite', st => pedir(st.catalogo.put(m))).then(() => m);
+}
+
+// Renombra un valor (p. ej. un cliente mal escrito) en todo el catalogo.
+// Las colisiones se fusionan solas porque comparten clave.
+export function maquinasRenombrar(campo, de, a) {
+  const nde = (de || '').trim().toLowerCase();
+  return tx('catalogo', 'readwrite', async (st) => {
+    const lista = await porIndice(st.catalogo, 'tipo', IDBKeyRange.only('maquina'));
+    let n = 0;
+    for (const m of lista) {
+      if (((m[campo] || '').trim().toLowerCase()) !== nde) continue;
+      st.catalogo.delete(m.clave);
+      m[campo] = (a || '').trim();
+      m.clave = claveMaquina(m);
+      st.catalogo.put(m);
+      n++;
+    }
+    return n;
+  });
+}
+
+// Quita de las sugerencias todas las maquinas con ese valor en ese campo.
+export function maquinasEliminarValor(campo, valor) {
+  const nv = (valor || '').trim().toLowerCase();
+  return tx('catalogo', 'readwrite', async (st) => {
+    const lista = await porIndice(st.catalogo, 'tipo', IDBKeyRange.only('maquina'));
+    let n = 0;
+    for (const m of lista) {
+      if (((m[campo] || '').trim().toLowerCase()) !== nv) continue;
+      st.catalogo.delete(m.clave);
+      n++;
+    }
+    return n;
+  });
+}
+
+/* ---------------------------------------------------------------- */
 /* Eventos: nota | tabla | foto                                      */
 /* ---------------------------------------------------------------- */
 
