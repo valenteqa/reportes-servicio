@@ -999,14 +999,14 @@ button { font-family: inherit; font-size: inherit; }
 .editor {
   position: fixed; inset: 0; z-index: 80;
   display: flex; flex-direction: column;
-  background: #04060a;
+  background: var(--fondo);
   touch-action: none;
 }
 .editor__barra {
   display: flex; align-items: center; gap: .4rem;
   padding: calc(var(--sup) + .4rem) .5rem .4rem;
 }
-.editor__titulo { flex: 1; color: #cdd6df; font-size: .9rem; font-weight: 650; }
+.editor__titulo { flex: 1; color: var(--tinta-suave); font-size: .9rem; font-weight: 650; }
 .editor__revertir { color: var(--aviso); padding: .5rem .4rem; font-size: .82rem; }
 .editor__ok {
   width: 54px; min-height: 44px; border: none;
@@ -1030,7 +1030,7 @@ button { font-family: inherit; font-size: inherit; }
   position: absolute; top: 8px; left: 10px; z-index: 5;
   padding: .5rem .8rem;
   border: 1px solid var(--primario);
-  background: rgba(4, 6, 10, .85); color: var(--primario);
+  background: var(--superficie); color: var(--primario);
   font-weight: 700; font-size: .74rem; letter-spacing: .1em;
   cursor: pointer;
 }
@@ -1040,13 +1040,13 @@ button { font-family: inherit; font-size: inherit; }
 .editor__controles, .editor__modos {
   display: flex; align-items: center; gap: .35rem;
   padding: .45rem .6rem;
-  background: #0d141b; border-top: 1px solid #1d2632;
+  background: var(--superficie); border-top: 1px solid var(--borde);
 }
 .editor__modos { padding-bottom: calc(.55rem + var(--inf)); }
 
 .editor__btn {
   min-height: 46px; padding: 0 .8rem;
-  border: 1px solid #2b3947; background: #121b24; color: #e9eef4;
+  border: 1px solid var(--borde-fuerte); background: var(--superficie-2); color: var(--tinta);
   font-weight: 650; font-size: .88rem; cursor: pointer; white-space: nowrap;
 }
 .editor__btn:active { transform: scale(.96); }
@@ -1064,34 +1064,51 @@ button { font-family: inherit; font-size: inherit; }
 .editor__fino { flex: 1; min-width: 60px; accent-color: var(--primario); }
 .editor__grados {
   min-width: 42px; text-align: right;
-  font-family: var(--mono); font-size: .82rem; color: #cdd6df;
+  font-family: var(--mono); font-size: .82rem; color: var(--tinta-suave);
 }
-.editor__pista { font-size: .72rem; color: #8a99a8; line-height: 1.25; }
+.editor__pista { font-size: .72rem; color: var(--tinta-tenue); line-height: 1.25; }
 
 /* Vista previa a tamaño completo antes de guardar */
 .editor-previa {
   position: fixed; inset: 0; z-index: 85;
   display: flex; flex-direction: column;
-  background: #04060a;
+  background: var(--fondo);
 }
 .editor-previa__zona {
   flex: 1; display: flex; align-items: center; justify-content: center;
   overflow: hidden; padding: calc(var(--sup) + 10px) 10px 10px;
 }
 .editor-previa__zona img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.editor-previa__pie {
-  margin: .5rem .7rem 0;
-  padding: .6rem .7rem;
-  background: #0d141b; border: 1px solid #1d2632;
-  color: #e8edf2; font-size: .95rem;
+/* La leyenda como elemento propio: tarjeta con acento, no un renglon perdido */
+.editor-previa__leyenda {
+  margin: .8rem .8rem .7rem;
+  padding: .75rem .8rem .85rem;
+  background: var(--superficie);
+  border: 1px solid var(--borde-fuerte);
+  border-left: 3px solid var(--primario);
+  display: flex; flex-direction: column; gap: .5rem;
 }
-.editor-previa__pie::placeholder { color: #5c6975; }
+.editor-previa__etq {
+  font-size: .68rem; font-weight: 700; letter-spacing: .12em;
+  color: var(--primario);
+}
+.editor-previa__pie {
+  padding: .65rem .7rem;
+  background: var(--superficie-2); border: 1px solid var(--borde);
+  color: var(--tinta); font-size: .95rem;
+}
+.editor-previa__pie::placeholder { color: var(--tinta-tenue); }
 .editor-previa__barra {
   display: flex; gap: .5rem;
   padding: .6rem .7rem calc(.7rem + var(--inf));
-  background: #0d141b; border-top: 1px solid #1d2632;
+  background: var(--superficie); border-top: 1px solid var(--borde);
 }
 .editor-previa__barra .btn { flex: 1; }
+
+/* Iconos SVG (compartir/descargar al estilo Android) */
+.icono-svg { display: inline-flex; width: 1.05em; height: 1.05em; vertical-align: -.12em; flex: 0 0 auto; }
+.icono-svg svg { width: 100%; height: 100%; }
+.icono-btn .icono-svg { width: 1.3em; height: 1.3em; }
 
 /* ---------------------------------------------------------------- */
 /* Estado vacio                                                      */

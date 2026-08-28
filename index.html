@@ -8,17 +8,19 @@
      Cancelar/Crear quedan visibles mientras escribes. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, interactive-widget=resizes-content">
 <meta name="description" content="Bitacora de servicios de mantenimiento en planta: equipos, notas, tablas y fotos.">
-<meta name="color-scheme" content="dark light">
-<meta name="theme-color" content="#07090d">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#eef1f4">
 <script>
 // Aplicar el tema guardado antes del primer pintado, para que no destelle.
+// El claro es el predeterminado; oscuro solo si el usuario lo eligio.
 try {
-  if (localStorage.getItem('tema') === 'claro') {
+  if (localStorage.getItem('tema') !== 'oscuro') {
     document.documentElement.dataset.tema = 'claro';
+  } else {
     var m = document.querySelector('meta[name="theme-color"]');
-    if (m) m.content = '#eef1f4';
+    if (m) m.content = '#07090d';
   }
-} catch (e) {}
+} catch (e) { document.documentElement.dataset.tema = 'claro'; }
 </script>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">

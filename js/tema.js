@@ -6,9 +6,10 @@
 
 const CLAVE = 'tema';
 
+// El claro es el predeterminado (se trabaja a pleno sol en planta).
 export function temaActual() {
-  try { return localStorage.getItem(CLAVE) === 'claro' ? 'claro' : 'oscuro'; }
-  catch (e) { return 'oscuro'; }
+  try { return localStorage.getItem(CLAVE) === 'oscuro' ? 'oscuro' : 'claro'; }
+  catch (e) { return 'claro'; }
 }
 
 export function aplicarTema(tema) {

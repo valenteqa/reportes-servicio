@@ -636,11 +636,15 @@ export async function editarFoto(evento, alTerminar) {
 
       const pie = h('input.editor-previa__pie', {
         type: 'text',
-        placeholder: 'Leyenda de la foto (aparece en el reporte)',
+        placeholder: 'Ej. Fuga en el sello de la bomba',
         value: (evento.datos && evento.datos.pie) || '',
         enterkeyhint: 'done',
         onkeydown: (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); pie.blur(); } },
       });
+      const leyenda = h('div.editor-previa__leyenda',
+        h('label.editor-previa__etq', 'LEYENDA DE LA FOTO — SALE EN EL REPORTE'),
+        pie
+      );
 
       async function terminar(ok) {
         if (listo) return;
@@ -660,7 +664,7 @@ export async function editarFoto(evento, alTerminar) {
 
       const previa = h('div.editor-previa',
         h('div.editor-previa__zona', h('img', { src: url, alt: 'Vista previa' })),
-        pie,
+        leyenda,
         h('div.editor-previa__barra',
           h('button.btn.btn--fantasma', { type: 'button', onclick: () => terminar(false) }, '← Seguir editando'),
           h('button.btn.btn--primario', { type: 'button', onclick: () => terminar(true) }, 'Confirmar y guardar')

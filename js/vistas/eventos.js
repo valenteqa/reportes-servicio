@@ -2,7 +2,7 @@
 
 import * as db from '../db.js';
 import * as media from '../media.js';
-import { h, hora, aviso, hoja, confirmar, campoArea, vacio, anclarCapa, bloquearScroll, liberarScroll } from '../ui.js';
+import { h, hora, aviso, hoja, confirmar, campoArea, vacio, anclarCapa, bloquearScroll, liberarScroll, icono } from '../ui.js';
 import { editarFoto } from '../editor-foto.js';
 
 /* ---------------------------------------------------------------- */
@@ -326,7 +326,7 @@ export async function verFoto(evento, alCambiar) {
               aviso('Android nego compartir la foto (' + (e && e.name ? e.name : e) + ')', 'error');
             });
         }
-      }, '📤'),
+      }, icono('compartir')),
       h('button.icono-btn.icono-btn--claro', {
         type: 'button', 'aria-label': 'Editar foto',
         onclick: async () => {

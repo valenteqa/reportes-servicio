@@ -9,7 +9,7 @@
 
 import * as db from '../db.js';
 import * as media from '../media.js';
-import { h, campo, hoja, aviso, confirmar, fecha, hora, duracion } from '../ui.js';
+import { h, campo, hoja, aviso, confirmar, fecha, hora, duracion, icono } from '../ui.js';
 import { lineaDeTiempo, menuAgregar, galeriaDelTrabajo } from './eventos.js';
 import { editarServicio } from './servicios.js';
 import { generarReporte } from '../reporte.js';
@@ -133,9 +133,9 @@ async function hojaReporte(servicio) {
         motivo ? h('p.pista', motivo) : null,
         h('div.lista-acciones',
           h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('guardar') },
-            '💾  Guardar en... (carpeta u OneDrive)'),
+            icono('descargar'), '  Descargar (elige carpeta u OneDrive)'),
           h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('descargar') },
-            '⬇  Descargar directo'),
+            '⬇  Descarga rapida a la carpeta Descargas'),
           esProc ? null : h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('previa') },
             '🖨  Vista previa para imprimir')
         )
@@ -165,7 +165,7 @@ async function hojaReporte(servicio) {
         .then(() => {
           const seg = Math.round((Date.now() - t0) / 100) / 10;
           estado.textContent = 'Compartido en ' + seg + ' s.'
-            + (seg < 1.5 ? ' Si no se abrio ninguna app, usa Guardar en...' : '');
+            + (seg < 1.5 ? ' Si no se abrio ninguna app, usa Descargar.' : '');
           aviso('Reporte compartido', 'ok');
         })
         .catch((e) => {
@@ -175,7 +175,7 @@ async function hojaReporte(servicio) {
           // audio, texto, PDF); Word y PowerPoint NO estan — el rechazo es
           // del navegador, no de este telefono.
           const motivo = (e && e.name === 'NotAllowedError')
-            ? 'Chrome no deja pasar archivos de Word o PowerPoint por el menu de Android (solo fotos, video y PDF). Guardar en... llega igual a OneDrive:'
+            ? 'Chrome no deja pasar archivos de Word o PowerPoint por el menu de Android (solo fotos, video y PDF). Descargar te deja elegir OneDrive:'
             : 'Android nego el menu de compartir [' + (e && e.name ? e.name : '') +
               (e && e.message ? ': ' + e.message : '') + '].';
           menuEntrega(res, motivo);
@@ -196,9 +196,9 @@ async function hojaReporte(servicio) {
           // Con el archivo ya listo, compartir se lanza EN el toque mismo;
           // solo la primera vez (aun generando) pasa por la espera.
           onclick: () => { if (preparado) compartir(preparado); else conArchivo(compartir); }
-        }, 'Compartir'),
+        }, icono('compartir'), ' Compartir'),
         h('button.btn.btn--primario', { type: 'button', onclick: () => conArchivo(guardarEn) },
-          '💾  Guardar en...  (OneDrive)')
+          icono('descargar'), ' Descargar')
       )
     );
   });
