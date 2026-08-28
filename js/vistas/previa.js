@@ -171,7 +171,10 @@ export async function vistaPreviaReporte(servicioId) {
       const fin = () => document.body.classList.remove('imprimiendo');
       window.addEventListener('afterprint', fin, { once: true });
       setTimeout(fin, 4000);   // respaldo por si afterprint no dispara
-      if (window.ImpresoraNativa && window.ImpresoraNativa.imprimir) {
+      const Puente = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Puente;
+      if (Puente && Puente.imprimir) {
+        Puente.imprimir().catch(() => window.print());
+      } else if (window.ImpresoraNativa && window.ImpresoraNativa.imprimir) {
         window.ImpresoraNativa.imprimir();
       } else {
         window.print();

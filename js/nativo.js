@@ -50,18 +50,37 @@ const MIMES = {
 
 // Via oficial de Android (MediaStore, puente del cascaron): la UNICA que
 // acepta DOCUMENTOS (.docx/.zip) en Documentos sin permisos. Por trozos,
-// para no cruzar archivos grandes en un solo string.
+// para no cruzar archivos grandes en un solo string. Preferimos el plugin
+// Capacitor "Puente" (APK 1.5+, sin carreras de arranque); si el cascaron
+// es 1.4, cae a la interfaz vieja ArchivosNativos.
 async function guardarPorMediaStore(blob, ruta) {
-  const AN = window.ArchivosNativos;
-  if (!AN || !AN.abrir) throw new Error('sin puente de archivos');
   const corte = ruta.lastIndexOf('/');
   const nombre = corte === -1 ? ruta : ruta.slice(corte + 1);
   const subruta = corte === -1 ? '' : ruta.slice(0, corte);
   const ext = (nombre.split('.').pop() || '').toLowerCase();
-  const id = AN.abrir(nombre, subruta, MIMES[ext] || 'application/octet-stream');
+  const mime = MIMES[ext] || 'application/octet-stream';
+  const TROZO = 768 * 1024;
+
+  const Puente = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Puente;
+  if (Puente && Puente.msAbrir) {
+    const { id } = await Puente.msAbrir({ nombre, subruta, mime });
+    try {
+      for (let i = 0; i < blob.size; i += TROZO) {
+        await Puente.msEscribir({ id, datos: await aBase64(blob.slice(i, i + TROZO)) });
+      }
+      await Puente.msCerrar({ id });
+      return 'Documents/' + CARPETA + '/' + ruta;
+    } catch (e) {
+      try { await Puente.msCancelar({ id }); } catch (e2) {}
+      throw e;
+    }
+  }
+
+  const AN = window.ArchivosNativos;
+  if (!AN || !AN.abrir) throw new Error('sin puente de archivos');
+  const id = AN.abrir(nombre, subruta, mime);
   if (String(id).indexOf('ERROR') === 0) throw new Error('MediaStore: ' + id);
   try {
-    const TROZO = 768 * 1024;   // bytes de blob por escritura
     for (let i = 0; i < blob.size; i += TROZO) {
       const b64 = await aBase64(blob.slice(i, i + TROZO));
       const r = AN.escribir(id, b64);
@@ -88,10 +107,11 @@ export async function guardarEnCarpetaNativa(blob, ruta) {
       path, data: datos, directory: 'DOCUMENTS', recursive: true,
     })).uri;
   } catch (e) {
-    // Android nego la ruta directa. Si el cascaron no trae el puente de
+    // Android nego la ruta directa. Si el cascaron no trae NINGUN puente de
     // MediaStore, es un APK viejo: decirlo CLARO en vez del EACCES criptico.
-    if (!window.ArchivosNativos && !/jpe?g|png$/i.test(ruta)) {
-      throw new Error('Este telefono necesita la version 1.3 del APK para guardar documentos en la carpeta. Instala ReportesServicio-v1.3.apk (o usa Compartir).');
+    const hayPuente = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Puente) || window.ArchivosNativos;
+    if (!hayPuente && !/jpe?g|png$/i.test(ruta)) {
+      throw new Error('Este telefono necesita el APK 1.5 para guardar documentos en la carpeta. Instala ReportesServicio-v1.5.apk (o usa Compartir).');
     }
     try {
       return await guardarPorMediaStore(blob, ruta);
