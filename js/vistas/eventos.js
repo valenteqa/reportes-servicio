@@ -59,13 +59,10 @@ export async function capturarFoto(servicioId, equipoId, { galeria = false } = {
   } finally {
     libre();
   }
-  // El tiempo va en el aviso, desglosado, para diagnosticar telefonos lentos.
-  const s = (ms) => (Math.round(ms / 100) / 10);
-  const seg = (msTotal >= 100 && ultimoMs)
-    ? ' (' + s(msTotal) + ' s · dec ' + s(ultimoMs.decodificar) + ' + esc ' + s(ultimoMs.escalar) +
-      (ultimoMs.ruta === 'rapida' ? ' · R' : '') + ')'
-    : '';
-  if (ultimo) aviso((archivos.length > 1 ? archivos.length + ' fotos agregadas' : 'Foto agregada') + seg, 'ok');
+  // El desglose de tiempos vive en la consola y en ⚙ → Diagnostico de foto;
+  // el aviso queda limpio para el uso diario.
+  if (ultimoMs) void msTotal;
+  if (ultimo) aviso(archivos.length > 1 ? archivos.length + ' fotos agregadas' : 'Foto agregada', 'ok');
 
   // Una sola imagen: abrir el editor de inmediato (recortar, girar, señalar).
   // Con varias de la galeria no: se editan una por una al abrirlas.
