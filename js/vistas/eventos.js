@@ -4,11 +4,25 @@ import * as db from '../db.js';
 import * as media from '../media.js';
 import { h, hora, fecha, aviso, hoja, confirmar, campoArea, vacio, anclarCapa, bloquearScroll, liberarScroll, icono, orientarLibre, orientarHorizontal, orientarNormal } from '../ui.js';
 import { editarFoto } from '../editor-foto.js';
-import { esNativa, compartirArchivoNativo } from '../nativo.js';
+import { esNativa, compartirArchivoNativo, guardarEnCarpetaNativa, nombreSeguro } from '../nativo.js';
 
 /* ---------------------------------------------------------------- */
 /* Acciones de captura                                               */
 /* ---------------------------------------------------------------- */
+
+// En el APK, cada foto que entra se copia tambien a la carpeta de la app:
+// Documentos/ReportesServicio/Fotos/<dia cliente>/. En segundo plano, sin
+// frenar la captura; si falla solo queda en consola.
+function copiaACarpetaNativa(servicioId, ev, blob) {
+  if (!esNativa()) return;
+  db.servicioLeer(servicioId).then(s => {
+    const d = new Date(ev.ts);
+    const dia = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+    const carpeta = 'Fotos/' + dia + ' ' + nombreSeguro((s && (s.cliente || s.titulo)) || 'trabajo');
+    return guardarEnCarpetaNativa(blob, carpeta + '/foto-' + ev.ts + '.jpg');
+  }).catch(e => console.warn('No se copio la foto a la carpeta:', e));
+}
 
 export async function capturarFoto(servicioId, equipoId, { galeria = false } = {}) {
   const archivos = await media.elegirImagenes({ camara: !galeria, multiple: galeria });
@@ -21,6 +35,7 @@ export async function capturarFoto(servicioId, equipoId, { galeria = false } = {
       const fotoId = db.nuevoId();
       await db.fotoGuardar(Object.assign({ id: fotoId }, procesada));
       ultimo = await db.eventoNuevo(servicioId, equipoId, 'foto', { fotoId, pie: '' });
+      copiaACarpetaNativa(servicioId, ultimo, procesada.blob);
     } catch (e) {
       aviso('No se pudo procesar una foto: ' + e.message, 'error');
     }

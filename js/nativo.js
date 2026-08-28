@@ -29,3 +29,30 @@ export async function compartirArchivoNativo(blob, nombre, titulo) {
   });
   await P.Share.share({ title: titulo || nombre, files: [escrito.uri] });
 }
+
+/* La carpeta propia de la app en el telefono: Documentos/ReportesServicio.
+   Ahi caen los respaldos y una copia de cada foto que se toma, visibles
+   desde la app Archivos del telefono. */
+
+const CARPETA = 'ReportesServicio';
+
+export function nombreSeguro(s) {
+  return String(s || '').replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim().slice(0, 60) || 'sin-nombre';
+}
+
+// Guarda el blob en Documentos/ReportesServicio/<ruta> (crea las carpetas).
+export async function guardarEnCarpetaNativa(blob, ruta) {
+  const P = window.Capacitor.Plugins;
+  const datos = await aBase64(blob);
+  const path = CARPETA + '/' + ruta;
+  const escribir = () => P.Filesystem.writeFile({
+    path, data: datos, directory: 'DOCUMENTS', recursive: true,
+  });
+  try {
+    return (await escribir()).uri;
+  } catch (e) {
+    // Android viejo puede pedir permiso de almacenamiento: pedirlo y reintentar.
+    try { await P.Filesystem.requestPermissions(); } catch (e2) {}
+    return (await escribir()).uri;
+  }
+}

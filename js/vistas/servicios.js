@@ -5,7 +5,7 @@ import { h, campo, campoArea, hoja, aviso, confirmar, fecha, vacio } from '../ui
 import * as media from '../media.js';
 import { APP_VERSION } from '../version.js';
 import { temaActual, alternarTema, zoomActual, aplicarZoom } from '../tema.js';
-import { esNativa, compartirArchivoNativo } from '../nativo.js';
+import { esNativa, compartirArchivoNativo, guardarEnCarpetaNativa, nombreSeguro } from '../nativo.js';
 
 // Catalogo precargado: clientes y maquinas conocidos aunque el telefono aun
 // no tenga historial propio. El primero es el del reporte de referencia.
@@ -648,9 +648,17 @@ async function hojaAlmacenamiento(refrescar) {
         const { crearRespaldo } = await import('../respaldo.js');
         const r = await crearRespaldo();
 
-        // En el APK ni el share web ni el ancla de descarga funcionan: todo
-        // sale por el puente nativo (el share sheet deja Guardar u OneDrive).
+        // En el APK: "Respaldar" guarda DIRECTO en la carpeta de la app
+        // (Documentos/ReportesServicio/Respaldos) y "Compartir" abre el menu
+        // nativo. El ancla de descarga web no funciona en el WebView.
         if (esNativa()) {
+          if (modo === 'compartir') {
+            await guardarEnCarpetaNativa(r.blob, 'Respaldos/' + r.nombreArchivo);
+            estado.textContent = 'Guardado en Documentos/ReportesServicio/Respaldos/' + r.nombreArchivo +
+              ' · ' + r.resumen.trabajos + ' trabajos, ' + r.resumen.fotos + ' fotos.';
+            aviso('Respaldo guardado en la carpeta de la app', 'ok');
+            return;
+          }
           await compartirArchivoNativo(r.blob, r.nombreArchivo, r.nombreArchivo);
         } else {
           const archivo = new File([r.blob], r.nombreArchivo, { type: 'application/zip' });
@@ -711,8 +719,10 @@ async function hojaAlmacenamiento(refrescar) {
       h('p.pista', 'Todo se guarda unicamente en este telefono. El respaldo es un ZIP con todos tus trabajos y fotos: guardalo en OneDrive de vez en cuando, y con el puedes migrar a otro telefono.'),
       h('div.hoja__acciones',
         h('button.btn.btn--fantasma', { type: 'button', onclick: restaurar }, 'Restaurar'),
-        h('button.btn.btn--fantasma', { type: 'button', onclick: () => entregar('descargar') }, 'Descargar'),
-        h('button.btn.btn--primario', { type: 'button', onclick: () => entregar('compartir') }, 'Respaldar')
+        h('button.btn.btn--fantasma', { type: 'button', onclick: () => entregar('descargar') },
+          esNativa() ? 'Compartir' : 'Descargar'),
+        h('button.btn.btn--primario', { type: 'button', onclick: () => entregar('compartir') },
+          esNativa() ? '💾 Respaldar a la carpeta' : 'Respaldar')
       ),
       estado,
       h('p.pista', { style: { marginTop: '.6rem' } }, 'Version de la app: ' + APP_VERSION)
