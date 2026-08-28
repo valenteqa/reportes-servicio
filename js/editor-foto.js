@@ -759,7 +759,7 @@ export async function editarFoto(evento, alTerminar) {
 
   const capa = h('div.editor',
     h('div.editor__barra',
-      h('button.icono-btn.icono-btn--claro', { type: 'button', 'aria-label': 'Cancelar', onclick: () => cerrar() }, '✕'),
+      h('button.icono-btn', { type: 'button', 'aria-label': 'Cancelar', onclick: () => cerrar() }, '✕'),
       h('span.editor__titulo', 'Editar foto'),
       h('button.enlace.editor__revertir', { type: 'button', onclick: revertir }, 'Revertir'),
       h('button.editor__ok', { type: 'button', 'aria-label': 'Guardar', onclick: aplicar }, '✓')
