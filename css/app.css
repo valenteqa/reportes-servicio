@@ -1169,17 +1169,27 @@ button { font-family: inherit; font-size: inherit; }
 
 :focus-visible { outline: 2px solid var(--primario); outline-offset: 2px; }
 
-/* Zoom de interfaz "Grande": todo 50% mas grande SALVO las fotos (son
+/* Zoom de interfaz (110/125/150%): todo mas grande SALVO las fotos (son
    fluidas: conservan su tamaño en pantalla) y las pantallas de foto
-   (visor y editor: ahi mandan la imagen y el gesto fino). */
-:root[data-zoomui="grande"] #app,
-:root[data-zoomui="grande"] .hoja-fondo,
-:root[data-zoomui="grande"] .avisos,
-:root[data-zoomui="grande"] .editor-previa { zoom: 1.5; }
+   (visor y editor: ahi mandan la imagen y el gesto fino). El tope de alto
+   de las fotos de la linea de tiempo se compensa por nivel (260px fisicos). */
+:root[data-zoomui="110"] #app,
+:root[data-zoomui="110"] .hoja-fondo,
+:root[data-zoomui="110"] .avisos,
+:root[data-zoomui="110"] .editor-previa { zoom: 1.1; }
+:root[data-zoomui="110"] .tarjeta__foto img { max-height: 236px; }
 
-/* El tope de alto de las fotos de la linea de tiempo se compensa para que
-   la foto quede del mismo tamaño fisico que en zoom normal. */
-:root[data-zoomui="grande"] .tarjeta__foto img { max-height: 173px; }
+:root[data-zoomui="125"] #app,
+:root[data-zoomui="125"] .hoja-fondo,
+:root[data-zoomui="125"] .avisos,
+:root[data-zoomui="125"] .editor-previa { zoom: 1.25; }
+:root[data-zoomui="125"] .tarjeta__foto img { max-height: 208px; }
+
+:root[data-zoomui="150"] #app,
+:root[data-zoomui="150"] .hoja-fondo,
+:root[data-zoomui="150"] .avisos,
+:root[data-zoomui="150"] .editor-previa { zoom: 1.5; }
+:root[data-zoomui="150"] .tarjeta__foto img { max-height: 173px; }
 
 /* Vista previa del reporte: pagina blanca tipo Word, sin importar el tema */
 .previa {

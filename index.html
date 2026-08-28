@@ -20,8 +20,10 @@ try {
     var m = document.querySelector('meta[name="theme-color"]');
     if (m) m.content = '#07090d';
   }
-  if (localStorage.getItem('zoomUI') === 'grande') {
-    document.documentElement.dataset.zoomui = 'grande';
+  var zz = localStorage.getItem('zoomUI');
+  if (zz === 'grande') zz = '150';
+  if (zz === '110' || zz === '125' || zz === '150') {
+    document.documentElement.dataset.zoomui = zz;
   }
 } catch (e) { document.documentElement.dataset.tema = 'claro'; }
 </script>

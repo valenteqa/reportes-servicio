@@ -85,12 +85,11 @@ async function hojaZoom() {
     const pintar = () => {
       const actual = zoomActual();
       cont.replaceChildren(
-        h('p.pista', 'En Grande, textos, botones y menus crecen 50%; las fotos se quedan de su tamaño. El cambio se aplica al instante.'),
+        h('p.pista', 'Textos, botones y menus crecen; las fotos se quedan de su tamaño. El cambio se aplica al instante.'),
         h('div.asistente__rejilla',
-          h('button.asistente__op' + (actual === 'normal' ? '.asistente__op--actual' : ''),
-            { type: 'button', onclick: () => { aplicarZoom('normal'); pintar(); } }, 'Normal'),
-          h('button.asistente__op' + (actual === 'grande' ? '.asistente__op--actual' : ''),
-            { type: 'button', onclick: () => { aplicarZoom('grande'); pintar(); } }, 'Grande  +50%')
+          [['normal', 'Normal'], ['110', '110%'], ['125', '125%'], ['150', '150%']].map(([z, etq]) =>
+            h('button.asistente__op' + (actual === z ? '.asistente__op--actual' : ''),
+              { type: 'button', onclick: () => { aplicarZoom(z); pintar(); } }, etq))
         ),
         h('div.hoja__acciones',
           h('button.btn.btn--primario', { type: 'button', onclick: () => cerrar(true) }, 'Listo'))
