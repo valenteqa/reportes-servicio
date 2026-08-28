@@ -101,10 +101,11 @@ function escalar(origen, ladoMax, calidad) {
   const lienzo = document.createElement('canvas');
   lienzo.width = w;
   lienzo.height = h;
-  const ctx = lienzo.getContext('2d');
-  // 'medium' y no 'high': en el WebView de Android, 'high' cae a una ruta
-  // de software que tarda SEGUNDOS con fotos de camara; a 1600px no se
-  // distingue y es hasta 10x mas rapido.
+  // willReadFrequently: el lienzo queda en memoria normal (no GPU). Sin esto,
+  // toBlob debe LEER los pixeles desde la GPU y en el WebView de Android esa
+  // lectura tarda SEGUNDOS (medido: 13 s por foto). 'medium' y no 'high' por
+  // la misma razon: la ruta 'high' del WebView es de software y lentisima.
+  const ctx = lienzo.getContext('2d', { willReadFrequently: true });
   ctx.imageSmoothingQuality = 'medium';
   ctx.drawImage(origen, 0, 0, w, h);
 

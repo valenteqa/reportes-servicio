@@ -49,7 +49,8 @@ function lienzoTransformado(bitmap, ed, cap) {
   const cv = document.createElement('canvas');
   cv.width = Math.max(1, Math.round(d.w * escala));
   cv.height = Math.max(1, Math.round(d.h * escala));
-  const ctx = cv.getContext('2d');
+  // willReadFrequently: toBlob lee los pixeles; desde GPU tarda segundos en WebView.
+  const ctx = cv.getContext('2d', { willReadFrequently: true });
   ctx.imageSmoothingQuality = 'medium';   // 'high' tarda segundos en WebView
   ctx.translate(cv.width / 2, cv.height / 2);
   ctx.rotate(angulo * Math.PI / 180);
@@ -118,7 +119,8 @@ function renderFinal(bitmap, ed, cap) {
   const cv = document.createElement('canvas');
   cv.width = Math.max(1, Math.round(sw * escala));
   cv.height = Math.max(1, Math.round(sh * escala));
-  const ctx = cv.getContext('2d');
+  // willReadFrequently: toBlob lee los pixeles; desde GPU tarda segundos en WebView.
+  const ctx = cv.getContext('2d', { willReadFrequently: true });
   ctx.imageSmoothingQuality = 'medium';   // 'high' tarda segundos en WebView
   ctx.drawImage(t, r.x * t.width, r.y * t.height, sw, sh, 0, 0, cv.width, cv.height);
   dibujarFormas(ctx, ed.formas, cv.width, cv.height, ed.recorte);
@@ -845,7 +847,7 @@ export async function editarFoto(evento, alTerminar) {
       const escMini = Math.min(1, LADO_MINI / Math.max(orig.width, orig.height));
       cv.width = Math.max(1, Math.round(orig.width * escMini));
       cv.height = Math.max(1, Math.round(orig.height * escMini));
-      cv.getContext('2d').drawImage(orig, 0, 0, cv.width, cv.height);
+      cv.getContext('2d', { willReadFrequently: true }).drawImage(orig, 0, 0, cv.width, cv.height);
       foto.blob = foto.blobOriginal;
       foto.mini = await aBlob(cv, 0.7);
       foto.ancho = orig.width;
