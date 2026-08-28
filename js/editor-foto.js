@@ -507,14 +507,21 @@ export async function editarFoto(evento, alTerminar) {
     if (arrastre && arrastre.tipo === 'forma') {
       const f = arrastre.forma;
       if (Math.abs(f.x2 - f.x1) < 0.01 && Math.abs(f.y2 - f.y1) < 0.01) {
-        ed.formas.pop();   // un toque sin arrastre no deja forma invisible
-      } else {
-        // Forma agregada: soltar la herramienta y dejarla seleccionada
-        // para poder moverla o redimensionarla de inmediato.
-        herramienta = null;
-        seleccion = f;
-        pintarBarras();
+        // Toque sin arrastre: forma MEDIANA centrada en el punto (22% del
+        // lado corto de la imagen), sin salirse de los bordes.
+        const tam = 0.22 * Math.min(lienzo.width, lienzo.height);
+        const hx = (tam / 2) / lienzo.width;
+        const hy = (tam / 2) / lienzo.height;
+        const cx = Math.max(hx, Math.min(1 - hx, f.x1));
+        const cy = Math.max(hy, Math.min(1 - hy, f.y1));
+        f.x1 = cx - hx; f.y1 = cy - hy;
+        f.x2 = cx + hx; f.y2 = cy + hy;
       }
+      // Forma agregada: soltar la herramienta y dejarla seleccionada
+      // para poder moverla o redimensionarla de inmediato.
+      herramienta = null;
+      seleccion = f;
+      pintarBarras();
     }
     arrastre = null;
     pintar();
