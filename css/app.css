@@ -1050,7 +1050,14 @@ body.pantalla-ancha #app { max-width: none; }
   display: flex; align-items: center; gap: .4rem;
   padding: calc(var(--sup) + .4rem) .5rem .4rem;
 }
-.editor__titulo { flex: 1; color: var(--tinta-suave); font-size: .9rem; font-weight: 650; }
+.editor__titulo { color: var(--tinta-suave); font-size: .9rem; font-weight: 650; }
+/* El rotulo del modo toma el hueco libre: queda centrado entre el titulo y
+   Revertir. Si no cabe (zoom alto en pantalla angosta) se corta con "…". */
+.editor__modo {
+  flex: 1; min-width: 0; text-align: center;
+  color: var(--primario); font-size: .84rem; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .editor__revertir { color: var(--aviso); padding: .5rem .4rem; font-size: .82rem; }
 .editor__ok {
   width: 54px; min-height: 44px; border: none;

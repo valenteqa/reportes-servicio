@@ -211,6 +211,9 @@ export async function editarFoto(evento, alTerminar) {
   const ctx = lienzo.getContext('2d');
   const barraModos = h('div.editor__modos');
   const barraCtrl = h('div.editor__controles');
+  // Rotulo del modo actual en la barra de arriba (entre el titulo y Revertir).
+  const tituloModo = h('span.editor__modo');
+  const NOMBRE_MODO = { recortar: 'Recortar', formas: 'Agregar forma', girar: 'Girar' };
 
   // Boton flotante para quitar el zoom: aparece solo cuando hay zoom,
   // arriba a la izquierda, junto al boton de retroceso.
@@ -594,6 +597,7 @@ export async function editarFoto(evento, alTerminar) {
     }, texto);
 
   function pintarBarras() {
+    tituloModo.textContent = NOMBRE_MODO[modo] || '';
     const cambiarModo = (m) => {
       modo = m;
       seleccion = null;
@@ -877,6 +881,7 @@ export async function editarFoto(evento, alTerminar) {
     h('div.editor__barra',
       h('button.icono-btn', { type: 'button', 'aria-label': 'Cancelar', onclick: () => cerrar() }, '✕'),
       h('span.editor__titulo', 'Editar foto'),
+      tituloModo,
       h('button.enlace.editor__revertir', { type: 'button', onclick: revertir }, 'Revertir'),
       h('button.editor__ok', { type: 'button', 'aria-label': 'Guardar', onclick: aplicar }, '✓')
     ),
