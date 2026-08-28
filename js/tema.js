@@ -29,3 +29,19 @@ export function alternarTema() {
   aplicarTema(nuevo);
   return nuevo;
 }
+
+/* Zoom de interfaz: "normal" o "grande" (+50%, fotos igual). Tambien en
+   localStorage para aplicarlo antes del primer pintado (script del head). */
+
+const CLAVE_ZOOM = 'zoomUI';
+
+export function zoomActual() {
+  try { return localStorage.getItem(CLAVE_ZOOM) === 'grande' ? 'grande' : 'normal'; }
+  catch (e) { return 'normal'; }
+}
+
+export function aplicarZoom(z) {
+  if (z === 'grande') document.documentElement.dataset.zoomui = 'grande';
+  else delete document.documentElement.dataset.zoomui;
+  try { localStorage.setItem(CLAVE_ZOOM, z); } catch (e) {}
+}

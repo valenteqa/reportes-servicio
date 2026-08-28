@@ -4,7 +4,7 @@ import * as db from '../db.js';
 import { h, campo, campoArea, hoja, aviso, confirmar, fecha, vacio } from '../ui.js';
 import * as media from '../media.js';
 import { APP_VERSION } from '../version.js';
-import { temaActual, alternarTema } from '../tema.js';
+import { temaActual, alternarTema, zoomActual, aplicarZoom } from '../tema.js';
 
 // Catalogo precargado: clientes y maquinas conocidos aunque el telefono aun
 // no tenga historial propio. El primero es el del reporte de referencia.
@@ -69,11 +69,36 @@ async function hojaConfiguracion() {
   const accion = await hoja('⚙  Configuracion', (cerrar) => h('div',
     h('div.lista-acciones',
       h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('catalogo') },
-        '🗂  Clientes y datos de maquina')
+        '🗂  Clientes y datos de maquina'),
+      h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('zoom') },
+        '🔍  Tamaño de la interfaz')
     ),
     h('p.pista', 'Administra las sugerencias que salen al crear o editar un servicio. Los servicios y reportes ya guardados no se tocan.')
   ));
   if (accion === 'catalogo') await hojaCampoCatalogo();
+  if (accion === 'zoom') await hojaZoom();
+}
+
+async function hojaZoom() {
+  await hoja('🔍  Tamaño de la interfaz', (cerrar) => {
+    const cont = h('div');
+    const pintar = () => {
+      const actual = zoomActual();
+      cont.replaceChildren(
+        h('p.pista', 'En Grande, textos, botones y menus crecen 50%; las fotos se quedan de su tamaño. El cambio se aplica al instante.'),
+        h('div.asistente__rejilla',
+          h('button.asistente__op' + (actual === 'normal' ? '.asistente__op--actual' : ''),
+            { type: 'button', onclick: () => { aplicarZoom('normal'); pintar(); } }, 'Normal'),
+          h('button.asistente__op' + (actual === 'grande' ? '.asistente__op--actual' : ''),
+            { type: 'button', onclick: () => { aplicarZoom('grande'); pintar(); } }, 'Grande  +50%')
+        ),
+        h('div.hoja__acciones',
+          h('button.btn.btn--primario', { type: 'button', onclick: () => cerrar(true) }, 'Listo'))
+      );
+    };
+    pintar();
+    return cont;
+  });
 }
 
 async function hojaCampoCatalogo() {

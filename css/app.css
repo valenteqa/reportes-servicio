@@ -1169,6 +1169,18 @@ button { font-family: inherit; font-size: inherit; }
 
 :focus-visible { outline: 2px solid var(--primario); outline-offset: 2px; }
 
+/* Zoom de interfaz "Grande": todo 50% mas grande SALVO las fotos (son
+   fluidas: conservan su tamaño en pantalla) y las pantallas de foto
+   (visor y editor: ahi mandan la imagen y el gesto fino). */
+:root[data-zoomui="grande"] #app,
+:root[data-zoomui="grande"] .hoja-fondo,
+:root[data-zoomui="grande"] .avisos,
+:root[data-zoomui="grande"] .editor-previa { zoom: 1.5; }
+
+/* El tope de alto de las fotos de la linea de tiempo se compensa para que
+   la foto quede del mismo tamaño fisico que en zoom normal. */
+:root[data-zoomui="grande"] .tarjeta__foto img { max-height: 173px; }
+
 /* Vista previa del reporte: pagina blanca tipo Word, sin importar el tema */
 .previa {
   position: fixed; inset: 0; z-index: 60;

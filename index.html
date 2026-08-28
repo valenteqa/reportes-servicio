@@ -20,6 +20,9 @@ try {
     var m = document.querySelector('meta[name="theme-color"]');
     if (m) m.content = '#07090d';
   }
+  if (localStorage.getItem('zoomUI') === 'grande') {
+    document.documentElement.dataset.zoomui = 'grande';
+  }
 } catch (e) { document.documentElement.dataset.tema = 'claro'; }
 </script>
 <meta name="mobile-web-app-capable" content="yes">
