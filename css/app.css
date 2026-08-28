@@ -1074,16 +1074,20 @@ button { font-family: inherit; font-size: inherit; }
 .editor-previa {
   position: fixed; inset: 0; z-index: 60;
   display: flex; flex-direction: column;
+  gap: .8rem;   /* separacion minima aunque la foto sea alta */
   background: var(--fondo);
 }
 .editor-previa__zona {
-  flex: 1; display: flex; align-items: center; justify-content: center;
-  overflow: hidden; padding: calc(var(--sup) + 10px) 10px 10px;
+  flex: 0 1 auto; min-height: 0;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; padding: calc(var(--sup) + 10px) 10px 0;
 }
-.editor-previa__zona img { max-width: 100%; max-height: 100%; object-fit: contain; }
+/* La foto se limita a poco mas de media pantalla para dejar aire libre;
+   la leyenda se centra EXACTA en ese aire con margenes automaticos. */
+.editor-previa__zona img { max-width: 100%; max-height: 56vh; object-fit: contain; }
 /* La leyenda como elemento propio: tarjeta con acento, no un renglon perdido */
 .editor-previa__leyenda {
-  margin: .8rem .8rem .7rem;
+  margin: auto .8rem;   /* centrada entre la foto y los botones */
   padding: .75rem .8rem .85rem;
   background: var(--superficie);
   border: 1px solid var(--borde-fuerte);
@@ -1125,9 +1129,10 @@ button { font-family: inherit; font-size: inherit; }
 /* Avisos                                                            */
 /* ---------------------------------------------------------------- */
 
+/* Arriba, bajo la barra de titulo: abajo tapaban los botones de los menus */
 .avisos {
   position: fixed; left: 50%; transform: translateX(-50%);
-  bottom: calc(1rem + var(--inf)); z-index: 90;
+  top: calc(var(--sup) + 4rem); z-index: 90;
   display: flex; flex-direction: column; gap: .4rem;
   width: min(92vw, 460px); pointer-events: none;
 }
@@ -1137,7 +1142,7 @@ button { font-family: inherit; font-size: inherit; }
   border: 1px solid var(--borde-fuerte);
   border-left: 3px solid var(--primario);
   font-size: .88rem; box-shadow: var(--sombra-2);
-  opacity: 0; transform: translateY(12px);
+  opacity: 0; transform: translateY(-12px);   /* entra desde arriba */
   transition: opacity .22s ease, transform .22s ease;
 }
 .aviso--visible { opacity: 1; transform: translateY(0); }
