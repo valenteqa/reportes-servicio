@@ -14,7 +14,7 @@
 // Subir VERSION en cada publicacion (junto con APP_VERSION en js/version.js):
 // eso dispara un re-precacheo completo, que es la via mas confiable.
 
-const VERSION = 'v60';
+const VERSION = 'v61';
 const CACHE = 'reportes-' + VERSION;
 
 const CASCARON = [
@@ -77,11 +77,11 @@ const CASCARON = [
 self.addEventListener('install', (ev) => {
   ev.waitUntil(
     caches.open(CACHE)
-      // Uno por uno para que un archivo ausente no deje la app sin cache,
-      // y con no-cache para no precachear una copia vieja del cache HTTP.
+      // ATOMICO: si UN archivo falla, la instalacion completa falla y el
+      // telefono se queda con la version anterior integra. Un cache a
+      // medias arrancaba la app rota y sin señal no habia recuperacion.
       .then(cache => Promise.all(CASCARON.map(
         url => cache.add(new Request(url, { cache: 'no-cache' }))
-          .catch(e => console.warn('[sw] no cacheado:', url, e.message))
       )))
       .then(() => self.skipWaiting())
   );
@@ -120,23 +120,13 @@ self.addEventListener('fetch', (ev) => {
     return;
   }
 
-  // Recursos: cache al instante, refresco en segundo plano para la proxima.
+  // Recursos: cache primero, red de respaldo. SIN refresco por archivo:
+  // mezclaba modulos de dos versiones en un mismo cache (un js viejo
+  // importando exports nuevos truena). La actualizacion llega completa y
+  // atomica con el precacheo de cada VERSION nueva.
   ev.respondWith((async () => {
     const cache = await caches.open(CACHE);
     const enCache = await cache.match(req);
-
-    const refresco = fetch(new Request(req, { cache: 'no-cache' }))
-      .then(res => {
-        if (res && res.status === 200 && res.type === 'basic') {
-          cache.put(req, res.clone());
-        }
-        return res;
-      })
-      .catch(() => enCache);
-
-    // Mantener vivo el worker hasta que el refresco termine de guardarse.
-    ev.waitUntil(refresco.then(() => {}, () => {}));
-
-    return enCache || refresco;
+    return enCache || fetch(req);
   })());
 });

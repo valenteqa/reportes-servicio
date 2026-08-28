@@ -433,12 +433,32 @@ export function volcadoCompleto() {
 }
 
 export function restaurarVolcado(volcado, fotos) {
-  return tx(['servicios', 'equipos', 'eventos', 'catalogo', 'ajustes', 'fotos'], 'readwrite', (st) => {
+  return tx(['servicios', 'equipos', 'eventos', 'catalogo', 'ajustes', 'fotos'], 'readwrite', async (st) => {
     let n = 0;
     for (const s of STORES_RESPALDO) {
-      for (const registro of (volcado[s] || [])) { st[s].put(registro); n++; }
+      for (const registro of (volcado[s] || [])) {
+        // El nombre del tecnico de ESTE telefono no se pisa con el del respaldo.
+        if (s === 'ajustes' && registro.clave === 'usuario') {
+          const local = await pedir(st.ajustes.get('usuario'));
+          if (local) continue;
+        }
+        st[s].put(registro);
+        n++;
+      }
     }
-    for (const f of (fotos || [])) { st.fotos.put(f); n++; }
+    for (const f of (fotos || [])) {
+      // Respaldos viejos no traen original/receta: se conservan los locales
+      // para no destruir el "no destructivo" del editor.
+      if (!f.blobOriginal || !f.edicion) {
+        const local = await pedir(st.fotos.get(f.id));
+        if (local) {
+          if (!f.blobOriginal && local.blobOriginal) f.blobOriginal = local.blobOriginal;
+          if (!f.edicion && local.edicion) f.edicion = local.edicion;
+        }
+      }
+      st.fotos.put(f);
+      n++;
+    }
     return n;
   });
 }

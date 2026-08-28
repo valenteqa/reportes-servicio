@@ -5,6 +5,7 @@ import { h, campo, campoArea, hoja, aviso, confirmar, fecha, vacio } from '../ui
 import * as media from '../media.js';
 import { APP_VERSION } from '../version.js';
 import { temaActual, alternarTema, zoomActual, aplicarZoom } from '../tema.js';
+import { esNativa, compartirArchivoNativo } from '../nativo.js';
 
 // Catalogo precargado: clientes y maquinas conocidos aunque el telefono aun
 // no tenga historial propio. El primero es el del reporte de referencia.
@@ -632,22 +633,28 @@ async function hojaAlmacenamiento(refrescar) {
       try {
         const { crearRespaldo } = await import('../respaldo.js');
         const r = await crearRespaldo();
-        const archivo = new File([r.blob], r.nombreArchivo, { type: 'application/zip' });
 
-        if (modo === 'compartir' && navigator.canShare && navigator.canShare({ files: [archivo] })) {
-          await navigator.share({ files: [archivo], title: r.nombreArchivo });
+        // En el APK ni el share web ni el ancla de descarga funcionan: todo
+        // sale por el puente nativo (el share sheet deja Guardar u OneDrive).
+        if (esNativa()) {
+          await compartirArchivoNativo(r.blob, r.nombreArchivo, r.nombreArchivo);
         } else {
-          const url = URL.createObjectURL(r.blob);
-          const a = h('a', { href: url, download: r.nombreArchivo });
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 4000);
+          const archivo = new File([r.blob], r.nombreArchivo, { type: 'application/zip' });
+          if (modo === 'compartir' && navigator.canShare && navigator.canShare({ files: [archivo] })) {
+            await navigator.share({ files: [archivo], title: r.nombreArchivo });
+          } else {
+            const url = URL.createObjectURL(r.blob);
+            const a = h('a', { href: url, download: r.nombreArchivo });
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 90000);
+          }
         }
         estado.textContent = 'Respaldo listo: ' + r.resumen.trabajos + ' trabajos, ' +
           r.resumen.registros + ' registros, ' + r.resumen.fotos + ' fotos.';
         aviso('Respaldo generado', 'ok');
       } catch (e) {
-        if (e && e.name === 'AbortError') { estado.textContent = ''; return; }
+        if (e && (e.name === 'AbortError' || /cancel/i.test((e.message || '') + e))) { estado.textContent = ''; return; }
         console.error(e);
         estado.textContent = 'Fallo: ' + (e && e.message ? e.message : e);
         aviso('No se pudo respaldar', 'error');

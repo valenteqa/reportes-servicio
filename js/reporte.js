@@ -38,6 +38,21 @@ export function folioDe(servicio) {
   return 'RCVQ-' + dd + mm + aa + '-0';
 }
 
+// Asigna el folio evitando duplicados: dos trabajos del mismo dia reciben
+// consecutivos (-0, -1, -2...). Antes todos terminaban en -0.
+async function asignarFolio(servicio) {
+  if (servicio.folio) return;
+  const base = folioDe(servicio);
+  const prefijo = base.slice(0, base.lastIndexOf('-') + 1);
+  const usados = (await db.serviciosTodos())
+    .map(t => t.folio || '')
+    .filter(f => f.startsWith(prefijo))
+    .map(f => parseInt(f.slice(prefijo.length), 10))
+    .filter(n => !isNaN(n));
+  servicio.folio = prefijo + (usados.length ? Math.max(...usados) + 1 : 0);
+  await db.servicioGuardar(servicio);
+}
+
 /* ---------------------------------------------------------------- */
 /* ZIP sin compresion (STORE) con CRC-32                             */
 /* ---------------------------------------------------------------- */
@@ -249,10 +264,12 @@ function tablaDatos(pares) {
 
 function imagenXml(relId, docPrId, anchoPx, altoPx) {
   const EMU_MAX = 5580000;                     // ~ancho util de la hoja
-  const porPx = 9525;
+  const EMU_MAX_ALTO = 7600000;                // tope vertical: fotos muy
+  const porPx = 9525;                          // alargadas salian cortadas
   let cx = anchoPx * porPx;
   let cy = altoPx * porPx;
   if (cx > EMU_MAX) { cy = Math.round(cy * EMU_MAX / cx); cx = EMU_MAX; }
+  if (cy > EMU_MAX_ALTO) { cx = Math.round(cx * EMU_MAX_ALTO / cy); cy = EMU_MAX_ALTO; }
   // Namespaces declarados inline: el documento de plantilla no declara a:/pic:
   // en la raiz (Word los pone en cada drawing), asi la imagen es autonoma.
   return '<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="40"/></w:pPr>' +
@@ -387,10 +404,7 @@ async function generarConPlantilla(servicioId) {
   const porRama = {};
   for (const ev of eventos) (porRama[ev.equipoId] = porRama[ev.equipoId] || []).push(ev);
 
-  if (!servicio.folio) {
-    servicio.folio = folioDe(servicio);
-    await db.servicioGuardar(servicio);
-  }
+  await asignarFolio(servicio);
 
   const imagenes = [];
   let nFigura = 0;
@@ -497,7 +511,9 @@ async function generarConPlantilla(servicioId) {
       if (!valores.PLANTA) x = quitarFilaOpcional(x, 'PLANTA');
       if (!valores.NOMAQUINA) x = quitarFilaOpcional(x, 'NOMAQUINA');
       for (const [k, v] of Object.entries(valores)) x = x.split('{{' + k + '}}').join(esc(v));
-      x = x.replace('{{CUERPO}}', cuerpo.join(''));
+      // Con funcion: un '$' en el texto del usuario ya no se interpreta
+      // como patron de sustitucion (corrompia el .docx).
+      x = x.replace('{{CUERPO}}', () => cuerpo.join(''));
       entradas.push({ nombre: p.zip, datos: new TextEncoder().encode(x) });
     } else if (p.zip === 'word/header2.xml') {
       let x = p.texto.split('{{FOLIO}}').join(esc(valores.FOLIO)).split('{{FECHA}}').join(esc(fecha));
@@ -536,10 +552,7 @@ async function generarReporteBasico(servicioId) {
   for (const ev of eventos) (porRama[ev.equipoId] = porRama[ev.equipoId] || []).push(ev);
 
   // Folio: se genera una vez y se conserva para regeneraciones.
-  if (!servicio.folio) {
-    servicio.folio = folioDe(servicio);
-    await db.servicioGuardar(servicio);
-  }
+  await asignarFolio(servicio);
 
   const fecha = fechaLarga(servicio.inicio);
   const imagenes = [];        // { nombre, datos, relId }

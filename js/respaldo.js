@@ -3,8 +3,10 @@
 // El ZIP lleva:
 //   datos.json          todos los registros (trabajos, ramas, eventos,
 //                       catalogo, ajustes) y los METADATOS de las fotos
-//   fotos/<id>.jpeg     la imagen de cada foto
+//                       (incluida la receta de edicion de cada una)
+//   fotos/<id>.jpeg     la imagen de cada foto (la version editada)
 //   minis/<id>.jpeg     su miniatura
+//   origs/<id>.jpeg     el ORIGINAL sin editar, si la foto fue editada
 //
 // La restauracion es por id (put): restaurar el mismo respaldo dos veces no
 // duplica nada, y un respaldo de otro telefono se MEZCLA con lo local.
@@ -32,9 +34,11 @@ export async function crearRespaldo() {
     metaFotos.push({
       id: f.id, ancho: f.ancho, alto: f.alto,
       bytes: f.bytes, original: f.original, creado: f.creado,
+      edicion: f.edicion || null,   // receta del editor: sin ella Revertir muere
     });
     entradas.push({ nombre: 'fotos/' + f.id + '.jpeg', datos: new Uint8Array(await f.blob.arrayBuffer()) });
     if (f.mini) entradas.push({ nombre: 'minis/' + f.id + '.jpeg', datos: new Uint8Array(await f.mini.arrayBuffer()) });
+    if (f.blobOriginal) entradas.push({ nombre: 'origs/' + f.id + '.jpeg', datos: new Uint8Array(await f.blobOriginal.arrayBuffer()) });
   }
 
   const datos = {
@@ -76,12 +80,16 @@ export async function restaurarRespaldo(archivo) {
     const img = entradas['fotos/' + m.id + '.jpeg'];
     if (!img) continue;   // metadato sin imagen: se omite
     const mini = entradas['minis/' + m.id + '.jpeg'];
-    fotos.push({
+    const orig = entradas['origs/' + m.id + '.jpeg'];
+    const f = {
       id: m.id,
       blob: new Blob([img], { type: 'image/jpeg' }),
       mini: mini ? new Blob([mini], { type: 'image/jpeg' }) : null,
       ancho: m.ancho, alto: m.alto, bytes: m.bytes, original: m.original, creado: m.creado,
-    });
+    };
+    if (orig) f.blobOriginal = new Blob([orig], { type: 'image/jpeg' });
+    if (m.edicion) f.edicion = m.edicion;
+    fotos.push(f);
   }
 
   const n = await db.restaurarVolcado(datos, fotos);

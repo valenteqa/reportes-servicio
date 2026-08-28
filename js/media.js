@@ -30,16 +30,21 @@ export function elegirImagenes({ camara = true, multiple = false } = {}) {
     const terminar = (archivos) => {
       if (resuelto) return;
       resuelto = true;
+      window.removeEventListener('focus', alVolver);
+      document.removeEventListener('visibilitychange', alVisible);
+      clearTimeout(topeFinal);
       input.remove();
       resolve(archivos);
     };
 
     input.addEventListener('change', () => terminar(Array.from(input.files || [])));
+    // Chrome moderno avisa la cancelacion REAL del selector con este evento.
+    input.addEventListener('cancel', () => terminar([]));
 
-    // Si el usuario cancela, 'change' nunca dispara y hay que resolver solos.
-    // PERO: al volver de la camara, Chrome puede tardar VARIOS segundos en
-    // poblar input.files (foto grande, telefono ocupado). Declarar cancelacion
-    // a los 600ms descartaba fotos reales. Ahora se sondea con paciencia.
+    // Al volver de la camara, Chrome puede tardar VARIOS segundos en poblar
+    // input.files. Se sondea con paciencia y si no llega NO se declara
+    // cancelacion (eso descartaba fotos lentas): 'change'/'cancel' siguen
+    // escuchando. Ultimo recurso a los 2 minutos para no colgar la promesa.
     let sondeando = false;
     const alVolver = () => {
       if (resuelto || sondeando) return;
@@ -52,13 +57,13 @@ export function elegirImagenes({ camara = true, multiple = false } = {}) {
           terminar(Array.from(input.files));
           return;
         }
-        if (++intentos >= 15) { clearInterval(sondeo); terminar([]); }   // ~4.5s
+        if (++intentos >= 15) { clearInterval(sondeo); sondeando = false; }
       }, 300);
     };
-    window.addEventListener('focus', alVolver, { once: true });
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') alVolver();
-    }, { once: true });
+    const alVisible = () => { if (document.visibilityState === 'visible') alVolver(); };
+    window.addEventListener('focus', alVolver);
+    document.addEventListener('visibilitychange', alVisible);
+    const topeFinal = setTimeout(() => terminar([]), 120000);
 
     input.click();
   });

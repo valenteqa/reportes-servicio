@@ -382,16 +382,24 @@ export async function verFoto(eventoInicial, alCambiar) {
     if (resuelto) return;
     resuelto = true;
     orientarNormal();   // de vuelta a vertical al salir del visor
-    if (guardar) {
-      evento.datos.pie = pie.value.trim();
-      await db.eventoGuardar(evento);
+    try {
+      if (guardar) {
+        evento.datos.pie = pie.value.trim();
+        await db.eventoGuardar(evento);
+      }
+    } catch (e) {
+      // Almacenamiento lleno o base colgada: avisar, pero JAMAS dejar el
+      // visor pegado en pantalla — el desmontaje va en finally.
+      console.error(e);
+      aviso('No se pudo guardar la leyenda', 'error');
+    } finally {
+      URL.revokeObjectURL(url);
+      capa.remove();
+      liberarScroll();
+      if (porBack) ancla.desdePop();
+      else await ancla.liberar();
+      if (alCambiar) alCambiar();
     }
-    URL.revokeObjectURL(url);
-    capa.remove();
-    liberarScroll();
-    if (porBack) ancla.desdePop();
-    else await ancla.liberar();
-    if (alCambiar) alCambiar();
   };
 
   /* ---- zoom del visor: pellizco, paneo y doble toque ---- */

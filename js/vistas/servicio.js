@@ -99,6 +99,20 @@ async function hojaReporte(servicio) {
     // (ahi tambien aparece OneDrive). Si el navegador no tiene el selector,
     // cae a la descarga directa.
     const guardarEn = async ({ blob, nombreArchivo }) => {
+      // En el APK no hay selector de carpeta ni descargas del WebView: todo
+      // sale por el share sheet nativo (ahi estan OneDrive y Archivos).
+      if (esNativa()) {
+        try {
+          await compartirArchivoNativo(blob, nombreArchivo, nombreArchivo);
+          estado.textContent = 'Entregado por el menu de Android.';
+          aviso('Reporte entregado', 'ok');
+        } catch (e) {
+          if (e && /cancel/i.test((e.message || '') + e)) { estado.textContent = 'Menu cerrado sin elegir app.'; return; }
+          console.error(e);
+          estado.textContent = 'No se pudo entregar [' + (e && e.message ? e.message : e) + '].';
+        }
+        return;
+      }
       if (!window.showSaveFilePicker) {
         descargar(blob, nombreArchivo);
         estado.textContent = 'Este navegador no deja elegir carpeta; se descargo directo. Busca "' +

@@ -133,7 +133,13 @@ export async function render(contenedor, refrescar, params) {
         type: 'button',
         onclick: async () => {
           const ok = await confirmar('Se elimina la tabla completa.');
-          if (ok) { await db.eventoBorrar(evento.id); aviso('Tabla eliminada'); volver(); }
+          if (!ok) return;
+          // OJO: no usar volver() aqui — su guardarYa re-escribiria la tabla
+          // recien borrada (la resucitaba). Cancelar el autoguardado y salir.
+          clearTimeout(guardadoPendiente);
+          await db.eventoBorrar(evento.id);
+          aviso('Tabla eliminada');
+          history.back();
         }
       }, 'Eliminar tabla')
     )

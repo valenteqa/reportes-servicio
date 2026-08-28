@@ -37,7 +37,10 @@ export async function vistaPreviaReporte(servicioId) {
       return [
         t.titulo ? h('p.previa__p', h('strong', t.titulo)) : null,
         h('div.previa__desborde', h('table.previa__tabla',
-          h('thead', h('tr', (t.columnas || []).map(c => h('th', c)))),
+          // las columnas son objetos {nombre, unidad}: pasarlos directo a h()
+          // los tragaba como atributos y los encabezados salian vacios
+          h('thead', h('tr', (t.columnas || []).map(c =>
+            h('th', typeof c === 'string' ? c : (c.nombre || '') + (c.unidad ? ' (' + c.unidad + ')' : ''))))),
           h('tbody', filas.map(f => h('tr', f.map(c => h('td', String(c))))))
         )),
       ];
