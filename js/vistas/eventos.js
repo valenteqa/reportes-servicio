@@ -268,21 +268,62 @@ export async function agregarTabla(servicioId, equipoId) {
 /* Visor de foto a pantalla completa                                 */
 /* ---------------------------------------------------------------- */
 
-export async function verFoto(evento, alCambiar) {
-  const foto = await db.fotoLeer(evento.datos.fotoId);
+export async function verFoto(eventoInicial, alCambiar) {
+  let evento = eventoInicial;
+  let foto = await db.fotoLeer(evento.datos.fotoId);
   if (!foto) { aviso('La imagen no se encontro', 'error'); return; }
 
-  const url = media.urlDe(foto.blob);
+  let url = media.urlDe(foto.blob);
 
   // Deslizar a los lados pasa a la foto anterior/siguiente del trabajo
-  // (orden cronologico, el mismo de la galeria).
+  // (orden cronologico, el mismo de la galeria). El cambio es EN el mismo
+  // visor — nada se cierra ni se vuelve a abrir, asi no hay destello.
   const fotosLista = (await db.eventosDeServicio(evento.servicioId)).filter(e => e.tipo === 'foto');
-  const idxFoto = fotosLista.findIndex(e => e.id === evento.id);
+  let idxFoto = fotosLista.findIndex(e => e.id === evento.id);
+
+  const pintarContador = () => {
+    horaEl.textContent = hora(evento.ts) +
+      (fotosLista.length > 1 ? '  ·  ' + (idxFoto + 1) + '/' + fotosLista.length : '');
+  };
+
+  let cambiando = false;
   const irOtra = async (delta) => {
     const destino = fotosLista[idxFoto + delta];
-    if (!destino) return;             // primera/ultima: no hay a donde ir
-    await cerrar(true);               // guarda la leyenda y cierra este visor
-    verFoto(destino, alCambiar);
+    if (!destino || cambiando) return;   // primera/ultima: no hay a donde ir
+    cambiando = true;
+    try {
+      const fotoNueva = await db.fotoLeer(destino.datos.fotoId);
+      if (!fotoNueva) { aviso('La imagen no se encontro', 'error'); return; }
+      // guarda la leyenda de la foto actual antes de soltar su evento
+      const pieNuevo = pie.value.trim();
+      if (pieNuevo !== (evento.datos.pie || '')) {
+        evento.datos.pie = pieNuevo;
+        await db.eventoGuardar(evento);
+        if (alCambiar) alCambiar();
+      }
+      const urlNueva = media.urlDe(fotoNueva.blob);
+      // decodifica ANTES de intercambiar para que el cambio sea instantaneo;
+      // con tope: en pantallas suspendidas decode() puede no resolver nunca.
+      const pre = new Image();
+      pre.src = urlNueva;
+      await Promise.race([
+        pre.decode().catch(() => {}),
+        new Promise(res => setTimeout(res, 400)),
+      ]);
+      evento = destino;
+      foto = fotoNueva;
+      idxFoto += delta;
+      url = urlNueva;
+      imgEl.src = urlNueva;
+      zv.s = 1; zv.tx = 0; zv.ty = 0;
+      aplicarZoomV();
+      pie.value = evento.datos.pie || '';
+      pintarLeyenda();
+      pintarContador();
+      metaEl.textContent = foto.ancho + '×' + foto.alto + ' · ' + media.formatoBytes(foto.bytes);
+    } finally {
+      cambiando = false;
+    }
   };
 
   // La leyenda se MUESTRA compacta (texto blanco bajo la foto, con ✎);
@@ -309,6 +350,9 @@ export async function verFoto(evento, alCambiar) {
   }, '✓');
 
   const filaEdicion = h('div.visor__pieFila', { style: { display: 'none' } }, pie, botonOk);
+
+  const horaEl = h('span.visor__hora');
+  const metaEl = h('span.visor__meta', foto.ancho + '×' + foto.alto + ' · ' + media.formatoBytes(foto.bytes));
 
   const textoLeyenda = h('span.visor__leyendaTexto');
   const filaLeyenda = h('button.visor__leyenda', {
@@ -453,8 +497,7 @@ export async function verFoto(evento, alCambiar) {
   const capa = h('div.visor',
     h('div.visor__barra',
       h('button.icono-btn.icono-btn--claro', { type: 'button', onclick: () => cerrar(true) }, '✕'),
-      h('span.visor__hora', hora(evento.ts) +
-        (fotosLista.length > 1 ? '  ·  ' + (idxFoto + 1) + '/' + fotosLista.length : '')),
+      horaEl,
       h('button.icono-btn.icono-btn--claro', {
         type: 'button', 'aria-label': 'Girar pantalla',
         onclick: async () => {
@@ -502,9 +545,10 @@ export async function verFoto(evento, alCambiar) {
     h('div.visor__pieCont',
       filaLeyenda,
       filaEdicion,
-      h('span.visor__meta', foto.ancho + '×' + foto.alto + ' · ' + media.formatoBytes(foto.bytes)))
+      metaEl)
   );
   pintarLeyenda();
+  pintarContador();
 
   document.body.appendChild(capa);
   bloquearScroll();
