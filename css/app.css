@@ -740,6 +740,22 @@ button { font-family: inherit; font-size: inherit; }
 .lista-acciones { display: flex; flex-direction: column; gap: .2rem; }
 .galeria__papelera { width: 100%; margin-top: .9rem; }
 
+/* Leyenda compacta del visor: texto blanco bajo la foto, ✎ para editar */
+.visor__leyenda {
+  display: flex; align-items: center; justify-content: center; gap: .55rem;
+  width: 100%; padding: .5rem .9rem;
+  border: none; background: transparent; cursor: pointer;
+}
+.visor__leyendaTexto {
+  color: #fff; font-size: .98rem; text-align: center;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.visor__leyendaTexto--vacia { color: #a7b6c4; font-style: italic; }
+.visor__leyendaEditar { color: #a7b6c4; font-size: 1.05rem; flex: 0 0 auto; }
+
+/* La pantalla de tablas usa TODO el ancho (clave en horizontal) */
+body.pantalla-ancha #app { max-width: none; }
+
 .config-conteo {
   margin-left: auto; padding-left: .6rem;
   font-size: .78rem; color: var(--tinta-tenue); white-space: nowrap;

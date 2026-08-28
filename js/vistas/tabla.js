@@ -102,10 +102,15 @@ export async function render(contenedor, refrescar, params) {
   });
 
   // En tablas el giro queda libre (para capturar a lo ancho); el boton 🔁
-  // fuerza horizontal. Al salir de la pantalla se vuelve a anclar vertical.
+  // fuerza horizontal. La pantalla usa TODO el ancho disponible. Al salir
+  // se vuelve a anclar vertical y al ancho normal.
   let horizontal = false;
   orientarLibre();
-  window.addEventListener('hashchange', orientarNormal, { once: true });
+  document.body.classList.add('pantalla-ancha');
+  window.addEventListener('hashchange', () => {
+    orientarNormal();
+    document.body.classList.remove('pantalla-ancha');
+  }, { once: true });
 
   const cabecera = h('header.cabecera',
     h('div.cabecera__fila',

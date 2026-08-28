@@ -274,10 +274,13 @@ export async function verFoto(evento, alCambiar) {
 
   const url = media.urlDe(foto.blob);
 
+  // La leyenda se MUESTRA compacta (texto blanco bajo la foto, con ✎);
+  // tocarla abre el renglon de edicion, que se oculta al guardar.
   const guardarPie = async () => {
     evento.datos.pie = pie.value.trim();
     await db.eventoGuardar(evento);
     pie.blur();                    // baja el teclado
+    pintarLeyenda();
     aviso('Leyenda guardada', 'ok');
   };
 
@@ -293,6 +296,26 @@ export async function verFoto(evento, alCambiar) {
     type: 'button', 'aria-label': 'Guardar leyenda',
     onclick: guardarPie,
   }, '✓');
+
+  const filaEdicion = h('div.visor__pieFila', { style: { display: 'none' } }, pie, botonOk);
+
+  const textoLeyenda = h('span.visor__leyendaTexto');
+  const filaLeyenda = h('button.visor__leyenda', {
+    type: 'button', 'aria-label': 'Editar leyenda',
+    onclick: () => {
+      filaLeyenda.style.display = 'none';
+      filaEdicion.style.display = '';
+      pie.focus();
+    }
+  }, textoLeyenda, h('span.visor__leyendaEditar', '✎'));
+
+  function pintarLeyenda() {
+    const hay = !!(evento.datos.pie || '').trim();
+    textoLeyenda.textContent = hay ? evento.datos.pie : 'Toca para agregar leyenda';
+    textoLeyenda.classList.toggle('visor__leyendaTexto--vacia', !hay);
+    filaLeyenda.style.display = '';
+    filaEdicion.style.display = 'none';
+  }
 
   // El atras del telefono cierra el visor (guardando el pie), no navega.
   let resuelto = false;
@@ -439,9 +462,11 @@ export async function verFoto(evento, alCambiar) {
     ),
     lienzoV,
     h('div.visor__pieCont',
-      h('div.visor__pieFila', pie, botonOk),
+      filaLeyenda,
+      filaEdicion,
       h('span.visor__meta', foto.ancho + '×' + foto.alto + ' · ' + media.formatoBytes(foto.bytes)))
   );
+  pintarLeyenda();
 
   document.body.appendChild(capa);
   bloquearScroll();
