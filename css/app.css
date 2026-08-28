@@ -738,6 +738,8 @@ button { font-family: inherit; font-size: inherit; }
 .hoja__acciones .btn--primario, .hoja__acciones .btn--fantasma { flex: 1; }
 
 .lista-acciones { display: flex; flex-direction: column; gap: .2rem; }
+.galeria__papelera { width: 100%; margin-top: .9rem; }
+
 .config-conteo {
   margin-left: auto; padding-left: .6rem;
   font-size: .78rem; color: var(--tinta-tenue); white-space: nowrap;

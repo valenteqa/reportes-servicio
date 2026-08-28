@@ -2,7 +2,7 @@
 
 import * as db from '../db.js';
 import * as media from '../media.js';
-import { h, hora, aviso, hoja, confirmar, campoArea, vacio, anclarCapa, bloquearScroll, liberarScroll, icono } from '../ui.js';
+import { h, hora, fecha, aviso, hoja, confirmar, campoArea, vacio, anclarCapa, bloquearScroll, liberarScroll, icono } from '../ui.js';
 import { editarFoto } from '../editor-foto.js';
 
 /* ---------------------------------------------------------------- */
@@ -80,9 +80,16 @@ export function galeriaDelTrabajo(servicioId) {
       const fotos = (await db.eventosDeServicio(servicioId)).filter(e => e.tipo === 'foto');
       cont.replaceChildren();
 
+      // Acceso a la papelera de ESTE trabajo, con su conteo.
+      const nPapelera = (await db.papeleraFotos(servicioId)).length;
+      const btnPapelera = h('button.btn.btn--fantasma.galeria__papelera', {
+        type: 'button',
+        onclick: async () => { await papeleraDeFotos(servicioId); pintar(); }
+      }, '🗑  Papelera de este trabajo (' + nPapelera + ')');
+
       if (!fotos.length) {
         cont.append(vacio('🖼', 'Sin fotos todavia',
-          'Las imagenes que agregues con el boton Imagen apareceran aqui.'));
+          'Las imagenes que agregues con el boton Imagen apareceran aqui.'), btnPapelera);
         return;
       }
 
@@ -118,11 +125,81 @@ export function galeriaDelTrabajo(servicioId) {
           img.src = media.urlDe(f.mini || f.blob);
         });
       }
+
+      cont.append(btnPapelera);
     };
 
     pintar();
     return cont;
   }, { altura: 'alta' });
+}
+
+/**
+ * Papelera de fotos del trabajo: las eliminadas de ESTE servicio, para
+ * restaurarlas a su linea de tiempo o eliminarlas para siempre.
+ */
+export async function papeleraDeFotos(servicioId) {
+  for (;;) {
+    const lista = await db.papeleraFotos(servicioId);
+
+    const elegido = await hoja('🗑  Papelera de fotos', (cerrar) => {
+      const cont = h('div');
+      if (!lista.length) {
+        cont.append(h('p.pista', 'Vacia. Las fotos que elimines de este trabajo llegan aqui y se pueden restaurar.'));
+        return cont;
+      }
+      const rejilla = h('div.galeria-rejilla');
+      for (const ev of lista) {
+        const marco = h('span.galeria-item__marco');
+        rejilla.append(h('button.galeria-item', { type: 'button', onclick: () => cerrar(ev) },
+          marco,
+          h('span.galeria-item__pie', ev.datos.pie || fecha(ev.ts))));
+        db.fotoLeer(ev.datos.fotoId).then(f => {
+          if (!f) { marco.append(h('span.galeria-item__falta', '✕')); return; }
+          const img = h('img', { alt: '' });
+          marco.append(img);
+          img.src = media.urlDe(f.mini || f.blob);
+        });
+      }
+      cont.append(
+        h('p.pista', 'Toca una foto para restaurarla o eliminarla para siempre.'),
+        rejilla,
+        h('div.hoja__acciones',
+          h('button.btn.btn--peligro', { type: 'button', onclick: () => cerrar('vaciar') }, 'Vaciar papelera'))
+      );
+      return cont;
+    }, { altura: 'alta' });
+
+    if (!elegido) return;
+
+    if (elegido === 'vaciar') {
+      if (await confirmar('Se eliminan DEFINITIVAMENTE ' + lista.length + ' foto(s). Esto no se puede deshacer.', { textoOk: 'Vaciar' })) {
+        for (const ev of lista) await db.eventoBorrar(ev.id);
+        aviso('Papelera vaciada', 'ok');
+      }
+      continue;
+    }
+
+    const accion = await hoja(elegido.datos.pie || 'Foto', (cerrar) => h('div',
+      h('p.pista', 'Eliminada el ' + fecha(elegido.borrado) + '.'),
+      h('div.lista-acciones',
+        h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('restaurar') },
+          '↩  Restaurar a su linea de tiempo'),
+        h('button.lista-acciones__item.lista-acciones__item--peligro',
+          { type: 'button', onclick: () => cerrar('definitivo') }, '🗑  Eliminar definitivamente')
+      )
+    ));
+
+    if (accion === 'restaurar') {
+      await db.eventoRestaurar(elegido.id);
+      aviso('Foto restaurada', 'ok');
+    } else if (accion === 'definitivo') {
+      if (await confirmar('Se elimina la foto para siempre.', { textoOk: 'Eliminar' })) {
+        await db.eventoBorrar(elegido.id);
+        aviso('Foto eliminada');
+      }
+    }
+  }
 }
 
 // El elemento se llama "Texto" en toda la app (en procedimientos es el texto

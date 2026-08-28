@@ -370,9 +370,10 @@ export function eventoRestaurar(id) {
   });
 }
 
-export function papeleraFotos() {
+export function papeleraFotos(servicioId) {
   return tx('eventos', 'readonly', st => pedir(st.eventos.getAll()))
-    .then(todos => todos.filter(e => e.borrado && e.tipo === 'foto')
+    .then(todos => todos.filter(e => e.borrado && e.tipo === 'foto' &&
+        (!servicioId || e.servicioId === servicioId))
       .sort((a, b) => b.borrado - a.borrado));
 }
 
