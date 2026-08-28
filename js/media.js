@@ -120,9 +120,78 @@ function escalar(origen, ladoMax, calidad) {
  * La miniatura se saca de la imagen ya reducida, no del original de 12 MP:
  * reescalar dos veces el archivo completo duplicaba el tiempo por foto.
  */
+/* Lee ancho/alto y orientacion EXIF de un JPEG SIN decodificarlo (solo el
+   encabezado). Con eso se puede pedir la decodificacion YA REDUCIDA, que en
+   una foto de 50 MP se salta ~95% del trabajo. Devuelve null si no es JPEG
+   o el encabezado no se entiende (y se usa la ruta lenta de siempre). */
+async function dimsJpeg(archivo) {
+  try {
+    const buf = new Uint8Array(await archivo.slice(0, 262144).arrayBuffer());
+    if (buf[0] !== 0xFF || buf[1] !== 0xD8) return null;   // no es JPEG
+    let i = 2;
+    let orientacion = 1;
+    while (i + 8 < buf.length) {
+      if (buf[i] !== 0xFF) { i++; continue; }
+      const marca = buf[i + 1];
+      if (marca === 0xD8 || (marca >= 0xD0 && marca <= 0xD9)) { i += 2; continue; }
+      const largo = (buf[i + 2] << 8) | buf[i + 3];
+      // EXIF (APP1): buscar la etiqueta de orientacion 0x0112
+      if (marca === 0xE1 && buf[i + 4] === 0x45 && buf[i + 5] === 0x78) {   // "Ex"
+        const tiff = i + 10;
+        const le = buf[tiff] === 0x49;                     // little endian
+        const u16 = (o) => le ? buf[o] | (buf[o + 1] << 8) : (buf[o] << 8) | buf[o + 1];
+        const u32 = (o) => le
+          ? buf[o] | (buf[o + 1] << 8) | (buf[o + 2] << 16) | (buf[o + 3] << 24)
+          : (buf[o] << 24) | (buf[o + 1] << 16) | (buf[o + 2] << 8) | buf[o + 3];
+        const ifd = tiff + u32(tiff + 4);
+        if (ifd + 2 < buf.length) {
+          const n = u16(ifd);
+          for (let k = 0; k < n; k++) {
+            const e = ifd + 2 + k * 12;
+            if (e + 12 > buf.length) break;
+            if (u16(e) === 0x0112) { orientacion = u16(e + 8) || 1; break; }
+          }
+        }
+      }
+      // SOF0..SOF15 (menos DHT/JPGA/DAC): dimensiones reales
+      if (marca >= 0xC0 && marca <= 0xCF && marca !== 0xC4 && marca !== 0xC8 && marca !== 0xCC) {
+        const alto = (buf[i + 5] << 8) | buf[i + 6];
+        const ancho = (buf[i + 7] << 8) | buf[i + 8];
+        if (!alto || !ancho) return null;
+        return { ancho, alto, orientacion };
+      }
+      i += 2 + largo;
+    }
+    return null;
+  } catch (e) { return null; }
+}
+
 export async function procesarImagen(archivo) {
   const t0 = performance.now();
-  const bitmap = await aBitmap(archivo);
+  let bitmap = null;
+  let ruta = 'lenta';
+
+  // RUTA RAPIDA: decodificar ya reducido (el motor usa el escalado interno
+  // del JPEG). En el WebView esto baja de ~13 s a ~1 s con fotos grandes.
+  const dims = await dimsJpeg(archivo);
+  if (dims && Math.max(dims.ancho, dims.alto) > LADO_MAX && window.createImageBitmap) {
+    // Con orientacion EXIF de 90/270, el resultado orientado viene volteado.
+    const giraEjes = dims.orientacion >= 5;
+    const w0 = giraEjes ? dims.alto : dims.ancho;
+    const h0 = giraEjes ? dims.ancho : dims.alto;
+    const f = LADO_MAX / Math.max(w0, h0);
+    try {
+      bitmap = await createImageBitmap(archivo, {
+        imageOrientation: 'from-image',
+        resizeWidth: Math.max(1, Math.round(w0 * f)),
+        resizeHeight: Math.max(1, Math.round(h0 * f)),
+        resizeQuality: 'medium',
+      });
+      ruta = 'rapida';
+    } catch (e) { bitmap = null; }
+  }
+  if (!bitmap) bitmap = await aBitmap(archivo);
+
   const t1 = performance.now();
   const grande = await escalar(bitmap, LADO_MAX, CALIDAD);
   if (bitmap.close) bitmap.close();
@@ -139,7 +208,7 @@ export async function procesarImagen(archivo) {
     original: archivo.size,
     creado: Date.now(),
     // cronometro de diagnostico (no se guarda en la base)
-    _ms: { decodificar: Math.round(t1 - t0), escalar: Math.round(t2 - t1) },
+    _ms: { decodificar: Math.round(t1 - t0), escalar: Math.round(t2 - t1), ruta },
   };
 }
 

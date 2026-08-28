@@ -38,13 +38,15 @@ export async function capturarFoto(servicioId, equipoId, { galeria = false } = {
 
   let ultimo = null;
   let msTotal = 0;
+  let ultimoMs = null;
   try {
     for (const archivo of archivos) {
       try {
         const { _ms, ...procesada } = await media.procesarImagen(archivo);
         if (_ms) {
           msTotal += _ms.decodificar + _ms.escalar;
-          console.log('[foto]', _ms.decodificar + 'ms decodificar, ' + _ms.escalar + 'ms escalar');
+          ultimoMs = _ms;
+          console.log('[foto]', _ms.ruta, _ms.decodificar + 'ms decodificar, ' + _ms.escalar + 'ms escalar');
         }
         const fotoId = db.nuevoId();
         await db.fotoGuardar(Object.assign({ id: fotoId }, procesada));
@@ -57,8 +59,12 @@ export async function capturarFoto(servicioId, equipoId, { galeria = false } = {
   } finally {
     libre();
   }
-  // El tiempo va en el aviso para poder diagnosticar telefonos lentos.
-  const seg = msTotal >= 100 ? ' (' + (Math.round(msTotal / 100) / 10) + ' s)' : '';
+  // El tiempo va en el aviso, desglosado, para diagnosticar telefonos lentos.
+  const s = (ms) => (Math.round(ms / 100) / 10);
+  const seg = (msTotal >= 100 && ultimoMs)
+    ? ' (' + s(msTotal) + ' s · dec ' + s(ultimoMs.decodificar) + ' + esc ' + s(ultimoMs.escalar) +
+      (ultimoMs.ruta === 'rapida' ? ' · R' : '') + ')'
+    : '';
   if (ultimo) aviso((archivos.length > 1 ? archivos.length + ' fotos agregadas' : 'Foto agregada') + seg, 'ok');
 
   // Una sola imagen: abrir el editor de inmediato (recortar, girar, señalar).
