@@ -1144,7 +1144,7 @@ button { font-family: inherit; font-size: inherit; }
   width: min(92vw, 460px); pointer-events: none;
 }
 .aviso {
-  padding: .7rem .9rem;
+  padding: .8em 1em;   /* en em: crece junto con la letra en zoom grande */
   background: var(--superficie-2); color: var(--tinta);
   border: 1px solid var(--borde-fuerte);
   border-left: 3px solid var(--primario);
@@ -1173,23 +1173,36 @@ button { font-family: inherit; font-size: inherit; }
    fluidas: conservan su tamaño en pantalla) y las pantallas de foto
    (visor y editor: ahi mandan la imagen y el gesto fino). El tope de alto
    de las fotos de la linea de tiempo se compensa por nivel (260px fisicos). */
+/* En el editor de fotos escalan SOLO las barras de controles: la zona de la
+   foto queda 1:1 para no alterar los gestos finos de recorte y formas.
+   Los avisos escalan por tamaño de letra (no con zoom: su ancho en vw se
+   descentra y se corta). */
 :root[data-zoomui="110"] #app,
 :root[data-zoomui="110"] .hoja-fondo,
-:root[data-zoomui="110"] .avisos,
-:root[data-zoomui="110"] .editor-previa { zoom: 1.1; }
+:root[data-zoomui="110"] .editor-previa,
+:root[data-zoomui="110"] .editor__barra,
+:root[data-zoomui="110"] .editor__controles,
+:root[data-zoomui="110"] .editor__modos { zoom: 1.1; }
 :root[data-zoomui="110"] .tarjeta__foto img { max-height: 236px; }
+:root[data-zoomui="110"] .aviso { font-size: .97rem; }
 
 :root[data-zoomui="125"] #app,
 :root[data-zoomui="125"] .hoja-fondo,
-:root[data-zoomui="125"] .avisos,
-:root[data-zoomui="125"] .editor-previa { zoom: 1.25; }
+:root[data-zoomui="125"] .editor-previa,
+:root[data-zoomui="125"] .editor__barra,
+:root[data-zoomui="125"] .editor__controles,
+:root[data-zoomui="125"] .editor__modos { zoom: 1.25; }
 :root[data-zoomui="125"] .tarjeta__foto img { max-height: 208px; }
+:root[data-zoomui="125"] .aviso { font-size: 1.1rem; }
 
 :root[data-zoomui="150"] #app,
 :root[data-zoomui="150"] .hoja-fondo,
-:root[data-zoomui="150"] .avisos,
-:root[data-zoomui="150"] .editor-previa { zoom: 1.5; }
+:root[data-zoomui="150"] .editor-previa,
+:root[data-zoomui="150"] .editor__barra,
+:root[data-zoomui="150"] .editor__controles,
+:root[data-zoomui="150"] .editor__modos { zoom: 1.5; }
 :root[data-zoomui="150"] .tarjeta__foto img { max-height: 173px; }
+:root[data-zoomui="150"] .aviso { font-size: 1.32rem; }
 
 /* Vista previa del reporte: pagina blanca tipo Word, sin importar el tema */
 .previa {
