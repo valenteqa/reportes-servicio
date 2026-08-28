@@ -394,7 +394,7 @@ export async function generarPresentacion(servicioId) {
     nombre: 'docProps/app.xml',
     datos: txt('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
       '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties">' +
-      '<Application>Reportes de Servicio</Application></Properties>'),
+      '<Application>Ser Pro App</Application></Properties>'),
   });
 
   const relsLaminas = laminas.map((_, i) => REL('rIdSld' + (i + 1), 'slide', 'slides/slide' + (i + 1) + '.xml')).join('');

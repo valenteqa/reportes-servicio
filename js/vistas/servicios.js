@@ -737,9 +737,9 @@ async function hojaAlmacenamiento(refrescar) {
         let notaCopia = '';
         if (esNativa()) {
           try {
-            await guardarUltimoRespaldo(r.blob);
+            const copia = await guardarUltimoRespaldo(r.blob);
             await db.ajusteGuardar('ultimoRespaldo',
-              { fecha: Date.now(), nombre: r.nombreArchivo, tam: r.blob.size });
+              { fecha: Date.now(), nombre: r.nombreArchivo, tam: r.blob.size, partes: copia.partes });
             notaCopia = ' · Copia lista para Restaurar.';
           } catch (e2) {
             console.error('copia del ultimo respaldo', e2);
@@ -814,26 +814,31 @@ async function hojaAlmacenamiento(refrescar) {
     };
 
     const restaurar = async () => {
-      // Con copia privada del ultimo respaldo (APK): ofrecer restaurarla
-      // directo, sin obligar a buscar el archivo. Sin copia: buscador directo.
-      const ult = esNativa() ? await db.ajusteLeer('ultimoRespaldo') : null;
-      if (!ult) return buscarArchivo();
+      // En el APK el menu sale SIEMPRE: con copia ofrece restaurarla en un
+      // toque; sin copia explica como tenerla. En navegador, buscador directo.
+      if (!esNativa()) return buscarArchivo();
+      const ult = await db.ajusteLeer('ultimoRespaldo');
 
-      const cuando = new Date(ult.fecha).toLocaleString('es-MX',
-        { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      const cuando = ult ? new Date(ult.fecha).toLocaleString('es-MX',
+        { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
       const eleccion = await hoja('Restaurar respaldo', (cerrarMenu) => h('div',
         h('div.lista-acciones',
-          h('button.lista-acciones__item', { type: 'button', onclick: () => cerrarMenu('ultimo') },
-            '⏪  Ultimo respaldo (' + cuando + ' · ' + media.formatoBytes(ult.tam || 0) + ')'),
+          ult
+            ? h('button.lista-acciones__item', { type: 'button', onclick: () => cerrarMenu('ultimo') },
+              '⏪  Ultimo respaldo (' + cuando + ' · ' + media.formatoBytes(ult.tam || 0) + ')')
+            : h('button.lista-acciones__item', { type: 'button', disabled: true, style: { opacity: '.55' } },
+              '⏪  Ultimo respaldo — aun no hay ninguno'),
           h('button.lista-acciones__item', { type: 'button', onclick: () => cerrarMenu('buscar') },
-            '📁  Buscar otro archivo')
+            '📁  Buscar archivo del respaldo')
         ),
-        h('p.pista', 'El ultimo respaldo es el mas reciente que hiciste aqui con Respaldar o Compartir.')
+        h('p.pista', ult
+          ? 'El ultimo respaldo es el mas reciente que hiciste aqui con Respaldar o Compartir.'
+          : 'Cuando hagas un respaldo (💾 Respaldar a la carpeta o Compartir), quedara aqui listo para restaurarse en un toque.')
       ));
       if (eleccion === 'buscar') return buscarArchivo();
-      if (eleccion !== 'ultimo') return;
+      if (eleccion !== 'ultimo' || !ult) return;
       try {
-        const blob = await leerUltimoRespaldo();
+        const blob = await leerUltimoRespaldo(ult);
         await ejecutarRestauracion(blob, ult.nombre || 'ultimo respaldo');
       } catch (e) {
         console.error(e);

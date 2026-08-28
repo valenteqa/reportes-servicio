@@ -101,22 +101,51 @@ async function guardarPorMediaStore(blob, ruta) {
    pierde, pero el respaldo real de Documentos/ReportesServicio/ sobrevive
    y queda la via "Buscar otro archivo". */
 
-export async function guardarUltimoRespaldo(blob) {
-  const P = window.Capacitor.Plugins;
-  await P.Filesystem.writeFile({
-    path: 'ultimo-respaldo.zip',
-    data: await aBase64(blob),
-    directory: 'DATA',
-  });
-}
+const TROZO_COPIA = 768 * 1024;
 
-export async function leerUltimoRespaldo() {
-  const P = window.Capacitor.Plugins;
-  const r = await P.Filesystem.readFile({ path: 'ultimo-respaldo.zip', directory: 'DATA' });
-  const bin = atob(r.data);
+function base64ABytes(b64) {
+  const bin = atob(b64);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new Blob([bytes], { type: 'application/zip' });
+  return bytes;
+}
+
+// La copia se guarda en VARIOS archivos parte (768KB cada uno): pasar un
+// respaldo entero como UN string base64 por el puente truena con archivos
+// grandes (fotos con originales). Devuelve { partes } para el ajuste.
+export async function guardarUltimoRespaldo(blob) {
+  const P = window.Capacitor.Plugins;
+  let partes = 0;
+  for (let i = 0; i < blob.size; i += TROZO_COPIA) {
+    await P.Filesystem.writeFile({
+      path: 'ultimo-respaldo.parte' + partes,
+      data: await aBase64(blob.slice(i, i + TROZO_COPIA)),
+      directory: 'DATA',
+    });
+    partes++;
+  }
+  // borrar partes sobrantes de una copia anterior mas grande
+  for (let i = partes; i < partes + 400; i++) {
+    try { await P.Filesystem.deleteFile({ path: 'ultimo-respaldo.parte' + i, directory: 'DATA' }); }
+    catch (e) { break; }
+  }
+  return { partes };
+}
+
+// `info` es el ajuste 'ultimoRespaldo'. Copias viejas (v3.68, un solo
+// archivo) no traen `partes`: se leen enteras como antes.
+export async function leerUltimoRespaldo(info) {
+  const P = window.Capacitor.Plugins;
+  if (!info || !info.partes) {
+    const r = await P.Filesystem.readFile({ path: 'ultimo-respaldo.zip', directory: 'DATA' });
+    return new Blob([base64ABytes(r.data)], { type: 'application/zip' });
+  }
+  const pedazos = [];
+  for (let i = 0; i < info.partes; i++) {
+    const r = await P.Filesystem.readFile({ path: 'ultimo-respaldo.parte' + i, directory: 'DATA' });
+    pedazos.push(base64ABytes(r.data));
+  }
+  return new Blob(pedazos, { type: 'application/zip' });
 }
 
 // Guarda el blob en Documentos/ReportesServicio/<ruta> (crea las carpetas).
