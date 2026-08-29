@@ -6,7 +6,37 @@ import * as media from '../media.js';
 import { APP_VERSION } from '../version.js';
 import { temaActual, alternarTema, zoomActual, aplicarZoom } from '../tema.js';
 import { esNativa, compartirArchivoNativo, guardarEnCarpetaNativa, nombreSeguro, guardarUltimoRespaldo, leerUltimoRespaldo, instalarActualizacionApk } from '../nativo.js';
-import { DEPTOS, ROLES, organizacion, organizacionGuardar, quienSoy, serYo, esAdmin } from '../organizacion.js';
+import { DEPTOS, ROLES, organizacion, organizacionGuardar, quienSoy, serYo, esAdmin, claveDelDia, claveDeManana } from '../organizacion.js';
+
+// La ⚙ completa se abre con la CLAVE DEL DIA (solo el administrador la
+// tiene). Una vez dada, queda abierta hasta cerrar la app: variable en
+// memoria a proposito — no se persiste, asi reabrir (o reinstalar) vuelve
+// a pedirla.
+let configDesbloqueada = false;
+
+export async function abrirConfiguracion() {
+  if (configDesbloqueada) return hojaConfiguracion();
+  const ok = await hoja('🔐  Clave de administrador', (cerrar) => {
+    const c = campo('Clave del dia (6 digitos)', { type: 'password', inputMode: 'numeric', maxLength: 6, autocomplete: 'off' });
+    return h('div',
+      c,
+      h('p.pista', 'Solo el administrador configura la app. La clave cambia cada dia.'),
+      h('div.hoja__acciones',
+        h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(false) }, 'Cancelar'),
+        h('button.btn.btn--primario', {
+          type: 'button',
+          onclick: async () => {
+            const valor = c.querySelector('input').value.trim();
+            if (valor === await claveDelDia()) { cerrar(true); return; }
+            aviso('Clave incorrecta.', 'error');
+            c.querySelector('input').value = '';
+          },
+        }, 'Entrar')));
+  });
+  if (!ok) return;
+  configDesbloqueada = true;
+  await hojaConfiguracion();
+}
 
 // Catalogo precargado: clientes y maquinas conocidos aunque el telefono aun
 // no tenga historial propio. El primero es el del reporte de referencia.
@@ -189,11 +219,21 @@ async function hojaUsuarios() {
         h('div.org-selects', selDepto, selRol));
     });
 
+    // Al admin se le muestran la clave de HOY y la de MAÑANA (para no
+    // depender de la tarjeta cuando trae su telefono a la mano).
+    const lineaClaves = h('p.pista.org-claves');
+    if (soyAdmin) {
+      Promise.all([claveDelDia(), claveDeManana()]).then(([hoy, man]) => {
+        lineaClaves.textContent = '🔐 Clave de hoy: ' + hoy + ' · de mañana: ' + man;
+      }).catch(() => {});
+    }
+
     return h('div',
       bloqueYo,
       h('p.pista', soyAdmin
         ? 'Eres administrador: puedes asignar depto y rol a cada quien.'
         : 'Solo el administrador puede cambiar deptos y roles.'),
+      soyAdmin ? lineaClaves : null,
       h('div.org-lista', ...filas),
       h('p.pista', 'Deptos: ' + DEPTOS.join(', ') + '. El lider de area puede modificar o eliminar actividades de su gente; los usuarios solo agregan y marcan.')
     );
@@ -1136,7 +1176,7 @@ export async function render(contenedor, refrescar) {
       }, temaActual() === 'claro' ? '🌙' : '☀️'),
       h('button.icono-btn', {
         type: 'button', 'aria-label': 'Configuracion',
-        onclick: () => hojaConfiguracion()
+        onclick: () => abrirConfiguracion()
       }, '⚙')
     )
   );

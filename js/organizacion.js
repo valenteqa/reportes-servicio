@@ -66,3 +66,42 @@ export function puedeEditarActividades(yo) {
 export function esAdmin(yo) {
   return !!yo && yo.rol === 'admin';
 }
+
+// Ver las ACTIVIDADES de alguien (no solo sus porcentajes): uno mismo,
+// el admin, o el lider con la gente de SU depto. Los porcentajes si son
+// publicos para todos.
+export function puedeVerActividadesDe(yo, u) {
+  if (!yo || !u) return false;
+  if (yo.id === u.id) return true;
+  if (yo.rol === 'admin') return true;
+  if (yo.rol === 'lider' && yo.depto && yo.depto === u.depto) return true;
+  return false;
+}
+
+/* ---------------------------------------------------------------- */
+/* Clave dinamica de administrador                                   */
+/* ---------------------------------------------------------------- */
+
+// La ⚙ Configuracion completa (incluida la eleccion de identidad) se abre
+// solo con la CLAVE DEL DIA: 6 digitos derivados de la fecha con una
+// semilla. Cambia sola cada dia y desinstalar/instalar no la brinca.
+// (Vale tiene su tarjeta de claves; con Firebase esto pasara a login real.)
+const SEMILLA_CLAVE = 'SerPro-Fenix-2026-Vale';
+
+function fechaClaveLocal(d = new Date()) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+export async function claveDelDia(fechaStr) {
+  const fecha = fechaStr || fechaClaveLocal();
+  const datos = new TextEncoder().encode(SEMILLA_CLAVE + '|' + fecha);
+  const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', datos));
+  const num = ((hash[0] << 16) | (hash[1] << 8) | hash[2]) % 1000000;
+  return String(num).padStart(6, '0');
+}
+
+export function claveDeManana() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return claveDelDia(fechaClaveLocal(d));
+}

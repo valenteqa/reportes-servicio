@@ -4,7 +4,7 @@
 import { h, aviso, animarMarca } from '../ui.js';
 import { esNativa } from '../nativo.js';
 import { temaActual, alternarTema } from '../tema.js';
-import { hojaConfiguracion, hojaAlmacenamiento, bannerActualizacion, lineaVersion } from './servicios.js';
+import { abrirConfiguracion, hojaAlmacenamiento, bannerActualizacion, lineaVersion } from './servicios.js';
 
 function boton(icono, texto, alPulsar, chip) {
   return h('button.menu__boton', { type: 'button', onclick: alPulsar },
@@ -40,7 +40,7 @@ export async function render(contenedor, refrescar) {
       boton('🔧', 'Tecnico', () => { location.hash = '#/t'; }),
       boton('📔', 'Gestion de Departamentos', () => { location.hash = '#/d'; }),
       boton('📦', 'Inventario', () => aviso('Inventario esta en desarrollo'), 'EN DESARROLLO'),
-      boton('⚙', 'Configuracion', () => hojaConfiguracion())
+      boton('⚙', 'Configuracion', () => abrirConfiguracion())
     ),
     lineaVersion()
   );

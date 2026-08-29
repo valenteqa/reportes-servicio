@@ -9,7 +9,7 @@
 
 import { h, aviso, vaciar, confirmar, hoja, campo } from '../ui.js';
 import * as db from '../db.js';
-import { DEPTOS, ROLES, organizacion, quienSoy, puedeEditarActividades, AVISO_SOLO_LIDER } from '../organizacion.js';
+import { DEPTOS, ROLES, organizacion, quienSoy, puedeEditarActividades, puedeVerActividadesDe, AVISO_SOLO_LIDER } from '../organizacion.js';
 
 const DIAS_CORTOS = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'];
 const MESES_CORTOS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
@@ -202,18 +202,22 @@ function cabeceraSub(titulo, extra) {
     ));
 }
 
-function filaMiembro(u, resumen) {
+// clickeable=true abre las actividades del miembro (solo lider de su depto
+// o admin); si no, la fila es plana: se ve el PORCENTAJE y nada mas.
+function filaMiembro(u, resumen, clickeable) {
   const dato = resumen === null
     ? 'sin datos aqui'
     : (resumen.total ? resumen.hechas + ' de ' + resumen.total + ' · ' + resumen.pct + '%' : 'sin actividades');
-  return h('button.miembro-fila', {
-    type: 'button',
-    onclick: () => { location.hash = '#/d/u/' + u.id; },
-  },
+  const contenido = [
     h('span.miembro-nombre', u.nombre,
       u.rol !== 'usuario' ? h('span.gd-rol', ROLES[u.rol]) : null),
     h('span.sem-dato', dato),
-    h('span.menu__flecha', '›'));
+  ];
+  if (!clickeable) return h('div.miembro-fila', ...contenido);
+  return h('button.miembro-fila', {
+    type: 'button',
+    onclick: () => { location.hash = '#/d/u/' + u.id; },
+  }, ...contenido, h('span.menu__flecha', '›'));
 }
 
 /* ---------------------------------------------------------------- */
@@ -238,7 +242,8 @@ async function renderOrganizacion(contenedor) {
       const dias = await diasDe(u);
       const r = dias === null ? null : resumenSemana(dias, lunes);
       if (r) { dHechas += r.hechas; dTotal += r.total; }
-      carta.append(filaMiembro(u, r));
+      // En organizacion SOLO porcentajes: las filas no abren actividades.
+      carta.append(filaMiembro(u, r, false));
     }
     const pct = dTotal ? Math.round(dHechas * 100 / dTotal) : 0;
     carta.append(h('p.sem-total', dTotal
@@ -246,7 +251,7 @@ async function renderOrganizacion(contenedor) {
       : 'Depto sin actividades registradas en este telefono.'));
     cont.append(carta);
   }
-  cont.append(h('p.pista', 'Los registros de los demas viviran en la nube: cada quien vera aqui a toda la organizacion.'));
+  cont.append(h('p.pista', 'Aqui solo se ven porcentajes. El detalle de actividades de cada quien lo ve su lider de area (en Mi depto) o el administrador.'));
 }
 
 /* ---------------------------------------------------------------- */
@@ -280,7 +285,7 @@ async function renderDepto(contenedor) {
     const dias = await diasDe(u);
     const r = dias === null ? null : resumenSemana(dias, lunes);
     if (r) { dHechas += r.hechas; dTotal += r.total; }
-    carta.append(filaMiembro(u, r));
+    carta.append(filaMiembro(u, r, puedeVerActividadesDe(yo, u)));
   }
   const pct = dTotal ? Math.round(dHechas * 100 / dTotal) : 0;
   carta.append(
@@ -310,28 +315,39 @@ async function renderMiembro(contenedor, id) {
   contenedor.append(cont);
   if (u.rol !== 'usuario') cont.append(h('p.diario-quien', ROLES[u.rol]));
 
+  // Las ACTIVIDADES (los textos) solo las ve su lider de depto o el admin;
+  // los porcentajes son publicos para todos.
+  const yo = await quienSoy();
+  const puedeVer = puedeVerActividadesDe(yo, u);
+  if (!puedeVer) {
+    cont.append(h('p.pista.diario-quien',
+      'Aqui solo se ven porcentajes: el detalle de actividades lo ve su lider de area o el administrador.'));
+  }
+
   const dias = await diasDe(u);
   if (dias === null) {
     cont.append(h('div.diario-carta',
-      h('p.pista', 'Los registros de ' + u.nombre + ' viven en su telefono. Cuando se conecte la nube, aqui veras sus actividades y porcentajes.')));
+      h('p.pista', 'Los registros de ' + u.nombre + ' viven en su telefono. Cuando se conecte la nube, aqui veras sus porcentajes.')));
     return;
   }
 
   const porFecha = {};
   for (const d of dias) porFecha[d.fecha] = d;
 
-  // HOY (solo ver)
-  const dHoy = porFecha[hoyClave];
-  const cartaHoy = h('section.diario-carta', h('h3', 'HOY'));
-  if (dHoy && dHoy.actividades.length) {
-    const c = conteo(dHoy);
-    cartaHoy.append(...dHoy.actividades.map(a => filaActividad(dHoy, a, { editable: false, alCambiar: () => {} })));
-    for (const b of cartaHoy.querySelectorAll('.dia-check')) b.disabled = true;
-    cartaHoy.append(h('p.dia-avance', c.hechas + ' de ' + c.total + ' · ' + c.pct + '%' + (dHoy.evaluado ? ' · dia cerrado' : '')));
-  } else {
-    cartaHoy.append(h('p.pista', 'Sin actividades registradas hoy.'));
+  // HOY (solo ver, y solo para quien puede ver el detalle)
+  if (puedeVer) {
+    const dHoy = porFecha[hoyClave];
+    const cartaHoy = h('section.diario-carta', h('h3', 'HOY'));
+    if (dHoy && dHoy.actividades.length) {
+      const c = conteo(dHoy);
+      cartaHoy.append(...dHoy.actividades.map(a => filaActividad(dHoy, a, { editable: false, alCambiar: () => {} })));
+      for (const b of cartaHoy.querySelectorAll('.dia-check')) b.disabled = true;
+      cartaHoy.append(h('p.dia-avance', c.hechas + ' de ' + c.total + ' · ' + c.pct + '%' + (dHoy.evaluado ? ' · dia cerrado' : '')));
+    } else {
+      cartaHoy.append(h('p.pista', 'Sin actividades registradas hoy.'));
+    }
+    cont.append(cartaHoy);
   }
-  cont.append(cartaHoy);
 
   // SEMANA
   const cartaSem = h('section.diario-carta', h('h3', 'ESTA SEMANA'));
