@@ -230,5 +230,7 @@ export async function render(contenedor, refrescar, params) {
   }
 
   repintar();
-  contenedor.append(cabecera, h('main.contenido', zona));
+  contenedor.append(cabecera, h('main.contenido',
+    h('p.pista.pista--tabla', 'Desliza hacia la izquierda y derecha para ver el resto de la tabla.'),
+    zona));
 }

@@ -290,25 +290,52 @@ export async function editarNota(evento) {
 }
 
 // Plantilla base, siempre disponible (el formato de analisis de tarjetas VT).
-const TABLA_VT = {
-  nombre: 'Tabla de Valores de VT',
-  tabla: {
-    titulo: 'Analisis de Tarjetas VT de Bombas',
-    columnas: [
-      { nombre: 'Pin',         unidad: '', tipo: 'texto'  },
-      { nombre: 'Bomba 1 Off', unidad: '', tipo: 'numero' },
-      { nombre: 'Bomba 1 On',  unidad: '', tipo: 'numero' },
-      { nombre: 'Bomba 2 Off', unidad: '', tipo: 'numero' },
-      { nombre: 'Bomba 2 On',  unidad: '', tipo: 'numero' },
-      { nombre: 'Bomba 3 Off', unidad: '', tipo: 'numero' },
-      { nombre: 'Bomba 3 On',  unidad: '', tipo: 'numero' },
-      { nombre: 'Bomba 4 Off', unidad: '', tipo: 'numero' },
-      { nombre: 'Bomba 4 On',  unidad: '', tipo: 'numero' },
-    ],
-    filas: ['Pin 1', 'Pin 2', 'Pin 3', 'Pin 4', 'Pin 5', 'Pin 6', 'Presion']
-      .map(p => [p, '', '', '', '', '', '', '', '']),
-  },
-};
+// Sus columnas dependen de que bombas tenga la maquina: se preguntan al agregar.
+const TABLA_VT = { nombre: 'Analisis de Tarjetas VT de Bombas', esVT: true };
+
+const BOMBAS_VT = [
+  ['Sistema 1',  'S1'],
+  ['Sistema 2',  'S2'],
+  ['Extruder 1', 'E1'],
+  ['Extruder 2', 'E2'],
+];
+
+function tablaVTDe(abrevs) {
+  const columnas = [{ nombre: 'Pin', unidad: '', tipo: 'texto' }];
+  for (const a of abrevs) {
+    columnas.push({ nombre: a + ' Off', unidad: '', tipo: 'numero' });
+    columnas.push({ nombre: a + ' On',  unidad: '', tipo: 'numero' });
+  }
+  const filas = ['Pin 1', 'Pin 2', 'Pin 3', 'Pin 4', 'Pin 5', 'Pin 6', 'Presion']
+    .map(p => columnas.map((c, i) => (i === 0 ? p : '')));
+  return { titulo: TABLA_VT.nombre, columnas, filas };
+}
+
+// Seleccion multiple: cuales bombas tiene la maquina (todas marcadas de inicio).
+function elegirBombasVT() {
+  return hoja('¿Que bombas tiene la maquina?', (cerrar) => {
+    const sel = new Set(BOMBAS_VT.map(([, a]) => a));
+    const botones = BOMBAS_VT.map(([nombre, ab]) => {
+      const b = h('button.lista-acciones__item', { type: 'button' });
+      const pintar = () => { b.textContent = (sel.has(ab) ? '☑' : '☐') + '  ' + nombre + '  (' + ab + ')'; };
+      b.onclick = () => { if (sel.has(ab)) sel.delete(ab); else sel.add(ab); pintar(); };
+      pintar();
+      return b;
+    });
+    return h('div',
+      h('div.lista-acciones', botones),
+      h('p.pista', 'Desmarca las que no tenga: solo las marcadas entran como columnas Off/On.'),
+      h('div.hoja__acciones',
+        h('button.btn.btn--primario', {
+          type: 'button',
+          onclick: () => {
+            if (!sel.size) { aviso('Marca al menos una bomba', 'error'); return; }
+            cerrar(BOMBAS_VT.filter(([, a]) => sel.has(a)).map(([, a]) => a));
+          }
+        }, 'Agregar tabla'))
+    );
+  });
+}
 
 export async function agregarTabla(servicioId, equipoId) {
   // Primero elegir: tabla nueva o una predeterminada (la base + las guardadas).
@@ -327,16 +354,23 @@ export async function agregarTabla(servicioId, equipoId) {
   ));
   if (!eleccion) return null;
 
-  const datos = eleccion.nueva
-    ? {
+  let datos;
+  if (eleccion.nueva) {
+    datos = {
       titulo: '',
       columnas: [
         { nombre: 'Punto', unidad: '', tipo: 'texto' },
         { nombre: 'Valor', unidad: '', tipo: 'numero' },
       ],
       filas: [['', ''], ['', '']],
-    }
-    : JSON.parse(JSON.stringify(eleccion.tabla));
+    };
+  } else if (eleccion.esVT) {
+    const abrevs = await elegirBombasVT();
+    if (!abrevs) return null;
+    datos = tablaVTDe(abrevs);
+  } else {
+    datos = JSON.parse(JSON.stringify(eleccion.tabla));
+  }
 
   const ev = await db.eventoNuevo(servicioId, equipoId, 'tabla', datos);
   if (eleccion.nueva) {
