@@ -149,9 +149,12 @@ export function vaciar(el) {
   return el;
 }
 
-// Animaciones de la marca (logo y nombre): cada toque sortea una distinta.
-// Reinicia aunque se toque en rafaga.
+// Animaciones de la marca (logo y nombre): cada toque sortea una distinta,
+// con su sonido goofy tambien al azar. Reinicia aunque se toque en rafaga.
 const ANIMS_MARCA = ['marca-animada', 'marca-gira', 'marca-brinca', 'marca-tiembla', 'marca-late', 'marca-voltea'];
+const SONIDOS_MARCA = ['bruh', 'pato', 'corriendo', 'quepaso', 'rudo', 'djstop', 'grito', 'espera', 'dios', 'esponja', 'despegue']
+  .map(n => 'sonidos/' + n + '.mp3');
+let audioMarca = null;
 
 export function animarMarca(...els) {
   const anim = ANIMS_MARCA[Math.floor(Math.random() * ANIMS_MARCA.length)];
@@ -162,6 +165,13 @@ export function animarMarca(...els) {
     el.classList.add(anim);
     el.addEventListener('animationend', () => el.classList.remove(anim), { once: true });
   }
+  // El sonido corta al anterior si tocan en rafaga (viene del cache del SW,
+  // asi que suena tambien sin señal). Si el sistema lo bloquea, silencio.
+  try {
+    if (audioMarca) audioMarca.pause();
+    audioMarca = new Audio(SONIDOS_MARCA[Math.floor(Math.random() * SONIDOS_MARCA.length)]);
+    audioMarca.play().catch(() => {});
+  } catch (e) { /* sin audio */ }
 }
 
 /* ---------------------------------------------------------------- */

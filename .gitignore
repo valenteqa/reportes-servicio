@@ -1,9 +1,1 @@
-# Windows
-Thumbs.db
-desktop.ini
-
-# Editores
-.vscode/
-.idea/
-
-# Nada de datos de servicios aqui: viven solo en el telefono (IndexedDB).
+Goofy sounds/

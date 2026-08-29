@@ -14,7 +14,7 @@
 // Subir VERSION en cada publicacion (junto con APP_VERSION en js/version.js):
 // eso dispara un re-precacheo completo, que es la via mas confiable.
 
-const VERSION = 'v114';
+const VERSION = 'v115';
 const CACHE = 'reportes-' + VERSION;
 
 const CASCARON = [
@@ -45,6 +45,18 @@ const CASCARON = [
   'icons/logo-serpro.png',
   'fonts/orbitron.woff2',
   'fonts/roboto-condensed.woff2',
+  // Sonidos goofy del logo (688KB): tambien sin señal.
+  'sonidos/bruh.mp3',
+  'sonidos/pato.mp3',
+  'sonidos/corriendo.mp3',
+  'sonidos/quepaso.mp3',
+  'sonidos/rudo.mp3',
+  'sonidos/djstop.mp3',
+  'sonidos/grito.mp3',
+  'sonidos/espera.mp3',
+  'sonidos/dios.mp3',
+  'sonidos/esponja.mp3',
+  'sonidos/despegue.mp3',
   // Plantilla del reporte Word (logos, estilos, marca de agua): sin esto
   // el modo plantilla no funciona sin señal.
   'plantilla/app-props.xml',
