@@ -5,7 +5,7 @@
 // horizontal, y guardado automatico (nunca hay que acordarse de un boton Guardar).
 
 import * as db from '../db.js';
-import { h, hoja, aviso, confirmar, campo, hora, fecha, icono, anclarCapa, orientarLibre, orientarHorizontal, orientarNormal } from '../ui.js';
+import { h, hoja, aviso, confirmar, campo, hora, fecha, icono, anclarCapa, bloquearScroll, liberarScroll, orientarLibre, orientarHorizontal, orientarNormal } from '../ui.js';
 
 let guardadoPendiente = null;
 
@@ -79,6 +79,77 @@ async function editarColumna(evento, indice, repintar) {
   }
   await guardarYa(evento);
   repintar();
+}
+
+// Comparar tablas: todas las tablas del trabajo en una sola pantalla,
+// en orden cronologico, cada una con su titulo y su leyenda. Para cotejar
+// mediciones (p. ej. antes vs despues de ajuste) sin brincar entre tarjetas.
+async function compararTablas(servicioId) {
+  const tablas = (await db.eventosDeServicio(servicioId)).filter(e => e.tipo === 'tabla');
+  if (!tablas.length) { aviso('Este trabajo no tiene tablas', 'error'); return; }
+
+  const item = (ev) => {
+    const t = ev.datos || {};
+    const cols = t.columnas || [];
+    const filas = (t.filas || []).filter(f => f.some(c => String(c).trim() !== ''));
+    const sep = (i) => (t.separadores || []).includes(i) ? 'sep-grupo' : '';
+    return h('section.comparar__item',
+      h('h3.comparar__titulo', String(t.titulo || 'Tabla sin titulo').toUpperCase()),
+      t.subtitulo ? h('p.comparar__sub', t.subtitulo) : null,
+      h('p.comparar__meta', hora(ev.ts) + ' · ' + fecha(ev.ts)),
+      h('div.comparar__scroll',
+        h('table.comparar__tabla',
+          h('thead', h('tr', cols.map((c, i) =>
+            h('th', { class: sep(i) }, (c.nombre || '') + (c.unidad ? ' (' + c.unidad + ')' : ''))))),
+          h('tbody', filas.length
+            ? filas.map(f => h('tr', cols.map((c, i) => h('td', { class: sep(i) }, f[i] === undefined ? '' : String(f[i])))))
+            : h('tr', h('td', { colspan: String(cols.length || 1) }, '(sin datos)')))
+        )
+      )
+    );
+  };
+
+  return new Promise((resolve) => {
+    let resuelto = false;
+    let porBack = false;
+    let horizontal = false;
+    const ancla = anclarCapa(() => { porBack = true; cerrar(); });
+
+    async function cerrar() {
+      if (resuelto) return;
+      resuelto = true;
+      capa.remove();
+      liberarScroll();
+      orientarNormal();
+      if (porBack) ancla.desdePop();
+      else await ancla.liberar();
+      resolve();
+    }
+
+    const capa = h('div.comparar',
+      h('div.comparar__barra',
+        h('button.icono-btn', { type: 'button', 'aria-label': 'Cerrar', onclick: cerrar }, '✕'),
+        h('span.comparar__cabeza', 'COMPARAR TABLAS'),
+        h('span.comparar__conteo', tablas.length + ' tabla(s)'),
+        h('span.crece'),
+        h('button.icono-btn', {
+          type: 'button', 'aria-label': 'Girar pantalla',
+          onclick: async () => {
+            const ok = horizontal ? await orientarLibre() : await orientarHorizontal();
+            if (!ok) { aviso('Este dispositivo no deja girar la pantalla desde la app', 'error'); return; }
+            horizontal = !horizontal;
+          }
+        }, icono('girar'))
+      ),
+      h('div.comparar__lista',
+        h('p.pista', 'Desliza hacia abajo para recorrerlas y a los lados dentro de cada tabla.'),
+        tablas.map(item))
+    );
+
+    document.body.appendChild(capa);
+    bloquearScroll();
+    orientarLibre();
+  });
 }
 
 export async function render(contenedor, refrescar, params) {
@@ -173,6 +244,10 @@ export async function render(contenedor, refrescar, params) {
     h('div.cabecera__meta',
       h('span', hora(evento.ts) + ' · ' + fecha(evento.ts)),
       h('span.crece'),
+      soloVer ? h('button.enlace', {
+        type: 'button',
+        onclick: () => compararTablas(evento.servicioId),
+      }, '⇄  Comparar tablas') : null,
       soloVer ? null : h('button.enlace', {
         type: 'button',
         onclick: async () => {

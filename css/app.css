@@ -1509,6 +1509,41 @@ p.titulo-tabla--ver {
 .pw__figura img { display: block; margin: 0 auto; object-fit: contain; background: #fff; }
 .pw__figura figcaption { font-size: 12px; color: #595959; font-style: italic; margin-top: 3px; }
 
+/* Comparar tablas: todas las tablas del trabajo, una tras otra. */
+.comparar {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; flex-direction: column;
+  background: var(--fondo);
+}
+.comparar__barra {
+  display: flex; align-items: center; gap: .5rem;
+  padding: calc(var(--sup) + .45rem) .6rem .45rem;
+  background: var(--superficie); border-bottom: 1px solid var(--borde-fuerte);
+  flex: 0 0 auto;
+}
+.comparar__cabeza { font-weight: 750; letter-spacing: .06em; font-size: .85rem; }
+.comparar__conteo { font-size: .78rem; color: var(--tinta-suave); }
+.comparar__lista { flex: 1; overflow-y: auto; padding: .7rem .75rem 2.2rem; -webkit-overflow-scrolling: touch; }
+.comparar__item { margin-bottom: 1.4rem; }
+.comparar__titulo { font-weight: 750; text-transform: uppercase; margin: 0 0 .1rem; font-size: 1rem; }
+.comparar__sub { margin: 0 0 .1rem; color: var(--tinta-suave); font-weight: 650; }
+.comparar__meta { margin: 0 0 .4rem; font-size: .74rem; color: var(--tinta-tenue); font-variant-numeric: tabular-nums; }
+.comparar__scroll {
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--borde-fuerte); background: var(--superficie);
+}
+.comparar__tabla { border-collapse: collapse; min-width: 100%; }
+.comparar__tabla th, .comparar__tabla td {
+  border: 1px solid var(--borde); padding: .4rem .55rem;
+  text-align: left; white-space: nowrap; font-size: .9rem;
+}
+.comparar__tabla th {
+  background: var(--superficie-2); font-weight: 750;
+  font-size: .74rem; text-transform: uppercase; letter-spacing: .04em;
+}
+.comparar__tabla td { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.comparar__tabla th.sep-grupo, .comparar__tabla td.sep-grupo { border-left: 3px solid var(--borde-fuerte); }
+
 /* Velo de ocupado: siempre oscuro, encima de cualquier capa (menos avisos) */
 .velo {
   position: fixed; inset: 0; z-index: 85;
