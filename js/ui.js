@@ -378,9 +378,9 @@ function ejecutarMarca(anim, els, iSonido) {
       if (!esVibra) {
         el.addEventListener('animationend', () => {
           el.classList.remove(anim);
-          // Tras el disparo (o tragado por el iris) ya no regresa: queda
-          // ido hasta reentrar aqui.
-          if (esVuela || esIris) el.classList.add('marca-ida');
+          // Tras el disparo ya no regresa: queda ido hasta reentrar aqui.
+          // (El iris NO deja ido al logo: el circulo reabre y ahi esta.)
+          if (esVuela) el.classList.add('marca-ida');
         }, { once: true });
       }
     }

@@ -535,7 +535,7 @@ button { font-family: inherit; font-size: inherit; }
    El "hoyo" es un div fijo centrado en el logo cuya sombra de 300vmax pinta
    de negro todo lo demas; animando su tamano, el circulo se cierra durante
    el boing (1.35s), sostiene el negro y reabre. El logo se despide con un
-   meneo mientras lo tragan y queda IDO (como tras el vuelo). */
+   meneo mientras lo tragan, y al reabrir el circulo AHI ESTA de nuevo. */
 .iris-hoyo {
   position: fixed; z-index: 71; pointer-events: none;
   transform: translate(-50%, -50%);
