@@ -165,11 +165,11 @@ const PAREJA_SONIDO = {
   'marca-pato': 'pato',
   'marca-desmayo': 'dios',
 };
-const SONIDOS_MARCA = ['pato', 'corriendo', 'quepaso', 'rudo', 'djstop', 'grito', 'dios']
+const SONIDOS_MARCA = ['pato', 'corriendo', 'quepaso', 'rudo', 'djstop', 'grito', 'dios', 'golpe']
   .map(n => 'sonidos/' + n + '.mp3');
 let audioMarca = null;
 let corteMarca = null;
-let patoMarca = null;   // chillido del pato agendado para el rebote de la caida
+let golpeMarca = null;  // punetazo agendado para el impacto de la caida
 
 // Capa "rudo": lentes de sol y cigarro montados ENCIMA del logo mientras
 // suena el riff; se retira cuando el sonido termina (o el corte).
@@ -201,7 +201,7 @@ const MARCAS_PROBADOR = [
   ['marca-gira', 'Giro doble (dj stop)'],
   ['marca-vuela', 'Vuelo (disparado)'],
   ['marca-vibra', 'What the hell (crece, mini y vibra)'],
-  ['marca-cae', 'Caida (grito y pato)'],
+  ['marca-cae', 'Caida (grito y golpe)'],
   ['marca-rudo', 'Rudo (lentes y cigarro)'],
   ['marca-pato', 'Patito de hule (pato)'],
   ['marca-desmayo', 'Desmayo (dios)'],
@@ -209,7 +209,7 @@ const MARCAS_PROBADOR = [
 
 // Nombres de los sonidos, en el MISMO orden que SONIDOS_MARCA.
 const SONIDOS_NOMBRES = ['Pato', 'Corriendo (pasos + disparo)', 'What the hell',
-  'Rudo', 'DJ stop', 'Grito', 'Dios'];
+  'Rudo', 'DJ stop', 'Grito', 'Dios', 'Golpe (caida)'];
 
 // Ensayo del logo: pantalla dedicada con fondo blanco. Tocar una ANIMACION
 // la corre sola (en silencio) y la deja elegida; tocar un SONIDO lo hace
@@ -225,7 +225,7 @@ export function ensayoDeMarca() {
       resuelto = true;
       try { if (audioMarca) audioMarca.pause(); } catch (e) { /* sin audio */ }
       clearTimeout(corteMarca);
-      clearTimeout(patoMarca);
+      clearTimeout(golpeMarca);
       quitarRudo();
       pantalla.remove();
       if (porBack) ancla.desdePop();
@@ -316,9 +316,9 @@ function ejecutarMarca(anim, els, iSonido) {
   try {
     if (audioMarca) audioMarca.pause();
     clearTimeout(corteMarca);
-    clearTimeout(patoMarca);
+    clearTimeout(golpeMarca);
     const pozo = pozoDeSonidos();
-    const iPato = SONIDOS_MARCA.findIndex(s => s.includes('pato'));
+    const iGolpe = SONIDOS_MARCA.findIndex(s => s.includes('golpe'));
     let i;
     if (iSonido != null) i = iSonido;
     else {
@@ -332,19 +332,18 @@ function ejecutarMarca(anim, els, iSonido) {
     audioMarca.play().catch(() => {});
     if (esVibra) audioMarca.addEventListener('ended', quitarVibra, { once: true });
     if (esRudo) audioMarca.addEventListener('ended', quitarRudo, { once: true });
-    // Caida con su grito: el PATO se dispara 200ms antes del primer impacto
-    // (2.10s de la coreografia) porque su primer chillido vive en 0.20-0.44s
-    // del archivo; asi chilla EXACTO al rebote, y el segundo chillido
-    // (0.48-0.60s) cae solo en el segundo rebote.
+    // Caida con su grito: el GOLPE de caricatura se dispara a los 1680ms
+    // para que su PICO (vive en 0.42s del archivo, medido en la onda)
+    // truene EXACTO en el primer impacto de la coreografia (2.10s).
     if (esCae && SONIDOS_MARCA[i].includes('grito')) {
-      patoMarca = setTimeout(() => {
+      golpeMarca = setTimeout(() => {
         try {
           if (audioMarca) audioMarca.pause();
-          audioMarca = pozo[iPato];
+          audioMarca = pozo[iGolpe];
           audioMarca.currentTime = 0;
           audioMarca.play().catch(() => {});
         } catch (e) { /* sin audio */ }
-      }, 1900);
+      }, 1680);
     }
     // "What the hell" corta EXACTO al terminar el OH MY GOD (el "god" muere
     // en 4.88s medido en la onda; 4.9s deja la palabra completa y fuera las

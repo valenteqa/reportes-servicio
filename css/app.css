@@ -400,11 +400,11 @@ button { font-family: inherit; font-size: inherit; }
              marcaVibra .12s linear 1.2s infinite;
 }
 
-/* Caida con grito y pato, medida en las ondas: el grito arranca en 0.24s
+/* Caida con grito y golpe, medida en las ondas: el grito arranca en 0.24s
    y el logo se despena acelerando hasta salir por ABAJO (~0.9s); pausa en
    silencio, y reentra cayendo desde ARRIBA para impactar en 2.10s, donde
-   chilla el pato (se dispara 200ms antes: su primer chillido vive en
-   0.20-0.44s del archivo) y rebota dos veces. Total 2.7s. */
+   truena el punetazo de caricatura (disparado en 1680ms: su pico vive en
+   0.42s del archivo) y rebota dos veces. Total 2.7s. */
 @keyframes marcaCae {
   0%   { transform: translateY(0) rotate(0); }
   8%   { transform: translateY(3vh) rotate(2deg); }
@@ -417,7 +417,7 @@ button { font-family: inherit; font-size: inherit; }
   59%  { transform: translateY(-120vh); }               /* espera en silencio */
   66%  { transform: translateY(-72vh); }
   72%  { transform: translateY(-30vh); }
-  78%  { transform: translateY(0); }                    /* PRIMER IMPACTO: pato */
+  78%  { transform: translateY(0); }                    /* PRIMER IMPACTO: golpe */
   83%  { transform: translateY(-9vh); }
   88%  { transform: translateY(0); }                    /* segundo impacto */
   91%  { transform: translateY(-3.5vh); }
