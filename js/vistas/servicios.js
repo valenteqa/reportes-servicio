@@ -72,6 +72,12 @@ async function historialServicios() {
   return db.maquinasCatalogo();
 }
 
+// Clientes conocidos de TODA la app (catalogo global). Exportado para que
+// otras pantallas (p. ej. Ventas) usen EL MISMO selector: consistencia.
+export async function clientesConocidos() {
+  return distintosDe(await historialServicios(), 'cliente', {});
+}
+
 // Valores distintos de un campo, filtrados por lo ya elegido, en orden a-z.
 function distintosDe(historial, campoDe, filtro) {
   const vistos = new Map();

@@ -9,9 +9,10 @@
 // Permisos: crear oportunidades = lider de Ventas (Usuario2) o admin;
 // registrar acciones = cualquiera del depto Ventas (o admin); ver = todos.
 
-import { h, aviso, vaciar, confirmar, hoja, campo, campoLista } from '../ui.js';
+import { h, aviso, vaciar, confirmar, hoja, campo } from '../ui.js';
 import * as db from '../db.js';
 import { quienSoy, puedeCrearVentas, puedeAccionarVentas, fechaSimulada } from '../organizacion.js';
+import { clientesConocidos } from './servicios.js';
 
 const PRIORIDADES = [
   ['alta',  'ALTA'],
@@ -36,18 +37,20 @@ function fechaBonita(clave) {
   return d.getDate() + ' ' + MESES[d.getMonth()] + ' ' + d.getFullYear();
 }
 
-// La base de clientes es GLOBAL: los del catalogo de maquinas (modulo
-// Tecnico) + los ya usados en ventas. Y al crear una oportunidad con un
-// cliente nuevo, este se recuerda en el catalogo para toda la app.
+// La base de clientes es GLOBAL: los conocidos por toda la app (mismo
+// catalogo que el asistente de Servicio) + los ya usados en ventas. Y al
+// crear con un cliente nuevo, este se recuerda en el catalogo global.
 async function clientesGlobales() {
-  const set = new Set();
+  const vistos = new Map();
   try {
-    for (const m of await db.maquinasCatalogo()) if (m.cliente) set.add(m.cliente);
+    for (const c of await clientesConocidos()) vistos.set(c.toLowerCase(), c);
   } catch (e) { /* sin catalogo */ }
   try {
-    for (const v of await db.ventasTodas()) if (v.cliente) set.add(v.cliente);
+    for (const v of await db.ventasTodas()) {
+      if (v.cliente && !vistos.has(v.cliente.toLowerCase())) vistos.set(v.cliente.toLowerCase(), v.cliente);
+    }
   } catch (e) { /* sin ventas */ }
-  return [...set].sort((a, b) => a.localeCompare(b));
+  return [...vistos.values()].sort((a, b) => a.localeCompare(b, 'es'));
 }
 
 function calificacion(v) {
@@ -79,32 +82,99 @@ async function registrarAtrasos(ventas) {
 /* Formularios                                                       */
 /* ---------------------------------------------------------------- */
 
-function hojaNuevaOportunidad() {
+// Asistente de 2 pasos, CALCADO del asistente de Servicio (consistencia):
+// paso 1 el cliente en cuadricula de botones con "＋ Agregar cliente";
+// paso 2 los datos de la oportunidad, con la miga del cliente elegido.
+function hojaNuevaOportunidad(clientes) {
   return hoja('💼  Nueva oportunidad', (cerrar) => {
-    const cCliente = campoLista('Cliente', { maxLength: 80, placeholder: 'Escribe o elige…' },
-      { opciones: clientesGlobales });
-    const cTitulo = campo('Oportunidad', { maxLength: 160, placeholder: 'p. ej. Refacciones para H400' });
-    const selPrio = h('select.org-select', ...PRIORIDADES.map(([v, n]) => h('option', { value: v }, n)));
-    const cFecha = campo('Proximo seguimiento', { type: 'date', value: fechaClave() });
-    return h('div',
-      cCliente, cTitulo,
-      h('label.campo', h('span.campo__etiqueta', 'Prioridad'), selPrio),
-      cFecha,
-      h('div.hoja__acciones',
-        h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
-        h('button.btn.btn--primario', {
-          type: 'button',
-          onclick: () => {
-            const cliente = cCliente.querySelector('input').value.trim();
-            const titulo = cTitulo.querySelector('input').value.trim();
-            if (!cliente || !titulo) { aviso('Falta el cliente o la oportunidad.', 'error'); return; }
-            cerrar({
-              cliente, titulo,
-              prioridad: selPrio.value,
-              fechaSeguimiento: cFecha.querySelector('input').value || '',
-            });
-          },
-        }, 'Crear')));
+    const sel = { cliente: '' };
+    let i = 0;
+    const TOTAL = 2;
+    const cont = h('div.asistente');
+    const poner = (...nodos) => cont.replaceChildren(...nodos.filter(Boolean));
+
+    const cabeza = (titulo) => h('div.asistente__cab',
+      h('div.asistente__fila',
+        i > 0 ? h('button.icono-btn', { type: 'button', 'aria-label': 'Paso anterior',
+          onclick: () => { i = 0; pintarPaso(); } }, '←') : null,
+        h('div.crece',
+          h('p.asistente__paso', 'PASO ' + (i + 1) + ' / ' + TOTAL),
+          h('h3.asistente__titulo', titulo)
+        )
+      ),
+      i > 0 && sel.cliente ? h('p.asistente__miga', sel.cliente) : null
+    );
+
+    function pintarEntradaCliente() {
+      const entrada = h('input.campo__entrada', { type: 'text', placeholder: 'Cliente' });
+      poner(
+        cabeza('Cliente'),
+        entrada,
+        h('div.hoja__acciones',
+          clientes.length
+            ? h('button.btn.btn--fantasma', { type: 'button', onclick: () => pintarPaso() }, 'Ver opciones')
+            : h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+          h('button.btn.btn--primario', {
+            type: 'button',
+            onclick: () => {
+              const v = entrada.value.trim();
+              if (!v) return;
+              sel.cliente = v;
+              i = 1;
+              pintarPaso();
+            }
+          }, 'Continuar')
+        )
+      );
+      setTimeout(() => entrada.focus(), 80);
+    }
+
+    function pintarPaso() {
+      if (i === 0) {
+        // Sin nada guardado no hay cuadricula que mostrar: directo a escribir.
+        if (!clientes.length) return pintarEntradaCliente();
+        poner(
+          cabeza('Cliente'),
+          h('button.asistente__nuevo', { type: 'button', onclick: () => pintarEntradaCliente() },
+            '＋  Agregar cliente'),
+          h('div.asistente__rejilla',
+            clientes.map(o => h('button.asistente__op', {
+              type: 'button',
+              onclick: () => { sel.cliente = o; i = 1; pintarPaso(); }
+            }, o))),
+          h('div.hoja__acciones',
+            h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'))
+        );
+        return;
+      }
+      const cTitulo = campo('Oportunidad', { maxLength: 160, placeholder: 'p. ej. Refacciones para H400' });
+      const selPrio = h('select.org-select', ...PRIORIDADES.map(([v, n]) => h('option', { value: v }, n)));
+      const cFecha = campo('Proximo seguimiento', { type: 'date', value: fechaClave() });
+      poner(
+        cabeza('La oportunidad'),
+        cTitulo,
+        h('label.campo', h('span.campo__etiqueta', 'Prioridad'), selPrio),
+        cFecha,
+        h('div.hoja__acciones',
+          h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+          h('button.btn.btn--primario', {
+            type: 'button',
+            onclick: () => {
+              const titulo = cTitulo.querySelector('input').value.trim();
+              if (!titulo) { aviso('Describe la oportunidad.', 'error'); return; }
+              cerrar({
+                cliente: sel.cliente, titulo,
+                prioridad: selPrio.value,
+                fechaSeguimiento: cFecha.querySelector('input').value || '',
+              });
+            },
+          }, 'Crear'))
+      );
+      setTimeout(() => { const e = cTitulo.querySelector('input'); if (e) e.focus(); }, 80);
+    }
+
+    pintarPaso();
+    return cont;
   });
 }
 
@@ -214,7 +284,7 @@ export async function render(contenedor) {
       permisos.crear ? h('button.btn.btn--primario', {
         type: 'button',
         onclick: async () => {
-          const datos = await hojaNuevaOportunidad();
+          const datos = await hojaNuevaOportunidad(await clientesGlobales());
           if (!datos) return;
           const v = {
             id: db.nuevoId(), ...datos, cerrada: false, creado: db.marcaDeTiempo(),
