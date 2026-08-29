@@ -151,11 +151,12 @@ export function vaciar(el) {
 
 // Animaciones de la marca (logo y nombre): cada toque sortea una distinta,
 // con su sonido goofy tambien al azar. Reinicia aunque se toque en rafaga.
-const ANIMS_MARCA = ['marca-animada', 'marca-gira', 'marca-brinca', 'marca-tiembla', 'marca-late', 'marca-voltea', 'marca-vuela', 'marca-vibra'];
+const ANIMS_MARCA = ['marca-animada', 'marca-gira', 'marca-brinca', 'marca-tiembla', 'marca-late', 'marca-voltea', 'marca-vuela', 'marca-vibra', 'marca-cae'];
 const SONIDOS_MARCA = ['bruh', 'pato', 'corriendo', 'quepaso', 'rudo', 'djstop', 'grito', 'dios', 'esponja']
   .map(n => 'sonidos/' + n + '.mp3');
 let audioMarca = null;
 let corteMarca = null;
+let patoMarca = null;   // chillido del pato agendado para el rebote de la caida
 
 // POZO precargado: crear el Audio en el toque tardaba tanto (buscar el mp3
 // y decodificarlo) que el sonido llegaba cuando la animacion ya acababa.
@@ -185,6 +186,7 @@ const MARCAS_PROBADOR = [
   ['marca-voltea', 'Voltereta 3D'],
   ['marca-vuela', 'Vuelo (disparado)'],
   ['marca-vibra', 'What the hell (crece, mini y vibra)'],
+  ['marca-cae', 'Caida (grito y pato)'],
 ];
 
 // Nombres de los sonidos, en el MISMO orden que SONIDOS_MARCA.
@@ -205,6 +207,7 @@ export function ensayoDeMarca() {
       resuelto = true;
       try { if (audioMarca) audioMarca.pause(); } catch (e) { /* sin audio */ }
       clearTimeout(corteMarca);
+      clearTimeout(patoMarca);
       pantalla.remove();
       if (porBack) ancla.desdePop();
       else await ancla.liberar();
@@ -273,11 +276,13 @@ export function animarMarca(...els) {
 function ejecutarMarca(anim, els, iSonido) {
   const esVuela = anim === 'marca-vuela';
   const esVibra = anim === 'marca-vibra';
+  const esCae = anim === 'marca-cae';
 
-  // En el vuelo el logo rebota por TODA la pantalla: sin barras de desborde.
-  if (esVuela) {
+  // En el vuelo y la caida el logo sale de la pantalla: sin barras de
+  // desborde mientras dura.
+  if (esVuela || esCae) {
     document.documentElement.classList.add('sin-desborde-vuelo');
-    setTimeout(() => document.documentElement.classList.remove('sin-desborde-vuelo'), 1600);
+    setTimeout(() => document.documentElement.classList.remove('sin-desborde-vuelo'), esCae ? 2900 : 1600);
   }
 
   const quitarVibra = () => els.forEach(el => el && el.classList.remove('marca-vibra'));
@@ -290,21 +295,39 @@ function ejecutarMarca(anim, els, iSonido) {
   try {
     if (audioMarca) audioMarca.pause();
     clearTimeout(corteMarca);
+    clearTimeout(patoMarca);
     const pozo = pozoDeSonidos();
     const iCorriendo = SONIDOS_MARCA.findIndex(s => s.includes('corriendo'));
     const iQuepaso = SONIDOS_MARCA.findIndex(s => s.includes('quepaso'));
+    const iGrito = SONIDOS_MARCA.findIndex(s => s.includes('grito'));
+    const iPato = SONIDOS_MARCA.findIndex(s => s.includes('pato'));
     let i;
     if (iSonido != null) i = iSonido;
     else if (esVuela) i = iCorriendo;
     else if (esVibra) i = iQuepaso;
+    else if (esCae) i = iGrito;
     else {
-      do { i = Math.floor(Math.random() * pozo.length); } while (i === iCorriendo || i === iQuepaso);
+      do { i = Math.floor(Math.random() * pozo.length); } while (i === iCorriendo || i === iQuepaso || i === iGrito);
     }
     if (SONIDOS_MARCA[i].includes('djstop')) retrasoAnim = 500;
     audioMarca = pozo[i];
     audioMarca.currentTime = 0;
     audioMarca.play().catch(() => {});
     if (esVibra) audioMarca.addEventListener('ended', quitarVibra, { once: true });
+    // Caida con su grito: el PATO se dispara 200ms antes del primer impacto
+    // (2.10s de la coreografia) porque su primer chillido vive en 0.20-0.44s
+    // del archivo; asi chilla EXACTO al rebote, y el segundo chillido
+    // (0.48-0.60s) cae solo en el segundo rebote.
+    if (esCae && SONIDOS_MARCA[i].includes('grito')) {
+      patoMarca = setTimeout(() => {
+        try {
+          if (audioMarca) audioMarca.pause();
+          audioMarca = pozo[iPato];
+          audioMarca.currentTime = 0;
+          audioMarca.play().catch(() => {});
+        } catch (e) { /* sin audio */ }
+      }, 1900);
+    }
     // "What the hell" suena COMPLETO (dura 7.7s y la vibracion lo acompana);
     // los demas se cortan a los 4s.
     const tope = SONIDOS_MARCA[i].includes('quepaso') ? 8000 : 4000;
