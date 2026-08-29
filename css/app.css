@@ -742,6 +742,11 @@ button { font-family: inherit; font-size: inherit; }
 .venta-evento__fecha { flex: none; color: var(--tinta-tenue); font-variant-numeric: tabular-nums; }
 .venta-evento--atraso .venta-evento__texto { color: var(--peligro, #c22a29); font-weight: 600; }
 .venta-btn { width: 100%; margin-top: .7rem; }
+.venta-btn-mini { width: 100%; margin-top: .5rem; font-size: .8rem; padding: .45rem; }
+.venta-contacto { display: flex; align-items: center; gap: .35rem; margin-top: .25rem; }
+.venta-contacto__editar { width: 1.7rem; height: 1.7rem; font-size: .85rem; }
+.venta-nota { display: flex; gap: .6rem; padding: .4rem 0; border-bottom: 1px dashed var(--borde); font-size: .88rem; }
+.venta-nota__texto { white-space: pre-wrap; overflow-wrap: break-word; min-width: 0; }
 
 /* Barra superior del Test Mode: fija arriba; toda la interfaz baja para
    dejarle su espacio (via la variable --sup, que ya usan las cabeceras). */
