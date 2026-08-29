@@ -1455,6 +1455,15 @@ p.titulo-tabla--ver {
   position: absolute; left: 50%; top: 50%; width: 612px; height: 612px;
   transform: translate(-50%, -50%); opacity: .08; pointer-events: none;
 }
+/* Marca de agua de cortesia: esto es la vista previa, no el documento. */
+.pw__previa-marca {
+  position: absolute; left: 50%; top: 50%; width: 900px;
+  transform: translate(-50%, -50%) rotate(-28deg);
+  text-align: center; pointer-events: none;
+  opacity: .13; color: #3a3a3a;
+}
+.pw__previa-marca strong { display: block; font-size: 64px; font-weight: 800; letter-spacing: .08em; }
+.pw__previa-marca span { display: block; font-size: 21px; margin-top: 4px; }
 .pw__enc { position: absolute; top: 47px; left: 0; right: 0; }
 .pw__encfila { display: flex; align-items: flex-end; gap: 10px; padding: 0 113px 4px; }
 .pw__logo { width: 236px; height: 99px; object-fit: contain; object-position: left bottom; }
