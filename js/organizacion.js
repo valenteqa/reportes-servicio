@@ -9,7 +9,7 @@
 // Regla de Vale: un usuario normal NO puede modificar ni eliminar
 // actividades — ni las suyas —; eso lo aprueba y lo hace su lider.
 
-import { ajusteLeer, ajusteGuardar, nuevoId } from './db.js';
+import { ajusteLeer, ajusteGuardar, nuevoId, activarSandbox } from './db.js';
 
 export const DEPTOS = ['Administracion', 'Electronica', 'Hidraulica', 'Ventas'];
 
@@ -63,7 +63,7 @@ export function organizacionGuardar(org) {
 // simulada manda mientras este activa.
 export async function quienSoy() {
   const org = await organizacion();
-  const comoId = await ajusteLeer('test:como');
+  const comoId = _testActivo ? await ajusteLeer('test:como') : '';
   const yoId = comoId || await ajusteLeer('diario:yo');
   return org.usuarios.find(u => u.id === yoId) || null;
 }
@@ -139,21 +139,38 @@ export function claveDeManana() {
 }
 
 /* ---------------------------------------------------------------- */
-/* Modo prueba (solo tras la clave de admin en ⚙)                    */
+/* Test Mode (solo el admin, desde ⚙)                                */
 /* ---------------------------------------------------------------- */
 
-// Fecha simulada: Diario y Ventas viven en esa fecha (atrasos, candados,
-// semanas). La clave de ⚙ sigue siendo la del dia REAL, para no dejar al
-// admin fuera. El cache es sincrono porque fechaClave() se llama por todas
-// partes sin await; se carga al arrancar la app.
+// La SESION de test es un SANDBOX: mientras este activa, Diario y Ventas
+// usan almacenes gemelos (los datos reales no se tocan), la app vive en
+// la fecha simulada y puede verse como otro usuario. Al salir, todo lo
+// real regresa y la sesion queda GUARDADA para reanudarla despues.
+// La clave de ⚙ sigue siendo la del dia REAL (no encierra al admin).
+// Caches sincronos: fechaClave()/quienSoy gating se consultan sin await.
+let _testActivo = false;
 let _fechaSimulada = null;
 
+export function testActivo() {
+  return _testActivo;
+}
+
 export function fechaSimulada() {
-  return _fechaSimulada;
+  return _testActivo ? _fechaSimulada : null;
 }
 
 export async function cargarModoPrueba() {
+  _testActivo = !!(await ajusteLeer('test:activo'));
   _fechaSimulada = (await ajusteLeer('test:fecha')) || null;
+  activarSandbox(_testActivo);
+}
+
+export async function activarTest(activo) {
+  _testActivo = !!activo;
+  activarSandbox(_testActivo);
+  // Al salir NO se borran fecha/usuario/datos del sandbox: la sesion se
+  // reanuda tal cual al volver a entrar.
+  await ajusteGuardar('test:activo', _testActivo ? 1 : '');
 }
 
 export async function simularFecha(fecha) {
@@ -172,5 +189,5 @@ export async function estadoPrueba() {
     const org = await organizacion();
     comoNombre = (org.usuarios.find(u => u.id === comoId) || {}).nombre || '';
   }
-  return { fecha: _fechaSimulada || '', comoId, comoNombre };
+  return { activo: _testActivo, fecha: _fechaSimulada || '', comoId, comoNombre };
 }

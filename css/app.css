@@ -743,15 +743,28 @@ button { font-family: inherit; font-size: inherit; }
 .venta-evento--atraso .venta-evento__texto { color: var(--peligro, #c22a29); font-weight: 600; }
 .venta-btn { width: 100%; margin-top: .7rem; }
 
-/* Gafete del modo prueba: siempre visible mientras este activo. */
-.gafete-prueba {
-  position: fixed; left: 50%; bottom: .7rem; transform: translateX(-50%);
-  z-index: 56; pointer-events: none;
-  max-width: 92vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  padding: .3rem .8rem; border-radius: 999px;
+/* Barra superior del Test Mode: fija arriba; toda la interfaz baja para
+   dejarle su espacio (via la variable --sup, que ya usan las cabeceras). */
+html.modo-test { --sup: calc(env(safe-area-inset-top, 0px) + 2.6rem); }
+.barra-test {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 58;
+  height: calc(env(safe-area-inset-top, 0px) + 2.6rem);
+  padding: calc(env(safe-area-inset-top, 0px) + .35rem) .5rem .35rem;
+  display: flex; align-items: center; gap: .45rem;
   background: #b8860b; color: #fff;
-  font-size: .78rem; font-weight: 700; letter-spacing: .03em;
   box-shadow: var(--sombra-2);
+}
+.barra-test__tag { font-size: .72rem; font-weight: 800; letter-spacing: .05em; flex: none; }
+.barra-test__campo {
+  flex: 1; min-width: 0; height: 1.9rem;
+  padding: 0 .4rem; border: 0; border-radius: var(--r-ch);
+  background: #fff; color: #222; font: inherit; font-size: .8rem;
+}
+.barra-test__salir {
+  flex: none; height: 1.9rem; padding: 0 .6rem;
+  border: 2px solid #fff5; border-radius: var(--r-ch);
+  background: #00000022; color: #fff;
+  font: inherit; font-size: .74rem; font-weight: 800; letter-spacing: .04em;
 }
 
 .rudo-humo {

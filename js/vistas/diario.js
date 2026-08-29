@@ -158,6 +158,8 @@ function mostrarCandado(dias, alTerminar) {
 
 // Se instala al arrancar la app: revisa al momento y cada vez que la app
 // vuelve a verse (el dia puede cambiar con la app abierta de fondo).
+let _revisarCandado = null;
+
 export function instalarCandado(alTerminar) {
   const revisar = async () => {
     if (capaCandado) return;
@@ -166,10 +168,16 @@ export function instalarCandado(alTerminar) {
       if (pendientes.length) mostrarCandado(pendientes, alTerminar);
     } catch (e) { /* sin datos aun */ }
   };
+  _revisarCandado = revisar;
   revisar();
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') revisar();
   });
+}
+
+// Para el Test Mode: al brincar de fecha, el candado se revisa AL MOMENTO.
+export function revisarCandado() {
+  if (_revisarCandado) _revisarCandado();
 }
 
 /* ---------------------------------------------------------------- */

@@ -2,7 +2,7 @@
 // Todo vive en el telefono. Nada se sube a ningun servidor.
 
 const DB_NOMBRE  = 'app-reportes';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 export const GENERAL = '__general__';
 
@@ -97,6 +97,15 @@ export function abrir() {
       // su historial de estatus/atrasos.
       if (!db.objectStoreNames.contains('ventas')) {
         db.createObjectStore('ventas', { keyPath: 'id' });
+      }
+
+      // SANDBOX del Test Mode: almacenes gemelos donde vive la sesion de
+      // prueba; los datos reales no se tocan y la sesion se reanuda.
+      if (!db.objectStoreNames.contains('diarioTest')) {
+        db.createObjectStore('diarioTest', { keyPath: 'fecha' });
+      }
+      if (!db.objectStoreNames.contains('ventasTest')) {
+        db.createObjectStore('ventasTest', { keyPath: 'id' });
       }
     };
 
@@ -530,31 +539,38 @@ export function restaurarVolcado(volcado, fotos) {
 }
 
 /* ---------------------------------------------------------------- */
-/* Diario de actividades                                             */
+/* Diario de actividades y oportunidades de venta                    */
+/* (con SANDBOX: en Test Mode leen/escriben los almacenes gemelos)   */
 /* ---------------------------------------------------------------- */
 
+let sandboxTest = false;
+export function activarSandbox(activo) { sandboxTest = !!activo; }
+const stDiario = () => (sandboxTest ? 'diarioTest' : 'diario');
+const stVentas = () => (sandboxTest ? 'ventasTest' : 'ventas');
+
 export function diaLeer(fecha) {
-  return tx('diario', 'readonly', st => pedir(st.diario.get(fecha)));
+  const s = stDiario();
+  return tx(s, 'readonly', st => pedir(st[s].get(fecha)));
 }
 
 export function diaGuardar(dia) {
-  return tx('diario', 'readwrite', st => { st.diario.put(dia); });
+  const s = stDiario();
+  return tx(s, 'readwrite', st => { st[s].put(dia); });
 }
 
 export function diasTodos() {
-  return tx('diario', 'readonly', st => pedir(st.diario.getAll()));
+  const s = stDiario();
+  return tx(s, 'readonly', st => pedir(st[s].getAll()));
 }
 
-/* ---------------------------------------------------------------- */
-/* Oportunidades de venta                                            */
-/* ---------------------------------------------------------------- */
-
 export function ventaGuardar(venta) {
-  return tx('ventas', 'readwrite', st => { st.ventas.put(venta); });
+  const s = stVentas();
+  return tx(s, 'readwrite', st => { st[s].put(venta); });
 }
 
 export function ventasTodas() {
-  return tx('ventas', 'readonly', st => pedir(st.ventas.getAll()));
+  const s = stVentas();
+  return tx(s, 'readonly', st => pedir(st[s].getAll()));
 }
 
 /* ---------------------------------------------------------------- */

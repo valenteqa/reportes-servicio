@@ -7,7 +7,7 @@
 //   #/s/<sid>               arbol del trabajo (actividades y sus registros)
 //   #/s/<sid>/t/<eventoId>  editor de tabla
 
-import { h, aviso, vaciar } from './ui.js';
+import { h, aviso, vaciar, confirmar } from './ui.js';
 import * as media from './media.js';
 import { temaActual, aplicarTema } from './tema.js';
 import * as vistaMenu      from './vistas/menu.js';
@@ -16,7 +16,7 @@ import * as vistaServicio  from './vistas/servicio.js';
 import * as vistaTabla     from './vistas/tabla.js';
 import * as vistaDiario    from './vistas/diario.js';
 import * as vistaVentas    from './vistas/ventas.js';
-import { cargarModoPrueba, estadoPrueba } from './organizacion.js';
+import { cargarModoPrueba, estadoPrueba, organizacion, simularFecha, verComo, activarTest } from './organizacion.js';
 
 const raiz = document.getElementById('app');
 let pintando = false;
@@ -74,25 +74,57 @@ async function pintar() {
     );
   } finally {
     pintando = false;
-    pintarGafetePrueba();
+    pintarBarraTest();
   }
 }
 
-// Gafete ambar fijo mientras el MODO PRUEBA este activo (fecha simulada
-// y/o viendo la app como otro usuario), para que no se quede encendido
-// por accidente.
-async function pintarGafetePrueba() {
+// Barra superior del TEST MODE: mientras la sesion sandbox este activa,
+// desde aqui se cambian AL MOMENTO el usuario con el que se ve la app y
+// la fecha simulada, y se sale de la sesion (que queda guardada).
+async function pintarBarraTest() {
   try {
     const est = await estadoPrueba();
-    let gafete = document.querySelector('.gafete-prueba');
-    if (!est.fecha && !est.comoId) { if (gafete) gafete.remove(); return; }
-    if (!gafete) {
-      gafete = h('div.gafete-prueba');
-      document.body.appendChild(gafete);
+    document.documentElement.classList.toggle('modo-test', est.activo);
+    let barra = document.querySelector('.barra-test');
+    if (!est.activo) { if (barra) barra.remove(); return; }
+    if (!barra) {
+      barra = h('div.barra-test');
+      document.body.appendChild(barra);
     }
-    gafete.textContent = '🧪 PRUEBA' +
-      (est.fecha ? ' · fecha: ' + est.fecha : '') +
-      (est.comoNombre ? ' · viendo como ' + est.comoNombre : '');
+
+    const org = await organizacion();
+    const selComo = h('select.barra-test__campo',
+      h('option', { value: '' }, 'Yo mismo'),
+      ...org.usuarios.map(u => h('option', { value: u.id, selected: est.comoId === u.id }, u.nombre)));
+    selComo.onchange = async () => {
+      await verComo(selComo.value);
+      const dv = await import('./vistas/diario.js');
+      window.dispatchEvent(new Event('hashchange'));
+      dv.revisarCandado();
+    };
+
+    const inpFecha = h('input.barra-test__campo', { type: 'date', value: est.fecha || '' });
+    inpFecha.onchange = async () => {
+      await simularFecha(inpFecha.value || '');
+      const dv = await import('./vistas/diario.js');
+      window.dispatchEvent(new Event('hashchange'));
+      dv.revisarCandado();
+    };
+
+    barra.replaceChildren(
+      h('span.barra-test__tag', '🧪 TEST'),
+      selComo,
+      inpFecha,
+      h('button.barra-test__salir', {
+        type: 'button',
+        onclick: async () => {
+          const ok = await confirmar('¿Salir de la sesion de test? Tus datos reales regresan; la sesion queda guardada para reanudarla.', { textoOk: 'Salir', peligro: false });
+          if (!ok) return;
+          await activarTest(false);
+          aviso('Saliste de Test Mode.');
+          window.dispatchEvent(new Event('hashchange'));
+        },
+      }, '✕ SALIR'));
   } catch (e) { /* sin datos aun */ }
 }
 

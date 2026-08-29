@@ -6,7 +6,7 @@ import * as media from '../media.js';
 import { APP_VERSION } from '../version.js';
 import { temaActual, alternarTema, zoomActual, aplicarZoom } from '../tema.js';
 import { esNativa, compartirArchivoNativo, guardarEnCarpetaNativa, nombreSeguro, guardarUltimoRespaldo, leerUltimoRespaldo, instalarActualizacionApk } from '../nativo.js';
-import { DEPTOS, ROLES, organizacion, organizacionGuardar, quienSoy, quienSoyReal, serYo, esAdmin, claveDelDia, claveDeManana, fechaSimulada, simularFecha, verComo, estadoPrueba } from '../organizacion.js';
+import { DEPTOS, ROLES, organizacion, organizacionGuardar, quienSoy, quienSoyReal, serYo, esAdmin, claveDelDia, claveDeManana, activarTest, estadoPrueba } from '../organizacion.js';
 
 // La ⚙ completa se abre con la CLAVE DEL DIA (solo el administrador la
 // tiene). Una vez dada, queda abierta hasta cerrar la app: variable en
@@ -155,7 +155,7 @@ export async function hojaConfiguracion() {
         h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('diag') },
           '🩺  Diagnostico de foto'),
         h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('prueba') },
-          '🧪  Modo prueba')
+          '🧪  Test Mode')
       ),
       h('p.pista', 'Administra las sugerencias que salen al crear o editar un servicio. Los servicios y reportes ya guardados no se tocan.'),
       lineaVersion()
@@ -171,49 +171,32 @@ export async function hojaConfiguracion() {
   if (accion === 'probador') await hojaProbador();
 }
 
-// Modo prueba (solo tras la clave de admin): simular la fecha de la app
-// (para provocar atrasos, candados y cierres de semana sin esperar dias
-// reales) y ver la app COMO otro usuario (permisos y vistas de el).
+// Test Mode (solo tras la clave / admin): una SESION SANDBOX de pruebas.
+// Diario y Ventas usan almacenes gemelos (los datos reales no se tocan),
+// y desde la BARRA SUPERIOR se cambian al momento la fecha simulada y el
+// usuario con el que se ve la app. La sesion queda guardada al salir y se
+// reanuda al volver a entrar.
 async function hojaPrueba() {
-  const org = await organizacion();
   const estado = await estadoPrueba();
 
-  await hoja('🧪  Modo prueba', (cerrar) => {
-    const cFecha = campo('Fecha simulada', { type: 'date', value: estado.fecha || '' });
-    const selComo = h('select.org-select',
-      h('option', { value: '' }, '— yo mismo (sin simular) —'),
-      ...org.usuarios.map(u => h('option', { value: u.id, selected: estado.comoId === u.id }, u.nombre)));
-    return h('div',
-      cFecha,
-      h('div.hoja__acciones',
-        h('button.btn.btn--fantasma', {
+  await hoja('🧪  Test Mode', (cerrar) => h('div',
+    h('p.parrafo', estado.activo
+      ? 'Test Mode esta ACTIVO: usa la barra superior para cambiar usuario y fecha, o su boton SALIR para terminar.'
+      : 'Al entrar, la app se vuelve un SANDBOX de pruebas: el Diario y Ventas usan datos de ensayo aparte (los reales no se tocan), y arriba aparece una barra para cambiar al momento la fecha simulada y el usuario con el que ves la app.'),
+    h('p.pista', 'La sesion de test se guarda al salir y se reanuda al volver a entrar. La clave de ⚙ siempre es la del dia REAL.'),
+    h('div.hoja__acciones',
+      h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+      estado.activo
+        ? h('button.btn.btn--primario', {
           type: 'button',
-          onclick: async () => { await simularFecha(''); aviso('Fecha real restaurada.'); cerrar('listo'); },
-        }, 'FECHA REAL'),
-        h('button.btn.btn--primario', {
+          onclick: async () => { await activarTest(false); aviso('Saliste de Test Mode. Datos reales de vuelta.'); cerrar('listo'); },
+        }, 'SALIR DE TEST MODE')
+        : h('button.btn.btn--primario', {
           type: 'button',
-          onclick: async () => {
-            const v = cFecha.querySelector('input').value;
-            if (!v) { aviso('Elige una fecha.', 'error'); return; }
-            await simularFecha(v);
-            aviso('La app ahora vive en ' + v);
-            cerrar('listo');
-          },
-        }, 'SIMULAR FECHA')),
-      h('label.campo', h('span.campo__etiqueta', 'Ver la app como'), selComo),
-      h('div.hoja__acciones',
-        h('button.btn.btn--primario', {
-          type: 'button',
-          onclick: async () => {
-            await verComo(selComo.value);
-            aviso(selComo.value ? 'Viendo la app como ' + selComo.options[selComo.selectedIndex].text : 'De vuelta a tu identidad.');
-            cerrar('listo');
-          },
-        }, 'APLICAR')),
-      h('p.pista', 'La fecha simulada solo mueve Diario y Ventas (atrasos, candados, semanas); la clave de ⚙ sigue siendo la del dia REAL. Mientras el modo prueba este activo, abajo se ve un gafete ambar. Para el candado del dia anterior, cierra y abre la app con la fecha simulada.')
-    );
-  });
-  // repintar la vista actual con el estado nuevo (el gafete tambien)
+          onclick: async () => { await activarTest(true); aviso('Test Mode activo: sandbox de pruebas.'); cerrar('listo'); },
+        }, 'ENTRAR A TEST MODE'))
+  ));
+  // repintar la vista y la barra con el estado nuevo
   window.dispatchEvent(new Event('hashchange'));
 }
 
