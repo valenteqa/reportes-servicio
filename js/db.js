@@ -337,6 +337,30 @@ export function tablaPredeterminadaGuardar(nombre, tabla) {
   return tx('catalogo', 'readwrite', st => pedir(st.catalogo.put(reg))).then(() => reg);
 }
 
+export function tablaPredeterminadaEliminar(clave) {
+  return tx('catalogo', 'readwrite', st => pedir(st.catalogo.delete(clave)));
+}
+
+// Renombra una plantilla. Si ya existe otra con el nombre nuevo devuelve
+// { choque: true } y no toca nada (el aviso lo da la interfaz).
+export function tablaPredeterminadaRenombrar(clave, nuevoNombre) {
+  const limpio = String(nuevoNombre || '').trim();
+  const nuevaClave = 'tabla:' + limpio.toLowerCase();
+  return tx('catalogo', 'readwrite', async (st) => {
+    const reg = await pedir(st.catalogo.get(clave));
+    if (!reg) return null;
+    if (nuevaClave !== clave) {
+      const choque = await pedir(st.catalogo.get(nuevaClave));
+      if (choque) return { choque: true };
+      await pedir(st.catalogo.delete(clave));
+    }
+    reg.clave = nuevaClave;
+    reg.nombre = limpio;
+    await pedir(st.catalogo.put(reg));
+    return reg;
+  });
+}
+
 export function eventoNuevo(servicioId, equipoId, tipo, datos) {
   const evento = {
     id: nuevoId(),

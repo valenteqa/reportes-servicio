@@ -92,6 +92,8 @@ export async function hojaConfiguracion() {
         '👤  Nombre del tecnico'),
       h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('catalogo') },
         '🗂  Clientes y datos de maquina'),
+      h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('tablas') },
+        '▦  Tablas predeterminadas'),
       h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('zoom') },
         '🔍  Tamaño de la interfaz'),
       h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('diag') },
@@ -102,8 +104,63 @@ export async function hojaConfiguracion() {
   ));
   if (accion === 'tecnico') await hojaTecnico();
   if (accion === 'catalogo') await hojaCampoCatalogo();
+  if (accion === 'tablas') await hojaTablasPredeterminadas();
   if (accion === 'zoom') await hojaZoom();
   if (accion === 'diag') await hojaDiagnostico();
+}
+
+// Administrar las tablas predeterminadas GUARDADAS (renombrar / eliminar).
+// La "Tabla de Valores de VT" es de fabrica: siempre esta, no se toca.
+async function hojaTablasPredeterminadas() {
+  for (;;) {
+    const lista = await db.tablasPredeterminadas();
+    const eleccion = await hoja('▦  Tablas predeterminadas', (cerrar) => h('div',
+      h('div.lista-acciones',
+        h('button.lista-acciones__item', { type: 'button', disabled: true, style: { opacity: '.55' } },
+          '▦  Tabla de Valores de VT — de fabrica'),
+        lista.map(t => h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar(t) },
+          '▦  ' + t.nombre + ' (' + (t.tabla.columnas || []).length + ' col · ' + (t.tabla.filas || []).length + ' filas)'))
+      ),
+      lista.length ? null : h('p.pista', 'Aun no guardas tablas propias: al terminar una tabla nueva en un trabajo, la app ofrece guardarla aqui.'),
+      h('p.pista', 'Renombrar o eliminar una plantilla NO toca las tablas ya capturadas en los trabajos.')
+    ));
+    if (!eleccion) return;
+
+    const accion = await hoja('▦  ' + eleccion.nombre, (cerrar) => h('div.lista-acciones',
+      h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('renombrar') }, '✎  Renombrar'),
+      h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('eliminar') }, '🗑  Eliminar')
+    ));
+
+    if (accion === 'eliminar') {
+      const ok = await confirmar('Se elimina la plantilla "' + eleccion.nombre + '" del menu de tablas. Las tablas ya capturadas no cambian. ¿Eliminar?',
+        { textoOk: 'Eliminar', peligro: true });
+      if (ok) {
+        await db.tablaPredeterminadaEliminar(eleccion.clave);
+        aviso('Plantilla eliminada', 'ok');
+      }
+    }
+
+    if (accion === 'renombrar') {
+      await hoja('✎  Renombrar tabla', (cerrar) => {
+        const cNombre = campo('Nombre', { value: eleccion.nombre });
+        return h('div',
+          cNombre,
+          h('div.hoja__acciones',
+            h('button.btn.btn--primario', {
+              type: 'button',
+              onclick: async () => {
+                const v = cNombre.querySelector('input').value.trim();
+                if (!v) { aviso('Ponle un nombre', 'error'); return; }
+                const r = await db.tablaPredeterminadaRenombrar(eleccion.clave, v);
+                if (r && r.choque) { aviso('Ya hay una tabla con ese nombre', 'error'); return; }
+                aviso('Tabla renombrada', 'ok');
+                cerrar(true);
+              }
+            }, 'Guardar'))
+        );
+      });
+    }
+  }
 }
 
 // Micro-pruebas del pipeline de foto EN ESTE telefono: mide cada forma de
