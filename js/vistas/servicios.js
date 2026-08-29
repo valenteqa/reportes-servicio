@@ -376,6 +376,7 @@ async function actualizarCascaron(v) {
 
 const PISTA_TIPO = {
   servicio:      'Mantenimiento o reparacion en sitio',
+  auditoria:     'Revision y evaluacion del estado de la maquina',
   geometrica:    'Medicion y ajuste de la geometria de la maquina',
   laboratorio:   'Pruebas y mediciones en banco',
   general:       'Cualquier otro registro',
@@ -384,7 +385,7 @@ const PISTA_TIPO = {
 
 // Tipos que llevan datos de maquina: se crean con el asistente completo y
 // se editan con el menu de campos (los demas solo llevan titulo).
-const conMaquina = (tipo) => tipo === 'servicio' || tipo === 'geometrica';
+const conMaquina = (tipo) => tipo === 'servicio' || tipo === 'auditoria' || tipo === 'geometrica';
 
 function elegirTipo() {
   return hoja('¿Que vas a registrar?', (cerrar) => h('div.selector-tipo',
