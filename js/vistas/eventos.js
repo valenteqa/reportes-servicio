@@ -383,12 +383,12 @@ export async function agregarTabla(servicioId, equipoId) {
   const guardadas = await db.tablasPredeterminadas().catch(() => []);
   const eleccion = await hoja('▦  ¿Que tabla agregamos?', (cerrar) => h('div',
     h('div.lista-acciones',
-      h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar({ nueva: true }) },
-        '➕  Tabla nueva'),
-      h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar(TABLA_VT) },
+      h('button.lista-acciones__item.opcion-fuerte', { type: 'button', onclick: () => cerrar({ nueva: true }) },
+        '➕  TABLA NUEVA'),
+      h('button.lista-acciones__item.opcion-fuerte', { type: 'button', onclick: () => cerrar(TABLA_VT) },
         '▦  ' + TABLA_VT.nombre),
       guardadas.filter(g => g.clave !== 'tabla:' + TABLA_VT.nombre.toLowerCase()).map(g =>
-        h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar(g) },
+        h('button.lista-acciones__item.opcion-fuerte', { type: 'button', onclick: () => cerrar(g) },
           '▦  ' + g.nombre))
     ),
     h('p.pista', 'Al terminar una tabla nueva podras guardarla como predeterminada para reutilizarla.')

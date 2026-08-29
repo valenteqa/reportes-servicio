@@ -266,10 +266,13 @@ function tablaDatos(pares) {
     filas + '</w:tbl>';
 }
 
-function imagenXml(relId, docPrId, anchoPx, altoPx) {
+function imagenXml(relId, docPrId, anchoPx, altoPx, tam) {
   const EMU_MAX = 5580000;                     // ~ancho util de la hoja
-  const EMU_MAX_ALTO = 7600000;                // tope vertical: fotos muy
-  const porPx = 9525;                          // alargadas salian cortadas
+  // Tope vertical por tamaño elegido: grande = hoja completa (el historico),
+  // mediano = media hoja, chico = tamaño parrafo.
+  const EMU_ALTOS = { chico: 1700000, mediano: 3800000, grande: 7600000 };
+  const EMU_MAX_ALTO = EMU_ALTOS[tam] || EMU_ALTOS.grande;
+  const porPx = 9525;                          // fotos muy alargadas salian cortadas
   let cx = anchoPx * porPx;
   let cy = altoPx * porPx;
   if (cx > EMU_MAX) { cy = Math.round(cy * EMU_MAX / cx); cx = EMU_MAX; }
@@ -434,7 +437,7 @@ async function generarConPlantilla(servicioId) {
         datos: new Uint8Array(await foto.blob.arrayBuffer()),
         relId,
       });
-      let x = imagenXml(relId, 9000 + nFigura, foto.ancho, foto.alto);
+      let x = imagenXml(relId, 9000 + nFigura, foto.ancho, foto.alto, ev.datos.tamImagen);
       const pie = 'Figura ' + nFigura + (ev.datos.pie ? '. ' + ev.datos.pie : '');
       x += par([{ t: pie, i: true, sz: 18, color: '595959' }], { jc: 'center', esp: [0, 160] });
       return x;
@@ -607,7 +610,7 @@ async function generarReporteBasico(servicioId) {
         datos: new Uint8Array(await foto.blob.arrayBuffer()),
         relId,
       });
-      let x = imagenXml(relId, nFigura, foto.ancho, foto.alto);
+      let x = imagenXml(relId, nFigura, foto.ancho, foto.alto, ev.datos.tamImagen);
       const pie = 'Figura ' + nFigura + (ev.datos.pie ? '. ' + ev.datos.pie : '');
       x += par([{ t: pie, i: true, sz: 18, color: '595959' }], { jc: 'center', esp: [0, 160] });
       return x;

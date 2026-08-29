@@ -20,10 +20,68 @@ import { esNativa, compartirArchivoNativo, guardarEnCarpetaNativa } from '../nat
 /* Generar el reporte Word y entregarlo (compartir o descargar)      */
 /* ---------------------------------------------------------------- */
 
+const TAMANOS_FOTO = [
+  ['chico',   'PEQUEÑO',  'tamaño parrafo'],
+  ['mediano', 'MEDIANO',  'media hoja'],
+  ['grande',  'GRANDE',   'hoja completa'],
+];
+
+// Antes de generar el Word: ¿de que tamaño salen las fotos? Un tamaño para
+// todas, o "elegir por imagen" (asistente foto por foto). Devuelve false si
+// el usuario cancelo (no se genera).
+async function elegirTamanoFotos(fotos) {
+  const op = await hoja('Tamaño de las fotos en el reporte', (cerrar) => h('div',
+    h('div.lista-acciones',
+      TAMANOS_FOTO.map(([clave, etiqueta, pista]) =>
+        h('button.lista-acciones__item.opcion-fuerte', { type: 'button', onclick: () => cerrar(clave) },
+          etiqueta + ' — ' + pista)),
+      h('button.lista-acciones__item.opcion-fuerte', { type: 'button', onclick: () => cerrar('porImagen') },
+        '🖼  ELEGIR POR IMAGEN')
+    ),
+    h('p.pista', 'Aplica a las ' + fotos.length + ' foto(s) del reporte. Con "elegir por imagen" decides una por una, viendo cada foto.')
+  ));
+  if (!op) return false;
+  if (op !== 'porImagen') {
+    for (const f of fotos) { f.datos.tamImagen = op; await db.eventoGuardar(f); }
+    return true;
+  }
+  return elegirTamanoPorImagen(fotos);
+}
+
+async function elegirTamanoPorImagen(fotos) {
+  for (let i = 0; i < fotos.length; i++) {
+    const ev = fotos[i];
+    const foto = await db.fotoLeer(ev.datos.fotoId);
+    if (!foto) continue;
+    const url = URL.createObjectURL(foto.blob);
+    const eleccion = await hoja('Foto ' + (i + 1) + ' de ' + fotos.length, (cerrar) => h('div.eleccion-tam',
+      h('img.eleccion-tam__img', { src: url, alt: '' }),
+      ev.datos.pie ? h('p.pista', ev.datos.pie) : null,
+      h('div.eleccion-tam__botones',
+        TAMANOS_FOTO.map(([clave, etiqueta]) =>
+          h('button.btn.opcion-fuerte' + (ev.datos.tamImagen === clave ? '.btn--primario' : '.btn--fantasma'),
+            { type: 'button', onclick: () => cerrar(clave) }, etiqueta))
+      ),
+      h('p.pista', 'PEQUEÑO = parrafo · MEDIANO = media hoja · GRANDE = hoja completa')
+    ), { altura: 'alta' });
+    URL.revokeObjectURL(url);
+    if (!eleccion) return false;   // cancelo: no se genera
+    ev.datos.tamImagen = eleccion;
+    await db.eventoGuardar(ev);
+  }
+  return confirmar('¿Generar Reporte?', { textoOk: 'Generar', peligro: false });
+}
+
 async function hojaReporte(servicio) {
   const esProc = servicio.tipo === 'procedimiento';
   const eventos = await db.eventosDeServicio(servicio.id);
   const incluidos = eventos.filter(e => e.incluir !== false);
+
+  // Tamaño de las fotos (solo Word; el PowerPoint acomoda en rejilla fija).
+  if (!esProc) {
+    const fotos = incluidos.filter(e => e.tipo === 'foto');
+    if (fotos.length && !(await elegirTamanoFotos(fotos))) return;
+  }
   const excluidos = eventos.length - incluidos.length;
   const n = (tipo) => incluidos.filter(e => e.tipo === tipo).length;
   const pruebasAbiertas = incluidos.filter(e => e.tipo === 'prueba' && !e.datos.resultado).length;

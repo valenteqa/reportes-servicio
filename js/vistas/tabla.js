@@ -91,10 +91,48 @@ export async function render(contenedor, refrescar, params) {
   // editor esta completo; ya agregada, abrirla es SOLO VER.
   const soloVer = !evento.enEdicion;
 
+  // GUARDIA de la captura: mientras la tabla se esta agregando, salir
+  // (con ← o con el atras del telefono) pregunta y, si se confirma, la
+  // tabla EN CURSO se descarta. Truco: una entrada duplicada del mismo
+  // hash — el atras fisico la saca (popstate, sin hashchange) y ahi se
+  // pregunta sin haber salido de la pantalla.
+  let guardiaActiva = false;
+  let preguntandoSalir = false;
+  const alPop = async () => {
+    if (!guardiaActiva) return;
+    if (preguntandoSalir) { history.pushState(null, '', location.hash); return; }
+    preguntandoSalir = true;
+    const ok = await confirmar('¿Regresar a la linea de tiempo? Se perdera la tabla.',
+      { textoOk: 'Regresar', peligro: true });
+    preguntandoSalir = false;
+    if (!ok) { history.pushState(null, '', location.hash); return; }
+    quitarGuardia();
+    clearTimeout(guardadoPendiente);
+    await db.eventoBorrar(evento.id);
+    history.back();
+  };
+  const quitarGuardia = () => {
+    if (!guardiaActiva) return;
+    guardiaActiva = false;
+    window.removeEventListener('popstate', alPop);
+  };
+  if (!soloVer) {
+    history.pushState(null, '', location.hash);
+    guardiaActiva = true;
+    window.addEventListener('popstate', alPop);
+  }
+
   // history.back() en vez de asignar el hash: asi el boton atras del telefono
   // y el de la app recorren la misma jerarquia (tabla → arbol → lista).
-  const volver = () => {
-    (soloVer ? Promise.resolve() : guardarYa(evento)).then(() => history.back());
+  const volver = async () => {
+    if (soloVer) { history.back(); return; }
+    const ok = await confirmar('¿Regresar a la linea de tiempo? Se perdera la tabla.',
+      { textoOk: 'Regresar', peligro: true });
+    if (!ok) return;
+    quitarGuardia();
+    clearTimeout(guardadoPendiente);
+    await db.eventoBorrar(evento.id);
+    history.go(-2);   // la entrada duplicada + la ruta de la tabla
   };
 
   const indicador = h('span.estado', 'Guardado');
@@ -145,10 +183,11 @@ export async function render(contenedor, refrescar, params) {
           if (!ok) return;
           // OJO: no usar volver() aqui — su guardarYa re-escribiria la tabla
           // recien borrada (la resucitaba). Cancelar el autoguardado y salir.
+          quitarGuardia();
           clearTimeout(guardadoPendiente);
           await db.eventoBorrar(evento.id);
           aviso('Tabla eliminada');
-          history.back();
+          history.go(-2);
         }
       }, 'Eliminar tabla')
     )
@@ -249,9 +288,10 @@ export async function render(contenedor, refrescar, params) {
     const ok = await confirmar('¿Tabla lista? Una vez agregada no se puede modificar.',
       { textoOk: 'Agregar', peligro: false });
     if (!ok) return;
+    quitarGuardia();
     delete evento.enEdicion;
     await guardarYa(evento);
-    history.back();
+    history.go(-2);
   };
 
   repintar();
