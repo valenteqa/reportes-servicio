@@ -345,10 +345,10 @@ function ejecutarMarca(anim, els, iSonido) {
         } catch (e) { /* sin audio */ }
       }, 1900);
     }
-    // "What the hell" corre hasta despues del OH MY GOD (termina en 4.88s
-    // medido en la onda; el corte a los 5.0s cae en el silencio siguiente y
-    // deja fuera las risas). Los demas se cortan a los 4s.
-    const tope = SONIDOS_MARCA[i].includes('quepaso') ? 5000 : 4000;
+    // "What the hell" corta EXACTO al terminar el OH MY GOD (el "god" muere
+    // en 4.88s medido en la onda; 4.9s deja la palabra completa y fuera las
+    // risas). Los demas se cortan a los 4s.
+    const tope = SONIDOS_MARCA[i].includes('quepaso') ? 4900 : 4000;
     corteMarca = setTimeout(() => {
       if (audioMarca) audioMarca.pause();
       quitarVibra();   // si el sonido se corto en el tope, la vibracion tambien
