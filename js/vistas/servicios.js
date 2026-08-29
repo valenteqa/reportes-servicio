@@ -86,24 +86,41 @@ export function lineaVersion() {
 }
 
 export async function hojaConfiguracion() {
-  const accion = await hoja('⚙  Configuracion', (cerrar) => h('div',
-    h('div.lista-acciones',
-      h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('tecnico') },
-        '👤  Nombre del tecnico'),
-      h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('catalogo') },
-        '🗂  Clientes y datos de maquina'),
-      h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('tablas') },
-        '▦  Tablas predeterminadas'),
-      h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('zoom') },
-        '🔍  Tamaño de la interfaz'),
-      h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('diag') },
-        '🩺  Diagnostico de foto'),
-      h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('probador') },
-        '🎬  Probador de animaciones')
-    ),
-    h('p.pista', 'Administra las sugerencias que salen al crear o editar un servicio. Los servicios y reportes ya guardados no se tocan.'),
-    lineaVersion()
-  ));
+  const accion = await hoja('⚙  Configuracion', (cerrar) => {
+    // Huevo de pascua: el probador de animaciones esta OCULTO; se abre
+    // tocando 10 veces seguidas el TITULO de la hoja (max 1.5s entre
+    // toques o el conteo se reinicia). El listener se engancha tras el
+    // montaje, porque el titulo lo construye hoja(), no nosotros.
+    setTimeout(() => {
+      const titulo = [...document.querySelectorAll('.hoja h2')].pop();
+      if (!titulo || !titulo.textContent.includes('Configuracion')) return;
+      let toques = 0;
+      let ultimo = 0;
+      titulo.addEventListener('click', () => {
+        const ahora = Date.now();
+        if (ahora - ultimo > 1500) toques = 0;
+        ultimo = ahora;
+        toques += 1;
+        if (toques >= 10) { toques = 0; cerrar('probador'); }
+      });
+    }, 0);
+    return h('div',
+      h('div.lista-acciones',
+        h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('tecnico') },
+          '👤  Nombre del tecnico'),
+        h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('catalogo') },
+          '🗂  Clientes y datos de maquina'),
+        h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('tablas') },
+          '▦  Tablas predeterminadas'),
+        h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('zoom') },
+          '🔍  Tamaño de la interfaz'),
+        h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('diag') },
+          '🩺  Diagnostico de foto')
+      ),
+      h('p.pista', 'Administra las sugerencias que salen al crear o editar un servicio. Los servicios y reportes ya guardados no se tocan.'),
+      lineaVersion()
+    );
+  });
   if (accion === 'tecnico') await hojaTecnico();
   if (accion === 'catalogo') await hojaCampoCatalogo();
   if (accion === 'tablas') await hojaTablasPredeterminadas();
