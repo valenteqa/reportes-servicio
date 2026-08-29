@@ -96,6 +96,32 @@ async function huellaReporte(servicio, incluidos) {
   return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// Si ya hay tamaños elegidos de un reporte anterior, pregunta si se dejan
+// tal cual o se cambian; las fotos NUEVAS (sin tamaño) se preguntan una por
+// una despues. Sin tamaños previos, va el flujo completo de siempre.
+async function flujoTamanoFotos(fotos) {
+  const conTam = fotos.filter(f => f.datos.tamImagen);
+  const sinTam = fotos.filter(f => !f.datos.tamImagen);
+  if (!conTam.length) return elegirTamanoFotos(fotos);
+
+  const op = await hoja('Tamaño de las fotos', (cerrar) => h('div',
+    h('p.parrafo', conTam.length + ' foto(s) ya tienen su tamaño elegido' +
+      (sinTam.length ? ' y hay ' + sinTam.length + ' foto(s) nueva(s)' : '') +
+      '. ¿Dejar el tamaño de las imagenes como esta, o cambiarlas?'),
+    h('div.lista-acciones',
+      h('button.lista-acciones__item.opcion-fuerte', { type: 'button', onclick: () => cerrar('dejar') },
+        '✔  DEJAR COMO ESTAN'),
+      h('button.lista-acciones__item.opcion-fuerte', { type: 'button', onclick: () => cerrar('cambiar') },
+        '✎  CAMBIARLAS')
+    ),
+    sinTam.length ? h('p.pista', 'Las fotos nuevas se preguntan una por una en seguida.') : null
+  ));
+  if (!op) return false;
+  if (op === 'cambiar') return elegirTamanoFotos(fotos);
+  if (sinTam.length) return elegirTamanoPorImagen(sinTam);
+  return true;
+}
+
 async function hojaReporte(servicio, previoAUsar) {
   const esProc = servicio.tipo === 'procedimiento';
   const eventos = await db.eventosDeServicio(servicio.id);
@@ -132,7 +158,7 @@ async function hojaReporte(servicio, previoAUsar) {
   // Tamaño de las fotos (solo Word y solo al crear archivo nuevo).
   if (!esProc && !previoAUsar) {
     const fotos = incluidos.filter(e => e.tipo === 'foto');
-    if (fotos.length && !(await elegirTamanoFotos(fotos))) return;
+    if (fotos.length && !(await flujoTamanoFotos(fotos))) return;
   }
   const excluidos = eventos.length - incluidos.length;
   const n = (tipo) => incluidos.filter(e => e.tipo === tipo).length;
