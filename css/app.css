@@ -255,21 +255,22 @@ button { font-family: inherit; font-size: inherit; }
 }
 .marca-voltea { animation: marcaVoltea 1.1s ease; }
 
-/* El vuelo: recorre toda la pantalla, sale DISPARADO por la derecha,
-   desaparece, y regresa entrando desde la izquierda a su lugar. */
+/* El vuelo, SINCRONIZADO con el sonido de pasos+disparo (corriendo.mp3):
+   los pasos duran ~1.0s (dos picadas por la pantalla) y el DISPARO del
+   audio cae a los 1.05s = el 48% de 2.2s, justo cuando el logo sale
+   volando por la derecha; desaparece y regresa por la izquierda. */
 @keyframes marcaVuela {
-  0%    { transform: translate(0, 0) scale(1) rotate(0deg); }
-  12%   { transform: translate(-36vw, 16vh) scale(1.3) rotate(-28deg); }
-  26%   { transform: translate(32vw, 34vh) scale(.85) rotate(24deg); }
-  40%   { transform: translate(-28vw, 52vh) scale(1.45) rotate(-35deg); }
-  53%   { transform: translate(28vw, 10vh) scale(1.1) rotate(18deg); }
-  64%   { transform: translate(-8vw, -6vh) scale(1.25) rotate(-12deg); }
-  76%   { transform: translate(140vw, -18vh) scale(.6) rotate(80deg); }
-  76.01% { transform: translate(-140vw, 30vh) scale(.6) rotate(-50deg); }
-  88%   { transform: translate(-60vw, 12vh) scale(.9) rotate(-20deg); }
-  100%  { transform: translate(0, 0) scale(1) rotate(0deg); }
+  0%     { transform: translate(0, 0) scale(1) rotate(0deg); }
+  14%    { transform: translate(-30vw, 22vh) scale(1.25) rotate(-24deg); }
+  30%    { transform: translate(26vw, 40vh) scale(.9) rotate(20deg); }
+  42%    { transform: translate(-10vw, 6vh) scale(1.3) rotate(-15deg); }
+  44%    { transform: translate(-16vw, 2vh) scale(1.35) rotate(-30deg); }
+  48%    { transform: translate(140vw, -12vh) scale(.6) rotate(75deg); }
+  48.01% { transform: translate(-140vw, 26vh) scale(.6) rotate(-45deg); }
+  72%    { transform: translate(-55vw, 10vh) scale(.95) rotate(-18deg); }
+  100%   { transform: translate(0, 0) scale(1) rotate(0deg); }
 }
-.marca-vuela { animation: marcaVuela 2.6s ease-in-out; position: relative; z-index: 70; }
+.marca-vuela { animation: marcaVuela 2.2s ease-in-out; position: relative; z-index: 70; }
 
 /* Mientras vuela, que la pagina no muestre barras ni se estire. */
 html.sin-desborde-vuelo, html.sin-desborde-vuelo body { overflow: hidden !important; }

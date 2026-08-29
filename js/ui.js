@@ -189,11 +189,20 @@ export function animarMarca(...els) {
   }
   // Suena AL INSTANTE (pozo precargado); en rafaga corta al anterior, y se
   // detiene solo a los 4 segundos. Si el sistema lo bloquea, silencio.
+  // El sonido de pasos+disparo (corriendo) es EXCLUSIVO del vuelo: van
+  // coreografiados (el disparo del audio cae cuando el logo sale volando).
   try {
     if (audioMarca) audioMarca.pause();
     clearTimeout(corteMarca);
     const pozo = pozoDeSonidos();
-    audioMarca = pozo[Math.floor(Math.random() * pozo.length)];
+    const iCorriendo = SONIDOS_MARCA.findIndex(s => s.includes('corriendo'));
+    if (anim === 'marca-vuela') {
+      audioMarca = pozo[iCorriendo];
+    } else {
+      let i;
+      do { i = Math.floor(Math.random() * pozo.length); } while (i === iCorriendo);
+      audioMarca = pozo[i];
+    }
     audioMarca.currentTime = 0;
     audioMarca.play().catch(() => {});
     corteMarca = setTimeout(() => { if (audioMarca) audioMarca.pause(); }, 4000);
