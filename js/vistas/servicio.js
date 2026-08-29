@@ -638,6 +638,42 @@ export async function render(contenedor, refrescar, params) {
   const general = { id: db.GENERAL, nombre: 'General' };
   const evGeneral = porRama[db.GENERAL] || [];
 
+  // Indicador flotante de rama: al scrollear una linea de tiempo larga,
+  // si el titulo de la rama actual ya no esta a la vista, un gafete arriba
+  // dice EN QUE RAMA estas y la hora del registro visible.
+  const gafete = h('div.rama-flotante', { style: { display: 'none' } });
+  contenedor.appendChild(gafete);
+  const actualizarGafete = () => {
+    const limite = cabecera.getBoundingClientRect().bottom;
+    let actual = null;
+    for (const sec of cont.querySelectorAll('section.rama')) {
+      if (sec.getBoundingClientRect().top <= limite + 8) actual = sec;
+      else break;
+    }
+    if (!actual) { gafete.style.display = 'none'; return; }
+    const cab = actual.querySelector('.rama__cabeza');
+    if (!cab || cab.getBoundingClientRect().bottom > limite) {
+      gafete.style.display = 'none';   // el titulo de la rama se ve: sobra
+      return;
+    }
+    let horaVisible = '';
+    for (const hEl of actual.querySelectorAll('.tarjeta__hora')) {
+      if (hEl.getBoundingClientRect().bottom > limite) { horaVisible = hEl.textContent; break; }
+    }
+    gafete.replaceChildren(
+      h('strong', (actual.querySelector('.rama__nombre') || { textContent: '' }).textContent),
+      horaVisible ? ' · ' + horaVisible : ''
+    );
+    gafete.style.top = (limite + 6) + 'px';
+    gafete.style.display = '';
+  };
+  let marcoGafete = null;
+  cont.addEventListener('scroll', () => {
+    if (marcoGafete) return;
+    marcoGafete = requestAnimationFrame(() => { marcoGafete = null; actualizarGafete(); });
+  }, { passive: true });
+  cont.__actualizarGafete = actualizarGafete;   // gancho para pruebas
+
   const arbol = h('div.arbol',
     // Seccion fija al inicio: antecedentes (si queda vacia, no sale en el reporte).
     esProc ? null : rama(servicio,
