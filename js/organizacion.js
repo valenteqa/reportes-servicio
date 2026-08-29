@@ -14,9 +14,10 @@ import { ajusteLeer, ajusteGuardar, nuevoId, activarSandbox } from './db.js';
 export const DEPTOS = ['Administracion', 'Electronica', 'Hidraulica', 'Ventas'];
 
 export const ROLES = {
-  usuario: 'Usuario',
-  lider:   'Lider de area',
-  admin:   'Administrador',
+  usuario:  'Usuario',
+  vendedor: 'Vendedor',
+  lider:    'Lider de area',
+  admin:    'Administrador',
 };
 
 export const AVISO_SOLO_LIDER =
@@ -90,13 +91,22 @@ export function esAdmin(yo) {
   return !!yo && yo.rol === 'admin';
 }
 
-// Ventas: crear oportunidades es del LIDER de Ventas (o admin); registrar
-// acciones/estatus es de cualquiera del depto Ventas (o admin).
+// Ventas: los VENDEDORES agregan oportunidades, acciones y anotaciones,
+// pero cada quien vive en su CAJA CERRADA (solo ve lo suyo) y NO modifica
+// ni elimina nada. El LIDER de Ventas (o el admin/developer) ve todas las
+// cajas y es el unico que gestiona (cerrar, y a futuro editar/eliminar).
 export function puedeCrearVentas(yo) {
-  return !!yo && (yo.rol === 'admin' || (yo.rol === 'lider' && yo.depto === 'Ventas'));
+  return !!yo && (yo.rol === 'admin' ||
+    (yo.depto === 'Ventas' && (yo.rol === 'lider' || yo.rol === 'vendedor')));
 }
 export function puedeAccionarVentas(yo) {
   return !!yo && (yo.rol === 'admin' || yo.depto === 'Ventas');
+}
+export function puedeGestionarVentas(yo) {
+  return !!yo && (yo.rol === 'admin' || (yo.rol === 'lider' && yo.depto === 'Ventas'));
+}
+export function veTodasLasVentas(yo) {
+  return puedeGestionarVentas(yo);
 }
 
 // Ver las ACTIVIDADES de alguien (no solo sus porcentajes): uno mismo,

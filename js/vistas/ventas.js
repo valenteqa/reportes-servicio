@@ -12,7 +12,7 @@
 
 import { h, aviso, vaciar, confirmar, hoja, campo, campoArea } from '../ui.js';
 import * as db from '../db.js';
-import { quienSoy, puedeCrearVentas, puedeAccionarVentas, fechaSimulada } from '../organizacion.js';
+import { quienSoy, puedeCrearVentas, puedeAccionarVentas, puedeGestionarVentas, veTodasLasVentas, fechaSimulada } from '../organizacion.js';
 import { clientesConocidos } from './servicios.js';
 
 const PRIORIDADES = [
@@ -465,7 +465,9 @@ async function hojaDetalle(v, permisos, alCambiar) {
             pinta();
           },
         }, '💡  AGREGAR ANOTACION') : null,
-        permisos.crear && !v.cerrada ? h('button.btn.btn--fantasma.venta-btn', {
+        // Cerrar (modificar) es SOLO del lider o el admin; los vendedores
+        // agregan pero no tocan lo ya registrado.
+        permisos.gestionar && !v.cerrada ? h('button.btn.btn--fantasma.venta-btn', {
           type: 'button',
           onclick: async () => {
             if (!(await confirmar('¿Cerrar la oportunidad "' + v.titulo + '"? Su calificacion queda en ' + calificacion(v) + '%.', { textoOk: 'Cerrar', peligro: false }))) return;
@@ -561,13 +563,20 @@ export async function render(contenedor, refrescar, params = {}) {
   if (params.sub === 'dir') return renderDirectorio(contenedor);
 
   const yo = await quienSoy();
-  const permisos = { crear: puedeCrearVentas(yo), accionar: puedeAccionarVentas(yo) };
+  const permisos = {
+    crear: puedeCrearVentas(yo),
+    accionar: puedeAccionarVentas(yo),
+    gestionar: puedeGestionarVentas(yo),
+  };
+  // Caja cerrada: el vendedor solo ve SUS oportunidades; el lider (y el
+  // admin) ven todas las cajas.
+  const veTodas = veTodasLasVentas(yo);
 
   contenedor.append(h('header.cabecera',
     h('div.cabecera__fila',
       h('button.icono-btn', { type: 'button', 'aria-label': 'Volver', onclick: () => history.back() }, '←'),
       h('h1', '💼 Ventas'),
-      h('span.diario-fecha', 'por cliente y oportunidad')
+      h('span.diario-fecha', veTodas ? 'todas las cajas' : 'mi caja de ventas')
     )));
   const cont = h('div.contenido.diario');
   contenedor.append(cont);
@@ -583,9 +592,12 @@ export async function render(contenedor, refrescar, params = {}) {
   let filtroCliente = '';
 
   const pintar = async () => {
-    const ventas = await db.ventasTodas();
-    await registrarAtrasos(ventas);
+    const todasLasVentas = await db.ventasTodas();
+    await registrarAtrasos(todasLasVentas);
     vaciar(cont);
+
+    // Filtrado de caja: lo visible para quien mira.
+    const ventas = todasLasVentas.filter(v => veTodas || (yo && v.duenoId === yo.id));
 
     const clientes = [...new Set(ventas.map(v => v.cliente))].sort((a, b) => a.localeCompare(b));
 
@@ -611,6 +623,7 @@ export async function render(contenedor, refrescar, params = {}) {
           }
           const v = {
             id: db.nuevoId(), ...datos, cerrada: false, creado: db.marcaDeTiempo(),
+            duenoId: yo ? yo.id : '', dueno: yo ? yo.nombre : '',
             anotaciones: [],
             historial: [{ ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo: 'estatus', texto: accion.texto, contacto: accion.contacto || '' }],
           };
@@ -665,6 +678,8 @@ export async function render(contenedor, refrescar, params = {}) {
           h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()),
           h('span.venta-cliente', v.cliente + (v.sede ? ' · ' + v.sede : '')),
           h('span.venta-cal', calificacion(v) + '%')),
+        // El lider ve de quien es cada caja; el vendedor solo ve la suya.
+        veTodas && v.dueno ? h('p.venta-dueno', '🧑‍🔧 ' + v.dueno) : null,
         h('p.venta-titulo', v.titulo),
         h('p.venta-meta',
           v.cerrada ? 'CERRADA' : h('span' + (vencida ? '.venta-vencida' : ''),

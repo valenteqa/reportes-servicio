@@ -748,6 +748,7 @@ button { font-family: inherit; font-size: inherit; }
 .venta-divisor { border: 0; border-top: 3px solid var(--borde-fuerte); margin: 1.1rem 0 .2rem; }
 .venta-evento__contacto { display: block; font-size: .78rem; color: var(--tinta-tenue); margin-top: .1rem; }
 .venta-op__seña { display: block; font-size: .72rem; color: var(--tinta-tenue); font-weight: 400; }
+.venta-dueno { margin: 0 0 .25rem; font-size: .78rem; font-weight: 700; color: var(--primario-tinta); }
 .dir-sede { margin: .5rem 0 .15rem; font-weight: 700; font-size: .88rem; }
 .dir-contacto { margin: 0 0 .1rem .95rem; font-size: .86rem; }
 .dir-contacto--vacio { color: var(--tinta-tenue); font-style: italic; }
