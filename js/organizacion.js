@@ -20,6 +20,21 @@ export const ROLES = {
   admin:    'Administrador',
 };
 
+// Los roles disponibles DEPENDEN del depto (regla de Vale): en Ventas solo
+// hay vendedores y lider (no "usuario"); fuera de Ventas no hay vendedores.
+// El rol de administrador (developer) esta disponible en todos.
+export function rolesParaDepto(depto) {
+  return depto === 'Ventas'
+    ? { vendedor: ROLES.vendedor, lider: ROLES.lider, admin: ROLES.admin }
+    : { usuario: ROLES.usuario, lider: ROLES.lider, admin: ROLES.admin };
+}
+
+// Coherencia depto↔rol al mover a alguien de depto.
+export function ajustarRolAlDepto(u) {
+  if (u.depto === 'Ventas' && u.rol === 'usuario') u.rol = 'vendedor';
+  if (u.depto !== 'Ventas' && u.rol === 'vendedor') u.rol = 'usuario';
+}
+
 export const AVISO_SOLO_LIDER =
   'Pide a tu lider de area que apruebe y haga el cambio: solo el puede hacerlo.';
 
@@ -50,6 +65,13 @@ export async function organizacion() {
       if (juan.rol === 'usuario') juan.rol = 'lider';
     }
     org.v = 2;
+    await ajusteGuardar('organizacion', org);
+  }
+  // Migracion v3: coherencia depto↔rol (en Ventas no hay "usuario"; fuera
+  // de Ventas no hay vendedores).
+  if (org.v < 3) {
+    for (const u of org.usuarios) ajustarRolAlDepto(u);
+    org.v = 3;
     await ajusteGuardar('organizacion', org);
   }
   return org;

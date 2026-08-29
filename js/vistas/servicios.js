@@ -6,7 +6,7 @@ import * as media from '../media.js';
 import { APP_VERSION } from '../version.js';
 import { temaActual, alternarTema, zoomActual, aplicarZoom } from '../tema.js';
 import { esNativa, compartirArchivoNativo, guardarEnCarpetaNativa, nombreSeguro, guardarUltimoRespaldo, leerUltimoRespaldo, instalarActualizacionApk } from '../nativo.js';
-import { DEPTOS, ROLES, organizacion, organizacionGuardar, quienSoy, quienSoyReal, serYo, esAdmin, claveDelDia, claveDeManana, activarTest, estadoPrueba } from '../organizacion.js';
+import { DEPTOS, ROLES, rolesParaDepto, ajustarRolAlDepto, organizacion, organizacionGuardar, quienSoy, quienSoyReal, serYo, esAdmin, claveDelDia, claveDeManana, activarTest, estadoPrueba } from '../organizacion.js';
 
 // La ⚙ completa se abre con la CLAVE DEL DIA (solo el administrador la
 // tiene). Una vez dada, queda abierta hasta cerrar la app: variable en
@@ -278,9 +278,17 @@ async function hojaUsuarios() {
         const selDepto = h('select.org-select',
           h('option', { value: '' }, 'Sin depto'),
           ...DEPTOS.map(d => h('option', { value: d, selected: u.depto === d }, d)));
+        // Los roles disponibles dependen del depto (Ventas: vendedor/lider;
+        // los demas: usuario/lider). Cambiar de depto ajusta el rol solo.
+        const roles = rolesParaDepto(u.depto);
         const selRol = h('select.org-select',
-          ...Object.keys(ROLES).map(r => h('option', { value: r, selected: u.rol === r }, ROLES[r])));
-        selDepto.onchange = async () => { u.depto = selDepto.value; await organizacionGuardar(org); };
+          ...Object.keys(roles).map(r => h('option', { value: r, selected: u.rol === r }, roles[r])));
+        selDepto.onchange = async () => {
+          u.depto = selDepto.value;
+          ajustarRolAlDepto(u);
+          await organizacionGuardar(org);
+          pinta();
+        };
         selRol.onchange = async () => { u.rol = selRol.value; await organizacionGuardar(org); };
         if (!soyAdmin) { selDepto.disabled = true; selRol.disabled = true; }
         return h('div.org-fila',
