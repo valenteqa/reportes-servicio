@@ -272,7 +272,7 @@ export async function vistaPreviaReporte(servicioId) {
     // Zoom: ajuste al ancho del telefono, o fijo 75/100/150 %.
     const lienzo = h('div.pw-lienzo', paginas.map(p => p.el));
     const etiquetaZoom = h('span.previa__nota');
-    const escalaAjuste = () => Math.min(1, Math.round(((window.innerWidth - 18) / PAG_W) * 1000) / 1000);
+    const escalaAjuste = () => Math.max(0.3, Math.min(1, Math.round(((window.innerWidth - 18) / PAG_W) * 1000) / 1000));
     const ZOOMS = ['ajuste', 0.75, 1, 1.5];
     let iZoom = 0;
     const aplicarEscala = () => {
