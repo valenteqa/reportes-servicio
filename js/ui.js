@@ -179,7 +179,7 @@ let retrasoAnimMarca = null;
 // Nombres para el ensayo del logo.
 const MARCAS_PROBADOR = [
   ['marca-animada', 'Pulso'],
-  ['marca-gira', 'Giro doble'],
+  ['marca-gira', 'Giro doble (dj stop)'],
   ['marca-brinca', 'Brinco'],
   ['marca-tiembla', 'Tembleque'],
   ['marca-late', 'Latido'],
@@ -277,6 +277,7 @@ function ejecutarMarca(anim, els, iSonido) {
   const esVuela = anim === 'marca-vuela';
   const esVibra = anim === 'marca-vibra';
   const esCae = anim === 'marca-cae';
+  const esGira = anim === 'marca-gira';
 
   // En el vuelo y la caida el logo sale de la pantalla: sin barras de
   // desborde mientras dura.
@@ -301,13 +302,15 @@ function ejecutarMarca(anim, els, iSonido) {
     const iQuepaso = SONIDOS_MARCA.findIndex(s => s.includes('quepaso'));
     const iGrito = SONIDOS_MARCA.findIndex(s => s.includes('grito'));
     const iPato = SONIDOS_MARCA.findIndex(s => s.includes('pato'));
+    const iDj = SONIDOS_MARCA.findIndex(s => s.includes('djstop'));
     let i;
     if (iSonido != null) i = iSonido;
     else if (esVuela) i = iCorriendo;
     else if (esVibra) i = iQuepaso;
     else if (esCae) i = iGrito;
+    else if (esGira) i = iDj;         // pareja fija: giro doble ↔ dj stop
     else {
-      do { i = Math.floor(Math.random() * pozo.length); } while (i === iCorriendo || i === iQuepaso || i === iGrito);
+      do { i = Math.floor(Math.random() * pozo.length); } while (i === iCorriendo || i === iQuepaso || i === iGrito || i === iDj);
     }
     if (SONIDOS_MARCA[i].includes('djstop')) retrasoAnim = 500;
     audioMarca = pozo[i];
