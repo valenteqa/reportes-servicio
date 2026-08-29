@@ -127,6 +127,13 @@ async function hojaReporte(servicio, previoAUsar) {
   const eventos = await db.eventosDeServicio(servicio.id);
   const incluidos = eventos.filter(e => e.incluir !== false);
 
+  // Sin observaciones y recomendaciones NO hay reporte: es la seccion que
+  // el cliente siempre espera (los procedimientos no la llevan).
+  if (!esProc && !incluidos.some(e => e.equipoId === db.OBSERVACIONES)) {
+    aviso('Agrega al menos una observacion o recomendacion (seccion al final del arbol) antes de generar el reporte', 'error');
+    return;
+  }
+
   if (!previoAUsar) {
     // ¿Ya hay un reporte generado de este trabajo? Ofrecer reusarlo.
     const previo = await db.ajusteLeer('reporte:' + servicio.id);

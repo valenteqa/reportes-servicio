@@ -677,7 +677,7 @@ export async function verFoto(eventoInicial, alCambiar) {
           if (!ok) { aviso('Este dispositivo no deja girar la pantalla desde la app', 'error'); return; }
           horizontal = !horizontal;
         }
-      }, '🔁'),
+      }, icono('girar')),
       h('button.icono-btn.icono-btn--claro', {
         type: 'button', 'aria-label': 'Compartir foto',
         // Las fotos JPEG SI pasan por el menu de Android (Word no).
