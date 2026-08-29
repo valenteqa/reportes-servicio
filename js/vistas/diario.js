@@ -9,7 +9,7 @@
 
 import { h, aviso, vaciar, confirmar, hoja, campo } from '../ui.js';
 import * as db from '../db.js';
-import { quienSoy, puedeEditarActividades, AVISO_SOLO_LIDER } from '../organizacion.js';
+import { DEPTOS, ROLES, organizacion, quienSoy, puedeEditarActividades, AVISO_SOLO_LIDER } from '../organizacion.js';
 
 const DIAS_CORTOS = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'];
 const MESES_CORTOS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
@@ -168,10 +168,196 @@ export function instalarCandado(alTerminar) {
 }
 
 /* ---------------------------------------------------------------- */
-/* Vista principal                                                   */
+/* Datos por miembro                                                 */
 /* ---------------------------------------------------------------- */
 
-export async function render(contenedor, refrescar) {
+// Registros de un usuario: HOY solo este telefono tiene los del dueño;
+// los de los demas llegaran con la nube (Firebase). null = sin datos aqui.
+async function diasDe(usuario) {
+  const yo = await quienSoy();
+  if (yo && usuario.id === yo.id) return db.diasTodos();
+  return null;
+}
+
+function resumenSemana(dias, lunes) {
+  let hechas = 0;
+  let total = 0;
+  if (dias) {
+    for (const d of dias) {
+      if (lunesDe(d.fecha) !== lunes) continue;
+      const c = conteo(d);
+      hechas += c.hechas;
+      total += c.total;
+    }
+  }
+  return { hechas, total, pct: total ? Math.round(hechas * 100 / total) : 0 };
+}
+
+function cabeceraSub(titulo, extra) {
+  return h('header.cabecera',
+    h('div.cabecera__fila',
+      h('button.icono-btn', { type: 'button', 'aria-label': 'Volver', onclick: () => history.back() }, '←'),
+      h('h1', titulo),
+      extra ? h('span.diario-fecha', extra) : null
+    ));
+}
+
+function filaMiembro(u, resumen) {
+  const dato = resumen === null
+    ? 'sin datos aqui'
+    : (resumen.total ? resumen.hechas + ' de ' + resumen.total + ' · ' + resumen.pct + '%' : 'sin actividades');
+  return h('button.miembro-fila', {
+    type: 'button',
+    onclick: () => { location.hash = '#/d/u/' + u.id; },
+  },
+    h('span.miembro-nombre', u.nombre,
+      u.rol !== 'usuario' ? h('span.gd-rol', ROLES[u.rol]) : null),
+    h('span.sem-dato', dato),
+    h('span.menu__flecha', '›'));
+}
+
+/* ---------------------------------------------------------------- */
+/* Vista: organizacion completa (todos los deptos)                   */
+/* ---------------------------------------------------------------- */
+
+async function renderOrganizacion(contenedor) {
+  const org = await organizacion();
+  const lunes = lunesDe(fechaClave());
+  contenedor.append(cabeceraSub('🏢 Organizacion', 'semana actual'));
+  const cont = h('div.contenido.diario');
+  contenedor.append(cont);
+
+  for (const depto of [...DEPTOS, '']) {
+    const miembros = org.usuarios.filter(u => (u.depto || '') === depto);
+    if (!miembros.length) continue;
+    const carta = h('section.diario-carta');
+    carta.append(h('h3', depto || 'SIN DEPTO ASIGNADO'));
+    let dHechas = 0;
+    let dTotal = 0;
+    for (const u of miembros) {
+      const dias = await diasDe(u);
+      const r = dias === null ? null : resumenSemana(dias, lunes);
+      if (r) { dHechas += r.hechas; dTotal += r.total; }
+      carta.append(filaMiembro(u, r));
+    }
+    const pct = dTotal ? Math.round(dHechas * 100 / dTotal) : 0;
+    carta.append(h('p.sem-total', dTotal
+      ? 'DEPTO: ' + dHechas + ' de ' + dTotal + ' · ' + pct + '%'
+      : 'Depto sin actividades registradas en este telefono.'));
+    cont.append(carta);
+  }
+  cont.append(h('p.pista', 'Los registros de los demas viviran en la nube: cada quien vera aqui a toda la organizacion.'));
+}
+
+/* ---------------------------------------------------------------- */
+/* Vista: mi departamento                                            */
+/* ---------------------------------------------------------------- */
+
+async function renderDepto(contenedor) {
+  const org = await organizacion();
+  const yo = await quienSoy();
+  const lunes = lunesDe(fechaClave());
+  const depto = yo ? (yo.depto || '') : '';
+  contenedor.append(cabeceraSub('👥 Mi depto', depto || null));
+  const cont = h('div.contenido.diario');
+  contenedor.append(cont);
+
+  if (!yo) {
+    cont.append(h('div.diario-carta', h('p.pista', 'Este telefono aun no dice de quien es: eligelo en ⚙ Configuracion → Usuarios y deptos.')));
+    return;
+  }
+  if (!depto) {
+    cont.append(h('div.diario-carta', h('p.pista', 'Aun no tienes depto asignado. El administrador lo asigna en ⚙ Configuracion → Usuarios y deptos.')));
+    return;
+  }
+
+  const miembros = org.usuarios.filter(u => (u.depto || '') === depto);
+  const carta = h('section.diario-carta');
+  carta.append(h('h3', depto.toUpperCase() + ' · ESTA SEMANA'));
+  let dHechas = 0;
+  let dTotal = 0;
+  for (const u of miembros) {
+    const dias = await diasDe(u);
+    const r = dias === null ? null : resumenSemana(dias, lunes);
+    if (r) { dHechas += r.hechas; dTotal += r.total; }
+    carta.append(filaMiembro(u, r));
+  }
+  const pct = dTotal ? Math.round(dHechas * 100 / dTotal) : 0;
+  carta.append(
+    h('div.dia-barra.sem-barra', h('i', { style: { width: pct + '%' } })),
+    h('p.sem-total', dTotal
+      ? 'DEPTO: ' + dHechas + ' de ' + dTotal + ' actividades · ' + pct + '%'
+      : 'Sin actividades del depto registradas en este telefono.'),
+    h('p.pista', 'El depto se evalua igual que la semana: actividades totales completadas entre todos, no promedio.'));
+  cont.append(carta);
+}
+
+/* ---------------------------------------------------------------- */
+/* Vista: actividades de un miembro                                  */
+/* ---------------------------------------------------------------- */
+
+async function renderMiembro(contenedor, id) {
+  const org = await organizacion();
+  const u = org.usuarios.find(x => x.id === id);
+  if (!u) {
+    contenedor.append(cabeceraSub('Miembro'), h('div.contenido', h('div.diario-carta', h('p.pista', 'No se encontro a esta persona en el padron.'))));
+    return;
+  }
+  const hoyClave = fechaClave();
+  const lunes = lunesDe(hoyClave);
+  contenedor.append(cabeceraSub(u.nombre, u.depto || 'sin depto'));
+  const cont = h('div.contenido.diario');
+  contenedor.append(cont);
+  if (u.rol !== 'usuario') cont.append(h('p.diario-quien', ROLES[u.rol]));
+
+  const dias = await diasDe(u);
+  if (dias === null) {
+    cont.append(h('div.diario-carta',
+      h('p.pista', 'Los registros de ' + u.nombre + ' viven en su telefono. Cuando se conecte la nube, aqui veras sus actividades y porcentajes.')));
+    return;
+  }
+
+  const porFecha = {};
+  for (const d of dias) porFecha[d.fecha] = d;
+
+  // HOY (solo ver)
+  const dHoy = porFecha[hoyClave];
+  const cartaHoy = h('section.diario-carta', h('h3', 'HOY'));
+  if (dHoy && dHoy.actividades.length) {
+    const c = conteo(dHoy);
+    cartaHoy.append(...dHoy.actividades.map(a => filaActividad(dHoy, a, { editable: false, alCambiar: () => {} })));
+    for (const b of cartaHoy.querySelectorAll('.dia-check')) b.disabled = true;
+    cartaHoy.append(h('p.dia-avance', c.hechas + ' de ' + c.total + ' · ' + c.pct + '%' + (dHoy.evaluado ? ' · dia cerrado' : '')));
+  } else {
+    cartaHoy.append(h('p.pista', 'Sin actividades registradas hoy.'));
+  }
+  cont.append(cartaHoy);
+
+  // SEMANA
+  const cartaSem = h('section.diario-carta', h('h3', 'ESTA SEMANA'));
+  const r = resumenSemana(dias, lunes);
+  for (let n = 0; n < 7; n++) {
+    const f = sumarDias(lunes, n);
+    const c = conteo(porFecha[f]);
+    cartaSem.append(h('div.sem-fila' + (f === hoyClave ? '.sem-fila--hoy' : ''),
+      h('span', nombreDia(f)),
+      h('span.sem-dato', c.total ? c.hechas + ' de ' + c.total + ' · ' + c.pct + '%' : (f > hoyClave ? '' : '—'))));
+  }
+  cartaSem.append(
+    h('div.dia-barra.sem-barra', h('i', { style: { width: r.pct + '%' } })),
+    h('p.sem-total', r.total ? 'SEMANA: ' + r.hechas + ' de ' + r.total + ' · ' + r.pct + '%' : 'Sin actividades esta semana.'));
+  cont.append(cartaSem);
+}
+
+/* ---------------------------------------------------------------- */
+/* Vista principal (mi dia) y despachador                            */
+/* ---------------------------------------------------------------- */
+
+export async function render(contenedor, refrescar, params = {}) {
+  if (params.sub === 'org') return renderOrganizacion(contenedor);
+  if (params.sub === 'depto') return renderDepto(contenedor);
+  if (params.sub === 'u') return renderMiembro(contenedor, params.id);
+
   const hoyClave = fechaClave();
   let dia = await db.diaLeer(hoyClave);
   if (!dia) dia = { fecha: hoyClave, actividades: [], evaluado: false };
@@ -182,7 +368,7 @@ export async function render(contenedor, refrescar) {
   const cabecera = h('header.cabecera',
     h('div.cabecera__fila',
       h('button.icono-btn', { type: 'button', 'aria-label': 'Volver', onclick: () => history.back() }, '←'),
-      h('h1', '📔 Diario'),
+      h('h1', '📔 Gestion de Deptos'),
       h('span.diario-fecha', nombreDia(hoyClave))
     ));
 
@@ -199,6 +385,11 @@ export async function render(contenedor, refrescar) {
       cont.append(h('p.pista.diario-quien',
         'Este telefono aun no dice de quien es: eligelo en ⚙ Configuracion → Usuarios y deptos. Mientras, cuenta como usuario normal.'));
     }
+
+    // Abre en TU dia; desde aqui se brinca a la gestion completa.
+    cont.append(h('div.gd-nav',
+      h('button.btn.btn--fantasma', { type: 'button', onclick: () => { location.hash = '#/d/org'; } }, '🏢  ORGANIZACION'),
+      h('button.btn.btn--fantasma', { type: 'button', onclick: () => { location.hash = '#/d/depto'; } }, '👥  MI DEPTO')));
 
     /* ── HOY ── */
     const cHoy = conteo(dia);

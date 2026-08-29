@@ -38,7 +38,7 @@ export async function render(contenedor, refrescar) {
     ),
     h('div.menu__botones',
       boton('🔧', 'Tecnico', () => { location.hash = '#/t'; }),
-      boton('📔', 'Diario', () => { location.hash = '#/d'; }),
+      boton('📔', 'Gestion de Departamentos', () => { location.hash = '#/d'; }),
       boton('📦', 'Inventario', () => aviso('Inventario esta en desarrollo'), 'EN DESARROLLO'),
       boton('⚙', 'Configuracion', () => hojaConfiguracion())
     ),

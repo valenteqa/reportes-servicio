@@ -25,7 +25,8 @@ function analizarRuta() {
 
   if (!p.length) return { vista: 'menu', params: {} };
   if (p[0] === 't') return { vista: 'servicios', params: {} };
-  if (p[0] === 'd') return { vista: 'diario', params: {} };
+  // #/d mi dia · #/d/org organizacion · #/d/depto mi depto · #/d/u/<id> miembro
+  if (p[0] === 'd') return { vista: 'diario', params: { sub: p[1] || '', id: p[2] || '' } };
   if (p[0] === 's' && p[1]) {
     if (p[2] === 't' && p[3]) return { vista: 'tabla', params: { sid: p[1], eventoId: p[3] } };
     // '/e/<id>' era la vista por equipo; ahora todo vive en el arbol.
@@ -137,7 +138,10 @@ function cadenaDeRuta() {
     return ['#/', '#/t', '#/s/' + p[1]];
   }
   if (p[0] === 't') return ['#/', '#/t'];
-  if (p[0] === 'd') return ['#/', '#/d'];
+  if (p[0] === 'd') {
+    if (p[1]) return ['#/', '#/d', '#/' + p.join('/')];
+    return ['#/', '#/d'];
+  }
   return ['#/'];
 }
 

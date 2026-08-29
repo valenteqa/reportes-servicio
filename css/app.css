@@ -694,6 +694,24 @@ button { font-family: inherit; font-size: inherit; }
 .org-select:disabled { opacity: .6; }
 .org-yo-fijo { font-weight: 700; margin: .15rem 0 0; }
 
+/* Gestion de Departamentos: navegacion y filas de miembros */
+.gd-nav { display: flex; gap: .55rem; margin-bottom: .9rem; }
+.gd-nav .btn { flex: 1; font-size: .82rem; padding: .55rem .4rem; }
+.miembro-fila {
+  display: flex; align-items: center; gap: .5rem;
+  width: 100%; padding: .55rem .1rem;
+  background: none; border: 0; border-bottom: 1px dashed var(--borde);
+  color: var(--tinta); font: inherit; text-align: left;
+}
+.miembro-fila:last-of-type { border-bottom: 0; }
+.miembro-nombre { flex: 1; min-width: 0; font-weight: 600; }
+.gd-rol {
+  display: inline-block; margin-left: .45rem; padding: .1rem .45rem;
+  font-size: .68rem; font-weight: 700; letter-spacing: .04em;
+  border-radius: 99px; background: var(--primario-suave); color: var(--primario-tinta);
+  vertical-align: middle;
+}
+
 .rudo-humo {
   position: absolute; right: -6%; top: -140%;
   width: 16%; aspect-ratio: 1; border-radius: 50%;
