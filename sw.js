@@ -14,7 +14,7 @@
 // Subir VERSION en cada publicacion (junto con APP_VERSION en js/version.js):
 // eso dispara un re-precacheo completo, que es la via mas confiable.
 
-const VERSION = 'v156';
+const VERSION = 'v157';
 const CACHE = 'reportes-' + VERSION;
 
 const CASCARON = [
@@ -104,12 +104,31 @@ const CASCARON = [
 self.addEventListener('install', (ev) => {
   ev.waitUntil(
     caches.open(CACHE)
-      // ATOMICO: si UN archivo falla, la instalacion completa falla y el
-      // telefono se queda con la version anterior integra. Un cache a
-      // medias arrancaba la app rota y sin señal no habia recuperacion.
-      .then(cache => Promise.all(CASCARON.map(
-        url => cache.add(new Request(url, { cache: 'no-cache' }))
-      )))
+      // ATOMICO: si un archivo definitivamente no llega, la instalacion
+      // completa falla y el telefono se queda con la version anterior
+      // integra (un cache a medias arrancaba la app rota). PERO un tropiezo
+      // de red ya no tumba todo: cada archivo reintenta hasta 3 veces con
+      // pausa, y se bajan EN FILA de a 6 — los ~80 fetches simultaneos de
+      // antes ahogaban la conexion del telefono, un solo fallo descartaba
+      // la version entera y la flota se quedaba pegada en la vieja.
+      .then(async (cache) => {
+        const pendientes = [...CASCARON];
+        const traerUno = async (url) => {
+          for (let intento = 0; ; intento++) {
+            try {
+              await cache.add(new Request(url, { cache: 'no-cache' }));
+              return;
+            } catch (e) {
+              if (intento >= 2) throw e;
+              await new Promise(r => setTimeout(r, 500 * (intento + 1)));
+            }
+          }
+        };
+        const obreros = Array.from({ length: 6 }, async () => {
+          while (pendientes.length) await traerUno(pendientes.shift());
+        });
+        await Promise.all(obreros);
+      })
       .then(() => self.skipWaiting())
   );
 });
