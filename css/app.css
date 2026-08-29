@@ -185,56 +185,94 @@ button { font-family: inherit; font-size: inherit; }
 }
 .cabecera__fila h1.marca { font-size: .95rem; font-weight: 800; white-space: nowrap; }
 
+/* ============ ARCHIVO V1 (las animaciones originales, suaves) ============
+   Para recuperarlas: apuntar las clases .marca-* a estos keyframes *V1. */
+@keyframes marcaPulsoV1 {
+  0%   { transform: scale(1) rotate(0deg); }
+  35%  { transform: scale(1.16) rotate(-5deg); }
+  65%  { transform: scale(.95) rotate(3deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+@keyframes marcaGiraV1 { 0% { transform: rotate(0) scale(1); } 50% { transform: rotate(180deg) scale(1.12); } 100% { transform: rotate(360deg) scale(1); } }
+@keyframes marcaBrincaV1 { 0% { transform: translateY(0); } 25% { transform: translateY(-16px) scale(.96, 1.06); } 45% { transform: scale(1.08, .9); } 62% { transform: translateY(-7px); } 100% { transform: translateY(0); } }
+@keyframes marcaTiemblaV1 { 0%, 100% { transform: translateX(0); } 15% { transform: translateX(-7px) rotate(-3deg); } 30% { transform: translateX(6px) rotate(2deg); } 60% { transform: translateX(4px); } }
+@keyframes marcaLateV1 { 0%, 100% { transform: scale(1); } 20% { transform: scale(1.15); } 50% { transform: scale(1.22); } }
+@keyframes marcaVoltea1 { from { transform: perspective(420px) rotateY(0); } to { transform: perspective(420px) rotateY(360deg); } }
+
+/* ============ V2: EXAGERADAS (cada toque sortea una) ============ */
 @keyframes marcaPulso {
   0%   { transform: scale(1) rotate(0deg); filter: drop-shadow(0 0 0 rgba(4, 91, 107, 0)); }
-  35%  { transform: scale(1.16) rotate(-5deg); filter: drop-shadow(0 0 12px rgba(4, 91, 107, .6)); }
-  65%  { transform: scale(.95) rotate(3deg); filter: drop-shadow(0 0 6px rgba(4, 91, 107, .35)); }
+  30%  { transform: scale(1.45) rotate(-14deg); filter: drop-shadow(0 0 22px rgba(4, 91, 107, .8)); }
+  55%  { transform: scale(.78) rotate(10deg); filter: drop-shadow(0 0 8px rgba(4, 91, 107, .4)); }
+  75%  { transform: scale(1.18) rotate(-5deg); }
   100% { transform: scale(1) rotate(0deg); filter: drop-shadow(0 0 0 rgba(4, 91, 107, 0)); }
 }
-.marca-animada { animation: marcaPulso .7s ease; }
+.marca-animada { animation: marcaPulso .85s ease; }
 
-/* Mas animaciones de la marca: cada toque sortea una. */
 @keyframes marcaGira {
   0% { transform: rotate(0deg) scale(1); }
-  50% { transform: rotate(180deg) scale(1.12); }
-  100% { transform: rotate(360deg) scale(1); }
+  55% { transform: rotate(400deg) scale(1.35); }
+  100% { transform: rotate(720deg) scale(1); }
 }
-.marca-gira { animation: marcaGira .8s ease; }
+.marca-gira { animation: marcaGira 1s cubic-bezier(.3, 1.4, .5, 1); }
 
 @keyframes marcaBrinca {
   0% { transform: translateY(0) scale(1, 1); }
-  25% { transform: translateY(-16px) scale(.96, 1.06); }
-  45% { transform: translateY(0) scale(1.08, .9); }
-  62% { transform: translateY(-7px) scale(1, 1); }
-  78% { transform: translateY(0) scale(1.03, .97); }
+  18% { transform: translateY(6px) scale(1.25, .72); }
+  40% { transform: translateY(-58px) scale(.85, 1.25) rotate(-8deg); }
+  58% { transform: translateY(0) scale(1.3, .68); }
+  72% { transform: translateY(-24px) scale(.95, 1.1) rotate(6deg); }
+  85% { transform: translateY(0) scale(1.15, .85); }
   100% { transform: translateY(0) scale(1, 1); }
 }
-.marca-brinca { animation: marcaBrinca .75s ease; }
+.marca-brinca { animation: marcaBrinca 1s ease; }
 
 @keyframes marcaTiembla {
-  0%, 100% { transform: translateX(0); }
-  15% { transform: translateX(-7px) rotate(-3deg); }
-  30% { transform: translateX(6px) rotate(2deg); }
-  45% { transform: translateX(-5px); }
-  60% { transform: translateX(4px) rotate(1deg); }
-  75% { transform: translateX(-2px); }
+  0%, 100% { transform: translateX(0) rotate(0); }
+  10% { transform: translateX(-18px) rotate(-9deg); }
+  25% { transform: translateX(16px) rotate(8deg); }
+  40% { transform: translateX(-14px) rotate(-7deg) scale(1.1); }
+  55% { transform: translateX(12px) rotate(6deg); }
+  70% { transform: translateX(-8px) rotate(-4deg); }
+  85% { transform: translateX(5px) rotate(2deg); }
 }
-.marca-tiembla { animation: marcaTiembla .55s ease; }
+.marca-tiembla { animation: marcaTiembla .7s ease; }
 
 @keyframes marcaLate {
   0%, 100% { transform: scale(1); }
-  20% { transform: scale(1.15); }
-  35% { transform: scale(1); }
-  50% { transform: scale(1.22); }
-  70% { transform: scale(1); }
+  15% { transform: scale(1.4); }
+  30% { transform: scale(.9); }
+  45% { transform: scale(1.55); }
+  62% { transform: scale(.95); }
+  75% { transform: scale(1.2); }
 }
-.marca-late { animation: marcaLate .7s ease; }
+.marca-late { animation: marcaLate .9s ease; }
 
 @keyframes marcaVoltea {
-  from { transform: perspective(420px) rotateY(0deg); }
-  to { transform: perspective(420px) rotateY(360deg); }
+  0% { transform: perspective(420px) rotateY(0) scale(1); }
+  50% { transform: perspective(420px) rotateY(380deg) scale(1.35); }
+  100% { transform: perspective(420px) rotateY(720deg) scale(1); }
 }
-.marca-voltea { animation: marcaVoltea .9s ease; }
+.marca-voltea { animation: marcaVoltea 1.1s ease; }
+
+/* El vuelo: recorre toda la pantalla, sale DISPARADO por la derecha,
+   desaparece, y regresa entrando desde la izquierda a su lugar. */
+@keyframes marcaVuela {
+  0%    { transform: translate(0, 0) scale(1) rotate(0deg); }
+  12%   { transform: translate(-36vw, 16vh) scale(1.3) rotate(-28deg); }
+  26%   { transform: translate(32vw, 34vh) scale(.85) rotate(24deg); }
+  40%   { transform: translate(-28vw, 52vh) scale(1.45) rotate(-35deg); }
+  53%   { transform: translate(28vw, 10vh) scale(1.1) rotate(18deg); }
+  64%   { transform: translate(-8vw, -6vh) scale(1.25) rotate(-12deg); }
+  76%   { transform: translate(140vw, -18vh) scale(.6) rotate(80deg); }
+  76.01% { transform: translate(-140vw, 30vh) scale(.6) rotate(-50deg); }
+  88%   { transform: translate(-60vw, 12vh) scale(.9) rotate(-20deg); }
+  100%  { transform: translate(0, 0) scale(1) rotate(0deg); }
+}
+.marca-vuela { animation: marcaVuela 2.6s ease-in-out; position: relative; z-index: 70; }
+
+/* Mientras vuela, que la pagina no muestre barras ni se estire. */
+html.sin-desborde-vuelo, html.sin-desborde-vuelo body { overflow: hidden !important; }
 
 .cabecera__titulo { flex: 1; min-width: 0; }
 .cabecera__titulo h1 {

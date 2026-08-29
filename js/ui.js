@@ -151,7 +151,7 @@ export function vaciar(el) {
 
 // Animaciones de la marca (logo y nombre): cada toque sortea una distinta,
 // con su sonido goofy tambien al azar. Reinicia aunque se toque en rafaga.
-const ANIMS_MARCA = ['marca-animada', 'marca-gira', 'marca-brinca', 'marca-tiembla', 'marca-late', 'marca-voltea'];
+const ANIMS_MARCA = ['marca-animada', 'marca-gira', 'marca-brinca', 'marca-tiembla', 'marca-late', 'marca-voltea', 'marca-vuela'];
 const SONIDOS_MARCA = ['bruh', 'pato', 'corriendo', 'quepaso', 'rudo', 'djstop', 'grito', 'espera', 'dios', 'esponja', 'despegue']
   .map(n => 'sonidos/' + n + '.mp3');
 let audioMarca = null;
@@ -175,6 +175,11 @@ setTimeout(() => { try { pozoDeSonidos(); } catch (e) { /* sin audio */ } }, 150
 
 export function animarMarca(...els) {
   const anim = ANIMS_MARCA[Math.floor(Math.random() * ANIMS_MARCA.length)];
+  // En el vuelo el logo cruza TODA la pantalla: sin barras de desborde.
+  if (anim === 'marca-vuela') {
+    document.documentElement.classList.add('sin-desborde-vuelo');
+    setTimeout(() => document.documentElement.classList.remove('sin-desborde-vuelo'), 3000);
+  }
   for (const el of els) {
     if (!el) continue;
     el.classList.remove(...ANIMS_MARCA);
