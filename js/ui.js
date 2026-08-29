@@ -187,13 +187,19 @@ export const MARCAS_PROBADOR = [
   ['marca-vibra', 'Vibracion (what the hell)'],
 ];
 
-// Corre UNA animacion concreta sobre el logo/nombre visibles (probador).
+// Corre UNA animacion concreta (probador). El logo real queda TAPADO por la
+// hoja del probador, asi que se anima una copia en un escenario flotante
+// ENCIMA de la hoja; se recoge solo tras unos segundos sin uso.
 export function probarMarca(anim) {
-  const els = [
-    document.querySelector('.menu__logo') || document.querySelector('.cabecera__logo'),
-    document.querySelector('.menu__titulo') || document.querySelector('.cabecera__fila h1.marca'),
-  ];
-  ejecutarMarca(anim, els);
+  let escenario = document.querySelector('.probador-escenario');
+  if (!escenario) {
+    escenario = h('div.probador-escenario',
+      h('img.probador-escenario__logo', { src: 'icons/logo-serpro.png', alt: '' }));
+    document.body.appendChild(escenario);
+  }
+  ejecutarMarca(anim, [escenario.querySelector('img')]);
+  clearTimeout(escenario.__cierre);
+  escenario.__cierre = setTimeout(() => escenario.remove(), 6500);
 }
 
 export function animarMarca(...els) {

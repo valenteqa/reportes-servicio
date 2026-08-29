@@ -277,6 +277,17 @@ button { font-family: inherit; font-size: inherit; }
 /* Despues del disparo: ido. Vuelve al reentrar a la pantalla (se repinta). */
 .marca-ida { visibility: hidden; pointer-events: none; }
 
+/* Escenario del probador de animaciones: flota ENCIMA de la hoja para que
+   la animacion del logo se vea mientras eliges de la lista. */
+.probador-escenario {
+  position: fixed; top: 9vh; left: 50%; transform: translateX(-50%);
+  z-index: 70; pointer-events: none;
+}
+.probador-escenario__logo {
+  width: min(34vw, 150px); height: auto;
+  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, .35));
+}
+
 /* Gafete flotante: en que rama vas al scrollear una linea de tiempo larga. */
 .rama-flotante {
   position: fixed; left: 50%; transform: translateX(-50%);
