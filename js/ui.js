@@ -103,12 +103,25 @@ export function libre() {
 /* Orientacion de pantalla: la app va anclada a vertical (manifest); el visor
    de fotos y las tablas LIBERAN el giro del telefono o fuerzan horizontal. */
 
+// En el APK el candado del navegador NO existe (el WebView no lo trae):
+// la orientacion la manda la Activity, via el plugin nativo (APK 1.12+).
+const orientacionNativa = () =>
+  (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ScreenOrientation) || null;
+
 export async function orientarLibre() {
+  const SO = orientacionNativa();
+  if (SO) {
+    try { await SO.unlock(); return true; } catch (e) { /* sigue el camino web */ }
+  }
   try { await screen.orientation.lock('any'); return true; }
   catch (e) { return false; }
 }
 
 export async function orientarHorizontal() {
+  const SO = orientacionNativa();
+  if (SO) {
+    try { await SO.lock({ orientation: 'landscape' }); return true; } catch (e) { /* camino web */ }
+  }
   try { await screen.orientation.lock('landscape'); return true; }
   catch (e) {
     // En pestaña de navegador el bloqueo exige pantalla completa.
@@ -121,6 +134,12 @@ export async function orientarHorizontal() {
 }
 
 export function orientarNormal() {
+  const SO = orientacionNativa();
+  if (SO) {
+    // La app vive anclada a vertical: volver ahi al salir de la pantalla.
+    SO.lock({ orientation: 'portrait' }).catch(() => {});
+    return;
+  }
   try { screen.orientation.unlock(); } catch (e) {}
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
 }
