@@ -5,7 +5,7 @@
 // horizontal, y guardado automatico (nunca hay que acordarse de un boton Guardar).
 
 import * as db from '../db.js';
-import { h, hoja, aviso, confirmar, campo, hora, fecha, icono, orientarLibre, orientarHorizontal, orientarNormal } from '../ui.js';
+import { h, hoja, aviso, confirmar, campo, hora, fecha, icono, anclarCapa, orientarLibre, orientarHorizontal, orientarNormal } from '../ui.js';
 
 let guardadoPendiente = null;
 
@@ -91,36 +91,30 @@ export async function render(contenedor, refrescar, params) {
   // editor esta completo; ya agregada, abrirla es SOLO VER.
   const soloVer = !evento.enEdicion;
 
-  // GUARDIA de la captura: mientras la tabla se esta agregando, salir
-  // (con ← o con el atras del telefono) pregunta y, si se confirma, la
-  // tabla EN CURSO se descarta. Truco: una entrada duplicada del mismo
-  // hash — el atras fisico la saca (popstate, sin hashchange) y ahi se
-  // pregunta sin haber salido de la pantalla.
-  let guardiaActiva = false;
-  let preguntandoSalir = false;
-  const alPop = async () => {
-    if (!guardiaActiva) return;
-    if (preguntandoSalir) { history.pushState(null, '', location.hash); return; }
-    preguntandoSalir = true;
-    const ok = await confirmar('¿Regresar a la linea de tiempo? Se perdera la tabla.',
-      { textoOk: 'Regresar', peligro: true });
-    preguntandoSalir = false;
-    if (!ok) { history.pushState(null, '', location.hash); return; }
-    quitarGuardia();
-    clearTimeout(guardadoPendiente);
-    await db.eventoBorrar(evento.id);
+  // GUARDIA de la captura: mientras la tabla se esta agregando, salir (con
+  // ← o con el atras del telefono) pregunta y, si se confirma, la tabla EN
+  // CURSO se descarta. Usa el ancla de capas de ui.js — el mismo mecanismo
+  // del visor y el editor — para no pelearse con los fantasmas de las hojas.
+  let guardia = null;
+  const anclarGuardia = () => {
+    guardia = anclarCapa(async () => {
+      guardia = null;   // el atras fisico ya consumio el fantasma
+      const ok = await confirmar('¿Regresar a la linea de tiempo? Se perdera la tabla.',
+        { textoOk: 'Regresar', peligro: true });
+      if (!ok) { anclarGuardia(); return; }   // seguir capturando
+      clearTimeout(guardadoPendiente);
+      await db.eventoBorrar(evento.id);
+      history.back();
+    });
+  };
+  if (!soloVer) anclarGuardia();
+
+  // Salida ordenada de la captura: liberar el fantasma de la guardia y
+  // recien entonces salir de la ruta.
+  const salirCaptura = async () => {
+    if (guardia) { const g = guardia; guardia = null; await g.liberar(); }
     history.back();
   };
-  const quitarGuardia = () => {
-    if (!guardiaActiva) return;
-    guardiaActiva = false;
-    window.removeEventListener('popstate', alPop);
-  };
-  if (!soloVer) {
-    history.pushState(null, '', location.hash);
-    guardiaActiva = true;
-    window.addEventListener('popstate', alPop);
-  }
 
   // history.back() en vez de asignar el hash: asi el boton atras del telefono
   // y el de la app recorren la misma jerarquia (tabla → arbol → lista).
@@ -129,10 +123,9 @@ export async function render(contenedor, refrescar, params) {
     const ok = await confirmar('¿Regresar a la linea de tiempo? Se perdera la tabla.',
       { textoOk: 'Regresar', peligro: true });
     if (!ok) return;
-    quitarGuardia();
     clearTimeout(guardadoPendiente);
     await db.eventoBorrar(evento.id);
-    history.go(-2);   // la entrada duplicada + la ruta de la tabla
+    await salirCaptura();
   };
 
   const indicador = h('span.estado', 'Guardado');
@@ -183,11 +176,10 @@ export async function render(contenedor, refrescar, params) {
           if (!ok) return;
           // OJO: no usar volver() aqui — su guardarYa re-escribiria la tabla
           // recien borrada (la resucitaba). Cancelar el autoguardado y salir.
-          quitarGuardia();
           clearTimeout(guardadoPendiente);
           await db.eventoBorrar(evento.id);
           aviso('Tabla eliminada');
-          history.go(-2);
+          await salirCaptura();
         }
       }, 'Eliminar tabla')
     )
@@ -288,10 +280,9 @@ export async function render(contenedor, refrescar, params) {
     const ok = await confirmar('¿Tabla lista? Una vez agregada no se puede modificar.',
       { textoOk: 'Agregar', peligro: false });
     if (!ok) return;
-    quitarGuardia();
     delete evento.enEdicion;
     await guardarYa(evento);
-    history.go(-2);
+    await salirCaptura();
   };
 
   repintar();
