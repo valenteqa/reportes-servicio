@@ -9,7 +9,7 @@
 // Permisos: crear oportunidades = lider de Ventas (Usuario2) o admin;
 // registrar acciones = cualquiera del depto Ventas (o admin); ver = todos.
 
-import { h, aviso, vaciar, confirmar, hoja, campo } from '../ui.js';
+import { h, aviso, vaciar, confirmar, hoja, campo, campoLista } from '../ui.js';
 import * as db from '../db.js';
 import { quienSoy, puedeCrearVentas, puedeAccionarVentas, fechaSimulada } from '../organizacion.js';
 
@@ -34,6 +34,20 @@ function fechaBonita(clave) {
   const d = new Date(clave + 'T12:00:00');
   const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
   return d.getDate() + ' ' + MESES[d.getMonth()] + ' ' + d.getFullYear();
+}
+
+// La base de clientes es GLOBAL: los del catalogo de maquinas (modulo
+// Tecnico) + los ya usados en ventas. Y al crear una oportunidad con un
+// cliente nuevo, este se recuerda en el catalogo para toda la app.
+async function clientesGlobales() {
+  const set = new Set();
+  try {
+    for (const m of await db.maquinasCatalogo()) if (m.cliente) set.add(m.cliente);
+  } catch (e) { /* sin catalogo */ }
+  try {
+    for (const v of await db.ventasTodas()) if (v.cliente) set.add(v.cliente);
+  } catch (e) { /* sin ventas */ }
+  return [...set].sort((a, b) => a.localeCompare(b));
 }
 
 function calificacion(v) {
@@ -67,7 +81,8 @@ async function registrarAtrasos(ventas) {
 
 function hojaNuevaOportunidad() {
   return hoja('💼  Nueva oportunidad', (cerrar) => {
-    const cCliente = campo('Cliente', { maxLength: 80 });
+    const cCliente = campoLista('Cliente', { maxLength: 80, placeholder: 'Escribe o elige…' },
+      { opciones: clientesGlobales });
     const cTitulo = campo('Oportunidad', { maxLength: 160, placeholder: 'p. ej. Refacciones para H400' });
     const selPrio = h('select.org-select', ...PRIORIDADES.map(([v, n]) => h('option', { value: v }, n)));
     const cFecha = campo('Proximo seguimiento', { type: 'date', value: fechaClave() });
@@ -206,6 +221,8 @@ export async function render(contenedor) {
             historial: [{ ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo: 'estatus', texto: 'Oportunidad creada' }],
           };
           await db.ventaGuardar(v);
+          // cliente nuevo → al catalogo global de toda la app
+          try { await db.maquinaRecordar({ cliente: datos.cliente }); } catch (e) { /* opcional */ }
           pintar();
         },
       }, '✚  NUEVA') : null));
