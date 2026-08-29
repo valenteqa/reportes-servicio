@@ -318,7 +318,9 @@ async function hojaDetalle(v, permisos, alCambiar) {
     const pinta = () => {
       const cal = calificacion(v);
       const contacto = contactoVigente(v);
-      vaciar(cuerpo).append(
+      // OJO: append(null) pinta el texto "null" (h() si filtra nulos);
+      // aqui los condicionales entregan null, se filtran antes de anexar.
+      const partes = [
         h('p.venta-titulo', v.titulo),
         h('p.venta-meta',
           h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()),
@@ -377,8 +379,9 @@ async function hojaDetalle(v, permisos, alCambiar) {
             pinta();
             alCambiar();
           },
-        }, '✔  CERRAR OPORTUNIDAD') : null
-      );
+        }, '✔  CERRAR OPORTUNIDAD') : null,
+      ];
+      vaciar(cuerpo).append(...partes.filter(Boolean));
     };
     pinta();
     return cuerpo;
