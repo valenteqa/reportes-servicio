@@ -98,7 +98,11 @@ export async function render(contenedor, refrescar, params) {
   let guardia = null;
   const anclarGuardia = () => {
     guardia = anclarCapa(async () => {
-      guardia = null;   // el atras fisico ya consumio el fantasma
+      // El atras fisico consumio el fantasma: DESREGISTRAR la capa de la
+      // pila ya mismo (desdePop). Sin esto la entrada quedaba arriba de la
+      // pila para siempre y CADA atras posterior, en cualquier pantalla,
+      // volvia a disparar esta pregunta.
+      if (guardia) { guardia.desdePop(); guardia = null; }
       const ok = await confirmar('¿Regresar a la linea de tiempo? Se perdera la tabla.',
         { textoOk: 'Regresar', peligro: true });
       if (!ok) { anclarGuardia(); return; }   // seguir capturando
