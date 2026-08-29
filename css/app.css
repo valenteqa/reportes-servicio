@@ -503,24 +503,32 @@ button { font-family: inherit; font-size: inherit; }
 .marca-pato { animation: marcaPato 1.1s ease-in-out; transform-origin: 50% 85%; }
 
 /* Desmayo con "dios" (1.64s medido, pico del OH en 0.24s): sacudida en el
-   pico, mareo con bamboleos crecientes, se va de lado al piso (~1.3s) con
-   rebotito, queda tendido mientras muere la frase, y revive de un brinco.
-   Pivota sobre la base (transform-origin abajo). Total 2.2s. */
+   pico, mareo con bamboleos, y un colapso LENTO y fluido (se va derritiendo
+   con easing de gravedad y aterriza suave, sin golpe); queda tendido en el
+   silencio y se levanta COMO CONVALECIENTE: se incorpora tantito, se le va
+   y recae, y sube despacio hasta quedar de pie mareado. Pivota sobre la
+   base (transform-origin abajo). Total 3.2s. */
 @keyframes marcaDesmayo {
-  0%   { transform: rotate(0); }
-  11%  { transform: rotate(-6deg) scale(1.05); }   /* golpe del OH (0.24s) */
-  20%  { transform: rotate(7deg) scale(1); }
-  29%  { transform: rotate(-10deg); }               /* mareo creciente */
-  38%  { transform: rotate(12deg); }
-  43%  { transform: rotate(-6deg); }                /* ultimo tambaleo */
-  59%  { transform: rotate(88deg) translateY(4%); } /* al piso */
-  63%  { transform: rotate(78deg) translateY(2%); } /* rebotito */
-  67%  { transform: rotate(88deg) translateY(4%); }
-  84%  { transform: rotate(88deg) translateY(4%); } /* tendido, desmayado */
-  93%  { transform: rotate(-7deg); }                /* revive de un brinco */
-  100% { transform: rotate(0); }
+  0%    { transform: rotate(0); }
+  7.5%  { transform: rotate(-6deg) scale(1.05); }    /* golpe del OH (0.24s) */
+  14%   { transform: rotate(7deg) scale(1); }
+  20%   { transform: rotate(-10deg); }                /* mareo */
+  26%   { transform: rotate(12deg); }
+  31%   { transform: rotate(-5deg); animation-timing-function: ease-in; }
+  38%   { transform: rotate(18deg); animation-timing-function: ease-in; }   /* se va yendo... */
+  45%   { transform: rotate(52deg); animation-timing-function: ease-out; }  /* cayendo fluido */
+  52%   { transform: rotate(84deg) translateY(3%); animation-timing-function: ease-out; }
+  55%   { transform: rotate(88deg) translateY(4%); }  /* toca piso suave */
+  58%   { transform: rotate(85.5deg) translateY(3.6%); } /* asentamiento minimo */
+  61%   { transform: rotate(88deg) translateY(4%); }
+  72%   { transform: rotate(88deg) translateY(4%); }  /* tendido, desmayado */
+  79%   { transform: rotate(74deg) translateY(3%); }  /* se incorpora tantito... */
+  83%   { transform: rotate(79deg) translateY(3.4%); }/* ...se le va, recae */
+  91%   { transform: rotate(30deg); }                 /* empujon lento */
+  96%   { transform: rotate(-4deg); }                 /* casi arriba, mareado */
+  100%  { transform: rotate(0); }
 }
-.marca-desmayo { animation: marcaDesmayo 2.2s ease-in-out; transform-origin: 50% 88%; }
+.marca-desmayo { animation: marcaDesmayo 3.2s ease-in-out; transform-origin: 50% 88%; }
 
 .rudo-humo {
   position: absolute; right: -6%; top: -140%;
