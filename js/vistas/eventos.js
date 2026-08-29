@@ -289,15 +289,62 @@ export async function editarNota(evento) {
   return true;
 }
 
-export async function agregarTabla(servicioId, equipoId) {
-  const ev = await db.eventoNuevo(servicioId, equipoId, 'tabla', {
-    titulo: '',
+// Plantilla base, siempre disponible (el formato de analisis de tarjetas VT).
+const TABLA_VT = {
+  nombre: 'Tabla de Valores de VT',
+  tabla: {
+    titulo: 'Analisis de Tarjetas VT de Bombas',
     columnas: [
-      { nombre: 'Punto',  unidad: '', tipo: 'texto'  },
-      { nombre: 'Valor',  unidad: '', tipo: 'numero' },
+      { nombre: 'Pin',         unidad: '', tipo: 'texto'  },
+      { nombre: 'Bomba 1 Off', unidad: '', tipo: 'numero' },
+      { nombre: 'Bomba 1 On',  unidad: '', tipo: 'numero' },
+      { nombre: 'Bomba 2 Off', unidad: '', tipo: 'numero' },
+      { nombre: 'Bomba 2 On',  unidad: '', tipo: 'numero' },
+      { nombre: 'Bomba 3 Off', unidad: '', tipo: 'numero' },
+      { nombre: 'Bomba 3 On',  unidad: '', tipo: 'numero' },
+      { nombre: 'Bomba 4 Off', unidad: '', tipo: 'numero' },
+      { nombre: 'Bomba 4 On',  unidad: '', tipo: 'numero' },
     ],
-    filas: [['', ''], ['', '']],
-  });
+    filas: ['Pin 1', 'Pin 2', 'Pin 3', 'Pin 4', 'Pin 5', 'Pin 6', 'Presion']
+      .map(p => [p, '', '', '', '', '', '', '', '']),
+  },
+};
+
+export async function agregarTabla(servicioId, equipoId) {
+  // Primero elegir: tabla nueva o una predeterminada (la base + las guardadas).
+  const guardadas = await db.tablasPredeterminadas().catch(() => []);
+  const eleccion = await hoja('▦  ¿Que tabla agregamos?', (cerrar) => h('div',
+    h('div.lista-acciones',
+      h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar({ nueva: true }) },
+        '➕  Tabla nueva'),
+      h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar(TABLA_VT) },
+        '▦  ' + TABLA_VT.nombre),
+      guardadas.filter(g => g.clave !== 'tabla:' + TABLA_VT.nombre.toLowerCase()).map(g =>
+        h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar(g) },
+          '▦  ' + g.nombre))
+    ),
+    h('p.pista', 'Al terminar una tabla nueva podras guardarla como predeterminada para reutilizarla.')
+  ));
+  if (!eleccion) return null;
+
+  const datos = eleccion.nueva
+    ? {
+      titulo: '',
+      columnas: [
+        { nombre: 'Punto', unidad: '', tipo: 'texto' },
+        { nombre: 'Valor', unidad: '', tipo: 'numero' },
+      ],
+      filas: [['', ''], ['', '']],
+    }
+    : JSON.parse(JSON.stringify(eleccion.tabla));
+
+  const ev = await db.eventoNuevo(servicioId, equipoId, 'tabla', datos);
+  if (eleccion.nueva) {
+    // Marca en la RAIZ del evento (el editor solo toca datos): al volver al
+    // arbol se ofrece guardarla como predeterminada, una sola vez.
+    ev.preguntarPlantilla = true;
+    await db.eventoGuardar(ev);
+  }
   location.hash = '#/s/' + servicioId + '/t/' + ev.id;
   return ev;
 }

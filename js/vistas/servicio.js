@@ -339,6 +339,52 @@ function rama(servicio, actividad, eventos, refrescar, numeroPaso) {
   return seccion;
 }
 
+// Pregunta (una vez) si la tabla recien creada se guarda como predeterminada.
+// El nombre es OBLIGATORIO. Se guarda la estructura, no los valores.
+async function ofrecerGuardarPlantilla(eventos) {
+  const ev = eventos.find(e => e.tipo === 'tabla' && e.preguntarPlantilla);
+  if (!ev) return;
+  delete ev.preguntarPlantilla;   // pregunta una sola vez, decida lo que decida
+  await db.eventoGuardar(ev);
+
+  const t = ev.datos || {};
+  if (!t.columnas || !t.columnas.length) return;
+  // Si la dejo tal cual salio (2 columnas Punto/Valor, sin titulo ni datos),
+  // no hay nada que valga la pena guardar: no molestar.
+  const sinCambios = !String(t.titulo || '').trim() &&
+    t.columnas.length === 2 &&
+    (t.columnas[0].nombre || '') === 'Punto' && (t.columnas[1].nombre || '') === 'Valor' &&
+    (t.filas || []).every(f => f.every(c => !String(c).trim()));
+  if (sinCambios) return;
+
+  const quiere = await confirmar(
+    '¿Guardar esta tabla como PREDETERMINADA para reutilizarla en otros trabajos? Se guarda su estructura (titulo, columnas y renglones), no los valores.',
+    { textoOk: 'Guardar', peligro: false });
+  if (!quiere) return;
+
+  let nombre = null;
+  await hoja('Nombre de la tabla', (cerrar) => {
+    const cNombre = campo('Nombre', { value: t.titulo || '' });
+    return h('div',
+      cNombre,
+      h('p.pista', 'Obligatorio: con este nombre aparecera en el menu al agregar una tabla.'),
+      h('div.hoja__acciones',
+        h('button.btn.btn--primario', {
+          type: 'button',
+          onclick: () => {
+            const v = cNombre.querySelector('input').value.trim();
+            if (!v) { aviso('Ponle un nombre', 'error'); return; }
+            nombre = v;
+            cerrar(true);
+          }
+        }, 'Guardar'))
+    );
+  });
+  if (!nombre) return;
+  await db.tablaPredeterminadaGuardar(nombre, t);
+  aviso('Guardada en tablas predeterminadas', 'ok');
+}
+
 export async function render(contenedor, refrescar, params) {
   media.liberarUrls();
   const servicio = await db.servicioLeer(params.sid);
@@ -357,6 +403,10 @@ export async function render(contenedor, refrescar, params) {
 
   const actividades = await db.equiposDeServicio(servicio.id);
   const eventos = await db.eventosDeServicio(servicio.id);
+
+  // Si el usuario acaba de construir una "tabla nueva", al volver al arbol se
+  // ofrece guardarla como predeterminada (una sola vez por tabla).
+  ofrecerGuardarPlantilla(eventos).catch(console.error);
 
   const porRama = {};
   for (const ev of eventos) {

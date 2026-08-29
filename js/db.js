@@ -18,8 +18,8 @@ export const TIPOS = {
   // La clave 'geometrica' se conserva: trabajos ya creados con ella siguen abriendo.
   geometrica:    { nombre: 'Correccion Geometrica',  icono: '📐' },
   laboratorio:   { nombre: 'Pruebas de laboratorio', icono: '🧪' },
-  general:       { nombre: 'General',                icono: '📋' },
   procedimiento: { nombre: 'Procedimiento',          icono: '📑' },
+  general:       { nombre: 'General',                icono: '📋' },
 };
 
 export function tipoDe(trabajo) {
@@ -311,6 +311,31 @@ export function maquinasEliminarValor(campo, valor) {
 /* ---------------------------------------------------------------- */
 /* Eventos: nota | tabla | foto                                      */
 /* ---------------------------------------------------------------- */
+
+/* ---- Tablas predeterminadas: plantillas reutilizables (catalogo tipo:'tabla') ---- */
+
+export function tablasPredeterminadas() {
+  return tx('catalogo', 'readonly',
+    st => porIndice(st.catalogo, 'tipo', IDBKeyRange.only('tabla')))
+    .then(l => l.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es')));
+}
+
+// Guarda la ESTRUCTURA de la tabla: titulo, columnas y las etiquetas de la
+// primera columna; las celdas de valores se vacian (es plantilla, no datos).
+export function tablaPredeterminadaGuardar(nombre, tabla) {
+  const limpio = String(nombre || '').trim();
+  const reg = {
+    clave: 'tabla:' + limpio.toLowerCase(),
+    tipo: 'tabla',
+    nombre: limpio,
+    tabla: {
+      titulo: tabla.titulo || limpio,
+      columnas: JSON.parse(JSON.stringify(tabla.columnas || [])),
+      filas: (tabla.filas || []).map(f => f.map((c, j) => (j === 0 ? c : ''))),
+    },
+  };
+  return tx('catalogo', 'readwrite', st => pedir(st.catalogo.put(reg))).then(() => reg);
+}
 
 export function eventoNuevo(servicioId, equipoId, tipo, datos) {
   const evento = {

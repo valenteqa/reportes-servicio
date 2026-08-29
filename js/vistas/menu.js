@@ -26,6 +26,7 @@ export async function render(contenedor) {
     ),
     h('div.menu__botones',
       boton('🔧', 'Tecnico', () => { location.hash = '#/t'; }),
+      boton('📔', 'Diario', () => aviso('Diario esta en desarrollo'), 'EN DESARROLLO'),
       boton('📦', 'Inventario', () => aviso('Inventario esta en desarrollo'), 'EN DESARROLLO'),
       boton('⚙', 'Configuracion', () => hojaConfiguracion())
     ),
