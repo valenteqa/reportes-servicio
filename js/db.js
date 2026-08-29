@@ -2,7 +2,7 @@
 // Todo vive en el telefono. Nada se sube a ningun servidor.
 
 const DB_NOMBRE  = 'app-reportes';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 export const GENERAL = '__general__';
 
@@ -91,6 +91,12 @@ export function abrir() {
       // con su lista de actividades y si el dia ya fue evaluado.
       if (!db.objectStoreNames.contains('diario')) {
         db.createObjectStore('diario', { keyPath: 'fecha' });
+      }
+
+      // Oportunidades de venta (depto Ventas): globales, por cliente, con
+      // su historial de estatus/atrasos.
+      if (!db.objectStoreNames.contains('ventas')) {
+        db.createObjectStore('ventas', { keyPath: 'id' });
       }
     };
 
@@ -480,7 +486,7 @@ export function ajusteGuardar(clave, valor) {
 /* Respaldo: acceso a stores completos                               */
 /* ---------------------------------------------------------------- */
 
-const STORES_RESPALDO = ['servicios', 'equipos', 'eventos', 'catalogo', 'ajustes', 'diario'];
+const STORES_RESPALDO = ['servicios', 'equipos', 'eventos', 'catalogo', 'ajustes', 'diario', 'ventas'];
 
 export function todosDe(nombre) {
   return tx(nombre, 'readonly', st => pedir(st[nombre].getAll()));
@@ -488,12 +494,12 @@ export function todosDe(nombre) {
 
 export function volcadoCompleto() {
   return Promise.all(STORES_RESPALDO.map(s => todosDe(s)))
-    .then(([servicios, equipos, eventos, catalogo, ajustes, diario]) =>
-      ({ servicios, equipos, eventos, catalogo, ajustes, diario }));
+    .then(([servicios, equipos, eventos, catalogo, ajustes, diario, ventas]) =>
+      ({ servicios, equipos, eventos, catalogo, ajustes, diario, ventas }));
 }
 
 export function restaurarVolcado(volcado, fotos) {
-  return tx(['servicios', 'equipos', 'eventos', 'catalogo', 'ajustes', 'diario', 'fotos'], 'readwrite', async (st) => {
+  return tx(['servicios', 'equipos', 'eventos', 'catalogo', 'ajustes', 'diario', 'ventas', 'fotos'], 'readwrite', async (st) => {
     let n = 0;
     for (const s of STORES_RESPALDO) {
       for (const registro of (volcado[s] || [])) {
@@ -537,6 +543,18 @@ export function diaGuardar(dia) {
 
 export function diasTodos() {
   return tx('diario', 'readonly', st => pedir(st.diario.getAll()));
+}
+
+/* ---------------------------------------------------------------- */
+/* Oportunidades de venta                                            */
+/* ---------------------------------------------------------------- */
+
+export function ventaGuardar(venta) {
+  return tx('ventas', 'readwrite', st => { st.ventas.put(venta); });
+}
+
+export function ventasTodas() {
+  return tx('ventas', 'readonly', st => pedir(st.ventas.getAll()));
 }
 
 /* ---------------------------------------------------------------- */

@@ -712,6 +712,37 @@ button { font-family: inherit; font-size: inherit; }
   vertical-align: middle;
 }
 
+/* Tablero de Ventas */
+.venta-filtro { flex: 1; }
+.venta-abrir { width: 100%; margin-top: .6rem; }
+.venta-carta {
+  display: block; width: 100%; text-align: left;
+  background: var(--superficie); border: 1px solid var(--borde);
+  border-radius: var(--r-md); padding: .8rem .9rem; margin-bottom: .7rem;
+  color: var(--tinta); font: inherit; box-shadow: var(--sombra-1);
+}
+.venta-carta--cerrada { opacity: .55; }
+.venta-carta__fila { display: flex; align-items: center; gap: .5rem; margin-bottom: .3rem; }
+.venta-cliente { flex: 1; min-width: 0; font-weight: 700; letter-spacing: .02em; }
+.venta-prio {
+  padding: .1rem .45rem; border-radius: 99px;
+  font-size: .66rem; font-weight: 800; letter-spacing: .05em;
+}
+.venta-prio--alta  { background: #d3302f22; color: #c22a29; border: 1px solid #c22a2955; }
+.venta-prio--media { background: #b8860b22; color: #a3760a; border: 1px solid #a3760a55; }
+.venta-prio--baja  { background: var(--superficie-2); color: var(--tinta-suave); border: 1px solid var(--borde); }
+.venta-cal { font-weight: 800; font-variant-numeric: tabular-nums; }
+.venta-titulo { margin: 0 0 .25rem; font-weight: 600; }
+.venta-meta { margin: 0; font-size: .82rem; color: var(--tinta-suave); }
+.venta-vencida { color: var(--peligro, #c22a29); font-weight: 700; }
+.venta-estatus { color: var(--tinta-tenue); }
+.venta-h3 { font-size: .78rem; letter-spacing: .1em; color: var(--tinta-suave); margin: .8rem 0 .35rem; }
+.venta-historial { max-height: 40vh; overflow-y: auto; }
+.venta-evento { display: flex; gap: .6rem; padding: .4rem 0; border-bottom: 1px dashed var(--borde); font-size: .88rem; }
+.venta-evento__fecha { flex: none; color: var(--tinta-tenue); font-variant-numeric: tabular-nums; }
+.venta-evento--atraso .venta-evento__texto { color: var(--peligro, #c22a29); font-weight: 600; }
+.venta-btn { width: 100%; margin-top: .7rem; }
+
 .rudo-humo {
   position: absolute; right: -6%; top: -140%;
   width: 16%; aspect-ratio: 1; border-radius: 50%;

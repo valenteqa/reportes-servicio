@@ -40,6 +40,17 @@ export async function organizacion() {
     org = { usuarios: SEMILLA.map(u => ({ id: nuevoId(), depto: '', ...u })) };
     await ajusteGuardar('organizacion', org);
   }
+  // Migracion v2: Usuario2 es el LIDER de VENTAS (dictado por Vale). Solo
+  // se aplica si el admin no lo ha movido a otra cosa a mano.
+  if (!org.v || org.v < 2) {
+    const juan = org.usuarios.find(u => u.nombre === 'Usuario2');
+    if (juan) {
+      if (!juan.depto) juan.depto = 'Ventas';
+      if (juan.rol === 'usuario') juan.rol = 'lider';
+    }
+    org.v = 2;
+    await ajusteGuardar('organizacion', org);
+  }
   return org;
 }
 
@@ -65,6 +76,15 @@ export function puedeEditarActividades(yo) {
 
 export function esAdmin(yo) {
   return !!yo && yo.rol === 'admin';
+}
+
+// Ventas: crear oportunidades es del LIDER de Ventas (o admin); registrar
+// acciones/estatus es de cualquiera del depto Ventas (o admin).
+export function puedeCrearVentas(yo) {
+  return !!yo && (yo.rol === 'admin' || (yo.rol === 'lider' && yo.depto === 'Ventas'));
+}
+export function puedeAccionarVentas(yo) {
+  return !!yo && (yo.rol === 'admin' || yo.depto === 'Ventas');
 }
 
 // Ver las ACTIVIDADES de alguien (no solo sus porcentajes): uno mismo,

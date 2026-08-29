@@ -15,6 +15,7 @@ import * as vistaServicios from './vistas/servicios.js';
 import * as vistaServicio  from './vistas/servicio.js';
 import * as vistaTabla     from './vistas/tabla.js';
 import * as vistaDiario    from './vistas/diario.js';
+import * as vistaVentas    from './vistas/ventas.js';
 
 const raiz = document.getElementById('app');
 let pintando = false;
@@ -25,7 +26,9 @@ function analizarRuta() {
 
   if (!p.length) return { vista: 'menu', params: {} };
   if (p[0] === 't') return { vista: 'servicios', params: {} };
-  // #/d mi dia · #/d/org organizacion · #/d/depto mi depto · #/d/u/<id> miembro
+  // #/d mi dia · #/d/org organizacion · #/d/depto mi depto ·
+  // #/d/u/<id> miembro · #/d/ventas tablero de ventas
+  if (p[0] === 'd' && p[1] === 'ventas') return { vista: 'ventas', params: {} };
   if (p[0] === 'd') return { vista: 'diario', params: { sub: p[1] || '', id: p[2] || '' } };
   if (p[0] === 's' && p[1]) {
     if (p[2] === 't' && p[3]) return { vista: 'tabla', params: { sid: p[1], eventoId: p[3] } };
@@ -41,6 +44,7 @@ const VISTAS = {
   servicio:  vistaServicio,
   tabla:     vistaTabla,
   diario:    vistaDiario,
+  ventas:    vistaVentas,
 };
 
 async function pintar() {

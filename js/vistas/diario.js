@@ -249,6 +249,12 @@ async function renderOrganizacion(contenedor) {
     carta.append(h('p.sem-total', dTotal
       ? 'DEPTO: ' + dHechas + ' de ' + dTotal + ' · ' + pct + '%'
       : 'Depto sin actividades registradas en este telefono.'));
+    // Ventas se gestiona distinto: su tablero global se abre desde aqui.
+    if (depto === 'Ventas') {
+      carta.append(h('button.btn.btn--fantasma.venta-abrir', {
+        type: 'button', onclick: () => { location.hash = '#/d/ventas'; },
+      }, '💼  Ver oportunidades de venta'));
+    }
     cont.append(carta);
   }
   cont.append(h('p.pista', 'Aqui solo se ven porcentajes. El detalle de actividades de cada quien lo ve su lider de area (en Mi depto) o el administrador.'));
@@ -371,8 +377,15 @@ async function renderMiembro(contenedor, id) {
 
 export async function render(contenedor, refrescar, params = {}) {
   if (params.sub === 'org') return renderOrganizacion(contenedor);
-  if (params.sub === 'depto') return renderDepto(contenedor);
   if (params.sub === 'u') return renderMiembro(contenedor, params.id);
+
+  // VENTAS no lleva diario: sus miembros entran directo al tablero global
+  // (tambien su "Mi depto" ES el tablero).
+  if (params.sub === '' || params.sub === 'depto') {
+    const yoV = await quienSoy();
+    if (yoV && yoV.depto === 'Ventas') { location.replace('#/d/ventas'); return; }
+  }
+  if (params.sub === 'depto') return renderDepto(contenedor);
 
   const hoyClave = fechaClave();
   let dia = await db.diaLeer(hoyClave);
