@@ -151,12 +151,19 @@ export function vaciar(el) {
 
 // Animaciones de la marca (logo y nombre): cada toque sortea una distinta,
 // con su sonido goofy tambien al azar. Reinicia aunque se toque en rafaga.
-const ANIMS_MARCA = ['marca-animada', 'marca-gira', 'marca-brinca', 'marca-tiembla', 'marca-late', 'marca-voltea', 'marca-vuela', 'marca-vibra', 'marca-cae'];
+const ANIMS_MARCA = ['marca-animada', 'marca-gira', 'marca-brinca', 'marca-tiembla', 'marca-late', 'marca-voltea', 'marca-vuela', 'marca-vibra', 'marca-cae', 'marca-rudo'];
 const SONIDOS_MARCA = ['bruh', 'pato', 'corriendo', 'quepaso', 'rudo', 'djstop', 'grito', 'dios', 'esponja']
   .map(n => 'sonidos/' + n + '.mp3');
 let audioMarca = null;
 let corteMarca = null;
 let patoMarca = null;   // chillido del pato agendado para el rebote de la caida
+
+// Capa "rudo": lentes de sol y cigarro montados ENCIMA del logo mientras
+// suena el riff; se retira cuando el sonido termina (o el corte).
+let capaRudo = null;
+function quitarRudo() {
+  if (capaRudo) { capaRudo.remove(); capaRudo = null; }
+}
 
 // POZO precargado: crear el Audio en el toque tardaba tanto (buscar el mp3
 // y decodificarlo) que el sonido llegaba cuando la animacion ya acababa.
@@ -187,6 +194,7 @@ const MARCAS_PROBADOR = [
   ['marca-vuela', 'Vuelo (disparado)'],
   ['marca-vibra', 'What the hell (crece, mini y vibra)'],
   ['marca-cae', 'Caida (grito y pato)'],
+  ['marca-rudo', 'Rudo (lentes y cigarro)'],
 ];
 
 // Nombres de los sonidos, en el MISMO orden que SONIDOS_MARCA.
@@ -208,6 +216,7 @@ export function ensayoDeMarca() {
       try { if (audioMarca) audioMarca.pause(); } catch (e) { /* sin audio */ }
       clearTimeout(corteMarca);
       clearTimeout(patoMarca);
+      quitarRudo();
       pantalla.remove();
       if (porBack) ancla.desdePop();
       else await ancla.liberar();
@@ -278,6 +287,7 @@ function ejecutarMarca(anim, els, iSonido) {
   const esVibra = anim === 'marca-vibra';
   const esCae = anim === 'marca-cae';
   const esGira = anim === 'marca-gira';
+  const esRudo = anim === 'marca-rudo';
 
   // En el vuelo y la caida el logo sale de la pantalla: sin barras de
   // desborde mientras dura.
@@ -293,6 +303,7 @@ function ejecutarMarca(anim, els, iSonido) {
   // de animaciones sortea los demas sonidos. El de DJ arranca medio segundo
   // ANTES del movimiento (asi caen a tiempo).
   let retrasoAnim = 0;
+  quitarRudo();   // una corrida nueva limpia lentes/cigarro anteriores
   try {
     if (audioMarca) audioMarca.pause();
     clearTimeout(corteMarca);
@@ -303,20 +314,23 @@ function ejecutarMarca(anim, els, iSonido) {
     const iGrito = SONIDOS_MARCA.findIndex(s => s.includes('grito'));
     const iPato = SONIDOS_MARCA.findIndex(s => s.includes('pato'));
     const iDj = SONIDOS_MARCA.findIndex(s => s.includes('djstop'));
+    const iRudo = SONIDOS_MARCA.findIndex(s => s.includes('rudo'));
     let i;
     if (iSonido != null) i = iSonido;
     else if (esVuela) i = iCorriendo;
     else if (esVibra) i = iQuepaso;
     else if (esCae) i = iGrito;
     else if (esGira) i = iDj;         // pareja fija: giro doble ↔ dj stop
+    else if (esRudo) i = iRudo;       // pareja fija: rudo ↔ lentes y cigarro
     else {
-      do { i = Math.floor(Math.random() * pozo.length); } while (i === iCorriendo || i === iQuepaso || i === iGrito || i === iDj);
+      do { i = Math.floor(Math.random() * pozo.length); } while (i === iCorriendo || i === iQuepaso || i === iGrito || i === iDj || i === iRudo);
     }
     if (SONIDOS_MARCA[i].includes('djstop')) retrasoAnim = 500;
     audioMarca = pozo[i];
     audioMarca.currentTime = 0;
     audioMarca.play().catch(() => {});
     if (esVibra) audioMarca.addEventListener('ended', quitarVibra, { once: true });
+    if (esRudo) audioMarca.addEventListener('ended', quitarRudo, { once: true });
     // Caida con su grito: el PATO se dispara 200ms antes del primer impacto
     // (2.10s de la coreografia) porque su primer chillido vive en 0.20-0.44s
     // del archivo; asi chilla EXACTO al rebote, y el segundo chillido
@@ -337,6 +351,7 @@ function ejecutarMarca(anim, els, iSonido) {
     corteMarca = setTimeout(() => {
       if (audioMarca) audioMarca.pause();
       quitarVibra();   // si el sonido se corto en el tope, la vibracion tambien
+      quitarRudo();
     }, tope);
   } catch (e) { /* sin audio */ }
 
@@ -353,6 +368,20 @@ function ejecutarMarca(anim, els, iSonido) {
           if (esVuela) el.classList.add('marca-ida');
         }, { once: true });
       }
+    }
+    // Rudo: lentes y cigarro fijados SOBRE el logo. La capa corre la MISMA
+    // pose (marcaRudo) que el logo y arranca en el mismo cuadro, asi se
+    // ladean juntos. Se mide el rect ANTES de que la pose lo transforme.
+    if (esRudo && els[0]) {
+      const r = els[0].getBoundingClientRect();
+      capaRudo = h('div.rudo-capa',
+        h('div.rudo-lentes'),
+        h('div.rudo-cigarro', h('div.rudo-humo'), h('div.rudo-humo'), h('div.rudo-humo')));
+      Object.assign(capaRudo.style, {
+        left: r.left + 'px', top: r.top + 'px',
+        width: r.width + 'px', height: r.height + 'px',
+      });
+      document.body.appendChild(capaRudo);
     }
   };
   clearTimeout(retrasoAnimMarca);
