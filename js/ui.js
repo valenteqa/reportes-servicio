@@ -153,7 +153,7 @@ export function vaciar(el) {
 // TODAS traen su sonido de pareja fija. Reinicia aunque se toque en rafaga.
 // (Archivadas sin sonido: marca-animada/Pulso, marca-brinca, marca-tiembla,
 // marca-late, marca-voltea — sus keyframes siguen en el CSS por si vuelven.)
-const ANIMS_MARCA = ['marca-gira', 'marca-vuela', 'marca-vibra', 'marca-cae', 'marca-rudo', 'marca-pato', 'marca-desmayo'];
+const ANIMS_MARCA = ['marca-gira', 'marca-vuela', 'marca-vibra', 'marca-cae', 'marca-rudo', 'marca-pato', 'marca-desmayo', 'marca-iris'];
 
 // Pareja fija sonido↔animacion (nombre del archivo en SONIDOS_MARCA).
 const PAREJA_SONIDO = {
@@ -164,8 +164,9 @@ const PAREJA_SONIDO = {
   'marca-rudo': 'rudo',
   'marca-pato': 'pato',
   'marca-desmayo': 'dios',
+  'marca-iris': 'resorte',
 };
-const SONIDOS_MARCA = ['pato', 'corriendo', 'quepaso', 'rudo', 'djstop', 'grito', 'dios', 'golpe']
+const SONIDOS_MARCA = ['pato', 'corriendo', 'quepaso', 'rudo', 'djstop', 'grito', 'dios', 'golpe', 'resorte']
   .map(n => 'sonidos/' + n + '.mp3');
 let audioMarca = null;
 let corteMarca = null;
@@ -176,6 +177,13 @@ let golpeMarca = null;  // punetazo agendado para el impacto de la caida
 let capaRudo = null;
 function quitarRudo() {
   if (capaRudo) { capaRudo.remove(); capaRudo = null; }
+}
+
+// Iris "Looney": el hoyo cuya sombra pinta de negro todo lo demas; se
+// autodestruye al terminar su animacion (o en el corte / corrida nueva).
+let capaIris = null;
+function quitarIris() {
+  if (capaIris) { capaIris.remove(); capaIris = null; }
 }
 
 // POZO precargado: crear el Audio en el toque tardaba tanto (buscar el mp3
@@ -205,11 +213,12 @@ const MARCAS_PROBADOR = [
   ['marca-rudo', 'Rudo (lentes y cigarro)'],
   ['marca-pato', 'Patito de hule (pato)'],
   ['marca-desmayo', 'Desmayo (dios)'],
+  ['marca-iris', 'Cierre Looney (resorte)'],
 ];
 
 // Nombres de los sonidos, en el MISMO orden que SONIDOS_MARCA.
 const SONIDOS_NOMBRES = ['Pato', 'Corriendo (pasos + disparo)', 'What the hell',
-  'Rudo', 'DJ stop', 'Grito', 'Dios', 'Golpe (caida)'];
+  'Rudo', 'DJ stop', 'Grito', 'Dios', 'Golpe (caida)', 'Resorte'];
 
 // Ensayo del logo: pantalla dedicada con fondo blanco. Tocar una ANIMACION
 // la corre sola (en silencio) y la deja elegida; tocar un SONIDO lo hace
@@ -227,6 +236,7 @@ export function ensayoDeMarca() {
       clearTimeout(corteMarca);
       clearTimeout(golpeMarca);
       quitarRudo();
+      quitarIris();
       pantalla.remove();
       if (porBack) ancla.desdePop();
       else await ancla.liberar();
@@ -297,6 +307,7 @@ function ejecutarMarca(anim, els, iSonido) {
   const esVibra = anim === 'marca-vibra';
   const esCae = anim === 'marca-cae';
   const esRudo = anim === 'marca-rudo';
+  const esIris = anim === 'marca-iris';
 
   // En el vuelo y la caida el logo sale de la pantalla: sin barras de
   // desborde mientras dura.
@@ -313,6 +324,7 @@ function ejecutarMarca(anim, els, iSonido) {
   // ANTES del movimiento (asi caen a tiempo).
   let retrasoAnim = 0;
   quitarRudo();   // una corrida nueva limpia lentes/cigarro anteriores
+  quitarIris();   // y cualquier iris a medio cerrar
   try {
     if (audioMarca) audioMarca.pause();
     clearTimeout(corteMarca);
@@ -353,6 +365,7 @@ function ejecutarMarca(anim, els, iSonido) {
       if (audioMarca) audioMarca.pause();
       quitarVibra();   // si el sonido se corto en el tope, la vibracion tambien
       quitarRudo();
+      quitarIris();
     }, tope);
   } catch (e) { /* sin audio */ }
 
@@ -365,8 +378,9 @@ function ejecutarMarca(anim, els, iSonido) {
       if (!esVibra) {
         el.addEventListener('animationend', () => {
           el.classList.remove(anim);
-          // Tras el disparo ya no regresa: queda ido hasta reentrar aqui.
-          if (esVuela) el.classList.add('marca-ida');
+          // Tras el disparo (o tragado por el iris) ya no regresa: queda
+          // ido hasta reentrar aqui.
+          if (esVuela || esIris) el.classList.add('marca-ida');
         }, { once: true });
       }
     }
@@ -383,6 +397,16 @@ function ejecutarMarca(anim, els, iSonido) {
         width: r.width + 'px', height: r.height + 'px',
       });
       document.body.appendChild(capaRudo);
+    }
+    // Iris Looney: el circulo se cierra CENTRADO en el logo; el hoyo se
+    // autodestruye cuando su animacion (cerrar-negro-reabrir) termina.
+    if (esIris && els[0]) {
+      const r = els[0].getBoundingClientRect();
+      capaIris = h('div.iris-hoyo');
+      capaIris.style.left = (r.left + r.width / 2) + 'px';
+      capaIris.style.top = (r.top + r.height / 2) + 'px';
+      capaIris.addEventListener('animationend', quitarIris, { once: true });
+      document.body.appendChild(capaIris);
     }
   };
   clearTimeout(retrasoAnimMarca);

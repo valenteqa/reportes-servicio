@@ -14,7 +14,7 @@
 // Subir VERSION en cada publicacion (junto con APP_VERSION en js/version.js):
 // eso dispara un re-precacheo completo, que es la via mas confiable.
 
-const VERSION = 'v153';
+const VERSION = 'v154';
 const CACHE = 'reportes-' + VERSION;
 
 const CASCARON = [
@@ -55,6 +55,7 @@ const CASCARON = [
   'sonidos/grito.mp3',
   'sonidos/dios.mp3',
   'sonidos/golpe.mp3',
+  'sonidos/resorte.mp3',
   'cameos/cameo1.webp',
   'cameos/cameo2.webp',
   'cameos/cameo3.webp',

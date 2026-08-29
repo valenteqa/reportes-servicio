@@ -530,6 +530,34 @@ button { font-family: inherit; font-size: inherit; }
 }
 .marca-desmayo { animation: marcaDesmayo 3.2s ease-in-out; transform-origin: 50% 88%; }
 
+/* Cierre Looney: la oscuridad se cierra en CIRCULO sobre el logo, como el
+   final de las caricaturas, al ritmo del resorte (boing 0.03-1.38s medido).
+   El "hoyo" es un div fijo centrado en el logo cuya sombra de 300vmax pinta
+   de negro todo lo demas; animando su tamano, el circulo se cierra durante
+   el boing (1.35s), sostiene el negro y reabre. El logo se despide con un
+   meneo mientras lo tragan y queda IDO (como tras el vuelo). */
+.iris-hoyo {
+  position: fixed; z-index: 71; pointer-events: none;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  box-shadow: 0 0 0 300vmax #000;
+  animation: irisHoyo 2.25s ease-in-out both;
+}
+@keyframes irisHoyo {
+  0%   { width: 250vmax; height: 250vmax; }
+  60%  { width: 0; height: 0; }        /* cerrado: justo al morir el boing */
+  82%  { width: 0; height: 0; }        /* negro sostenido */
+  100% { width: 250vmax; height: 250vmax; }
+}
+@keyframes marcaIris {
+  0%   { transform: rotate(0); }
+  25%  { transform: rotate(-7deg); }
+  50%  { transform: rotate(8deg); }
+  75%  { transform: rotate(-8deg); }
+  100% { transform: rotate(6deg) scale(.92); }
+}
+.marca-iris { animation: marcaIris 1.35s ease-in-out; }
+
 .rudo-humo {
   position: absolute; right: -6%; top: -140%;
   width: 16%; aspect-ratio: 1; border-radius: 50%;
