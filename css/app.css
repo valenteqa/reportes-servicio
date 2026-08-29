@@ -990,12 +990,37 @@ body.pantalla-ancha #app { max-width: none; }
 /* ---------------------------------------------------------------- */
 
 .titulo-tabla {
-  width: 100%; padding: .1rem 0;
+  width: 100%; padding: .1rem 0; margin: 0;
   border: none; background: transparent; color: var(--tinta);
-  font-family: inherit; font-size: 1.3rem; font-weight: 650;
+  font-family: inherit; font-size: 1.02rem; font-weight: 650;
 }
 .titulo-tabla:focus { outline: none; }
 .titulo-tabla::placeholder { color: var(--tinta-tenue); }
+/* En solo-ver el titulo es texto: puede partirse en dos lineas completas. */
+p.titulo-tabla--ver {
+  white-space: normal; line-height: 1.25;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Celdas en modo solo-ver: mismo tamaño que las de captura, sin input. */
+.celda--ver { display: flex; align-items: center; }
+.celda--ver.celda--num { justify-content: flex-end; }
+
+/* Boton "Agregar tabla": abajo, en su propio espacio. */
+.tabla-accion { padding: .4rem .1rem 1.2rem; }
+.tabla-accion .btn { width: 100%; }
+
+/* Casillas grandes de las bombas VT: verde = entra, rojo = no. */
+.fila-bomba { display: flex; align-items: center; gap: .65rem; }
+.check-vt {
+  flex: 0 0 auto;
+  display: inline-grid; place-items: center;
+  width: 1.7rem; height: 1.7rem;
+  border: 3px solid; font-size: 1.15rem; font-weight: 800; line-height: 1;
+}
+.check-vt--si { color: #fff; background: var(--ok); border-color: var(--ok); }
+.check-vt--no { color: var(--peligro); border-color: var(--peligro); background: transparent; }
 
 .zona-tabla { display: flex; flex-direction: column; gap: .8rem; }
 .zona-tabla__scroll {

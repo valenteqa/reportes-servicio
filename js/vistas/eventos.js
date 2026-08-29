@@ -351,8 +351,14 @@ function elegirBombasVT() {
   return hoja('¿Que bombas tiene la maquina?', (cerrar) => {
     const sel = new Set(BOMBAS_VT.map(([, a]) => a));
     const botones = BOMBAS_VT.map(([nombre, ab]) => {
-      const b = h('button.lista-acciones__item', { type: 'button' });
-      const pintar = () => { b.textContent = (sel.has(ab) ? '☑' : '☐') + '  ' + nombre + '  (' + ab + ')'; };
+      const b = h('button.lista-acciones__item.fila-bomba', { type: 'button' });
+      const pintar = () => {
+        const si = sel.has(ab);
+        b.replaceChildren(
+          h('span.check-vt' + (si ? '.check-vt--si' : '.check-vt--no'), si ? '✓' : '✕'),
+          nombre + ' (' + ab + ')'
+        );
+      };
       b.onclick = () => { if (sel.has(ab)) sel.delete(ab); else sel.add(ab); pintar(); };
       pintar();
       return b;
@@ -410,12 +416,14 @@ export async function agregarTabla(servicioId, equipoId) {
   }
 
   const ev = await db.eventoNuevo(servicioId, equipoId, 'tabla', datos);
-  if (eleccion.nueva) {
-    // Marca en la RAIZ del evento (el editor solo toca datos): al volver al
-    // arbol se ofrece guardarla como predeterminada, una sola vez.
-    ev.preguntarPlantilla = true;
-    await db.eventoGuardar(ev);
-  }
+  // Marcas en la RAIZ del evento (el editor solo toca datos):
+  // - enEdicion: la tabla se esta CAPTURANDO; el boton "Agregar tabla" la
+  //   cierra y de ahi en adelante abrirla es solo-ver.
+  // - preguntarPlantilla: al volver al arbol se ofrece guardarla como
+  //   predeterminada, una sola vez (solo tablas nuevas).
+  ev.enEdicion = true;
+  if (eleccion.nueva) ev.preguntarPlantilla = true;
+  await db.eventoGuardar(ev);
   location.hash = '#/s/' + servicioId + '/t/' + ev.id;
   return ev;
 }

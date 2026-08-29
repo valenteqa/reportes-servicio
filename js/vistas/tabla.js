@@ -5,7 +5,7 @@
 // horizontal, y guardado automatico (nunca hay que acordarse de un boton Guardar).
 
 import * as db from '../db.js';
-import { h, hoja, aviso, confirmar, campo, hora, fecha, orientarLibre, orientarHorizontal, orientarNormal } from '../ui.js';
+import { h, hoja, aviso, confirmar, campo, hora, fecha, icono, orientarLibre, orientarHorizontal, orientarNormal } from '../ui.js';
 
 let guardadoPendiente = null;
 
@@ -86,20 +86,27 @@ export async function render(contenedor, refrescar, params) {
   if (!evento || evento.tipo !== 'tabla') { location.replace('#/s/' + params.sid); return; }
 
   const servicio = await db.servicioLeer(evento.servicioId);
+
+  // Las tablas se CAPTURAN una vez: mientras se agrega (evento.enEdicion) el
+  // editor esta completo; ya agregada, abrirla es SOLO VER.
+  const soloVer = !evento.enEdicion;
+
   // history.back() en vez de asignar el hash: asi el boton atras del telefono
   // y el de la app recorren la misma jerarquia (tabla → arbol → lista).
   const volver = () => {
-    guardarYa(evento).then(() => history.back());
+    (soloVer ? Promise.resolve() : guardarYa(evento)).then(() => history.back());
   };
 
   const indicador = h('span.estado', 'Guardado');
 
-  const cTitulo = h('input.titulo-tabla', {
-    type: 'text',
-    value: evento.datos.titulo || '',
-    placeholder: 'Titulo de la tabla',
-    oninput: () => { evento.datos.titulo = cTitulo.value; guardarPronto(evento, indicador); },
-  });
+  const cTitulo = soloVer
+    ? h('p.titulo-tabla.titulo-tabla--ver', evento.datos.titulo || 'Tabla')
+    : h('input.titulo-tabla', {
+      type: 'text',
+      value: evento.datos.titulo || '',
+      placeholder: 'Titulo de la tabla',
+      oninput: () => { evento.datos.titulo = cTitulo.value; guardarPronto(evento, indicador); },
+    });
 
   // En tablas el giro queda libre (para capturar a lo ancho); el boton 🔁
   // fuerza horizontal. La pantalla usa TODO el ancho disponible. Al salir
@@ -117,6 +124,8 @@ export async function render(contenedor, refrescar, params) {
       h('button.icono-btn', { type: 'button', 'aria-label': 'Volver', onclick: volver }, '←'),
       h('div.cabecera__titulo', cTitulo,
         evento.datos.subtitulo ? h('p', evento.datos.subtitulo) : null),
+      soloVer ? null : indicador,
+      // Girar va HASTA la derecha, con flechas minimalistas (icono SVG).
       h('button.icono-btn', {
         type: 'button', 'aria-label': 'Girar pantalla',
         onclick: async () => {
@@ -124,13 +133,12 @@ export async function render(contenedor, refrescar, params) {
           if (!ok) { aviso('Este dispositivo no deja girar la pantalla desde la app', 'error'); return; }
           horizontal = !horizontal;
         }
-      }, '🔁'),
-      indicador
+      }, icono('girar'))
     ),
     h('div.cabecera__meta',
       h('span', hora(evento.ts) + ' · ' + fecha(evento.ts)),
       h('span.crece'),
-      h('button.enlace', {
+      soloVer ? null : h('button.enlace', {
         type: 'button',
         onclick: async () => {
           const ok = await confirmar('Se elimina la tabla completa.');
@@ -158,13 +166,13 @@ export async function render(contenedor, refrescar, params) {
     const encabezado = h('tr',
       cols.map((c, i) => h('th', {
         class: (c.tipo === 'numero' ? 'rejilla__th--num' : '') + (esSep(i) ? ' sep-grupo' : ''),
-        onclick: () => editarColumna(evento, i, repintar),
+        onclick: soloVer ? null : () => editarColumna(evento, i, repintar),
       },
         h('span.rejilla__nombre', c.nombre),
         c.unidad ? h('span.rejilla__unidad', c.unidad) : null,
-        h('span.rejilla__lapiz', '✎')
+        soloVer ? null : h('span.rejilla__lapiz', '✎')
       )),
-      h('th.rejilla__accion',
+      soloVer ? null : h('th.rejilla__accion',
         h('button.icono-btn.icono-btn--mini', {
           type: 'button', 'aria-label': 'Agregar columna',
           onclick: async () => {
@@ -181,6 +189,11 @@ export async function render(contenedor, refrescar, params) {
     filas.forEach((fila, iFila) => {
       const tr = h('tr',
         cols.map((c, iCol) => {
+          if (soloVer) {
+            return h('td', { class: esSep(iCol) ? 'sep-grupo' : '' },
+              h('div.celda.celda--ver' + (c.tipo === 'numero' ? '.celda--num' : ''),
+                fila[iCol] === undefined ? '' : String(fila[iCol])));
+          }
           const entrada = h('input.celda', {
             type: 'text',
             inputmode: c.tipo === 'numero' ? 'decimal' : 'text',
@@ -198,7 +211,7 @@ export async function render(contenedor, refrescar, params) {
           });
           return h('td', { class: esSep(iCol) ? 'sep-grupo' : '' }, entrada);
         }),
-        h('td.rejilla__accion',
+        soloVer ? null : h('td.rejilla__accion',
           h('button.icono-btn.icono-btn--mini.icono-btn--tenue', {
             type: 'button', 'aria-label': 'Eliminar fila',
             onclick: async () => {
@@ -215,7 +228,7 @@ export async function render(contenedor, refrescar, params) {
 
     zona.replaceChildren(
       h('div.zona-tabla__scroll', tabla),
-      h('div.zona-tabla__botones',
+      soloVer ? h('p.pista', 'Esta tabla ya fue agregada: solo se puede ver.') : h('div.zona-tabla__botones',
         h('button.btn.btn--bloque', {
           type: 'button',
           onclick: async () => {
@@ -231,8 +244,18 @@ export async function render(contenedor, refrescar, params) {
     );
   }
 
+  // Terminar la captura: la tabla queda agregada y pasa a solo-ver.
+  const terminar = async () => {
+    delete evento.enEdicion;
+    await guardarYa(evento);
+    history.back();
+  };
+
   repintar();
   contenedor.append(cabecera, h('main.contenido',
     h('p.pista.pista--tabla', 'Desliza hacia la izquierda y derecha para ver el resto de la tabla.'),
-    zona));
+    zona,
+    soloVer ? null : h('div.tabla-accion',
+      h('button.btn.btn--primario', { type: 'button', onclick: terminar }, '✔  Agregar tabla'))
+  ));
 }
