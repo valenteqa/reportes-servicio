@@ -155,6 +155,7 @@ const ANIMS_MARCA = ['marca-animada', 'marca-gira', 'marca-brinca', 'marca-tiemb
 const SONIDOS_MARCA = ['bruh', 'pato', 'corriendo', 'quepaso', 'rudo', 'djstop', 'grito', 'espera', 'dios', 'esponja', 'despegue']
   .map(n => 'sonidos/' + n + '.mp3');
 let audioMarca = null;
+let corteMarca = null;
 
 export function animarMarca(...els) {
   const anim = ANIMS_MARCA[Math.floor(Math.random() * ANIMS_MARCA.length)];
@@ -166,11 +167,14 @@ export function animarMarca(...els) {
     el.addEventListener('animationend', () => el.classList.remove(anim), { once: true });
   }
   // El sonido corta al anterior si tocan en rafaga (viene del cache del SW,
-  // asi que suena tambien sin señal). Si el sistema lo bloquea, silencio.
+  // asi que suena tambien sin señal) y se DETIENE solo a los 4 segundos.
+  // Si el sistema lo bloquea, silencio.
   try {
     if (audioMarca) audioMarca.pause();
+    clearTimeout(corteMarca);
     audioMarca = new Audio(SONIDOS_MARCA[Math.floor(Math.random() * SONIDOS_MARCA.length)]);
     audioMarca.play().catch(() => {});
+    corteMarca = setTimeout(() => { if (audioMarca) audioMarca.pause(); }, 4000);
   } catch (e) { /* sin audio */ }
 }
 
