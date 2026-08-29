@@ -151,7 +151,7 @@ export function vaciar(el) {
 
 // Animaciones de la marca (logo y nombre): cada toque sortea una distinta,
 // con su sonido goofy tambien al azar. Reinicia aunque se toque en rafaga.
-const ANIMS_MARCA = ['marca-animada', 'marca-gira', 'marca-brinca', 'marca-tiembla', 'marca-late', 'marca-voltea', 'marca-vuela'];
+const ANIMS_MARCA = ['marca-animada', 'marca-gira', 'marca-brinca', 'marca-tiembla', 'marca-late', 'marca-voltea', 'marca-vuela', 'marca-vibra'];
 const SONIDOS_MARCA = ['bruh', 'pato', 'corriendo', 'quepaso', 'rudo', 'djstop', 'grito', 'espera', 'dios', 'esponja', 'despegue']
   .map(n => 'sonidos/' + n + '.mp3');
 let audioMarca = null;
@@ -173,40 +173,67 @@ function pozoDeSonidos() {
 }
 setTimeout(() => { try { pozoDeSonidos(); } catch (e) { /* sin audio */ } }, 1500);
 
+let retrasoAnimMarca = null;
+
 export function animarMarca(...els) {
   const anim = ANIMS_MARCA[Math.floor(Math.random() * ANIMS_MARCA.length)];
-  // En el vuelo el logo cruza TODA la pantalla: sin barras de desborde.
-  if (anim === 'marca-vuela') {
+  const esVuela = anim === 'marca-vuela';
+  const esVibra = anim === 'marca-vibra';
+
+  // En el vuelo el logo rebota por TODA la pantalla: sin barras de desborde.
+  if (esVuela) {
     document.documentElement.classList.add('sin-desborde-vuelo');
-    setTimeout(() => document.documentElement.classList.remove('sin-desborde-vuelo'), 3000);
+    setTimeout(() => document.documentElement.classList.remove('sin-desborde-vuelo'), 1600);
   }
-  for (const el of els) {
-    if (!el) continue;
-    el.classList.remove(...ANIMS_MARCA);
-    void el.offsetWidth;   // fuerza reinicio de la animacion
-    el.classList.add(anim);
-    el.addEventListener('animationend', () => el.classList.remove(anim), { once: true });
-  }
-  // Suena AL INSTANTE (pozo precargado); en rafaga corta al anterior, y se
-  // detiene solo a los 4 segundos. Si el sistema lo bloquea, silencio.
-  // El sonido de pasos+disparo (corriendo) es EXCLUSIVO del vuelo: van
-  // coreografiados (el disparo del audio cae cuando el logo sale volando).
+
+  const quitarVibra = () => els.forEach(el => el && el.classList.remove('marca-vibra'));
+
+  // Parejas coreografiadas: vuelo↔pasos+disparo (exclusivos entre si) y
+  // vibracion↔"what the hell" (vibra hasta que el sonido termina). El resto
+  // de animaciones sortea los demas sonidos. El de DJ arranca medio segundo
+  // ANTES del movimiento (asi caen a tiempo).
+  let retrasoAnim = 0;
   try {
     if (audioMarca) audioMarca.pause();
     clearTimeout(corteMarca);
     const pozo = pozoDeSonidos();
     const iCorriendo = SONIDOS_MARCA.findIndex(s => s.includes('corriendo'));
-    if (anim === 'marca-vuela') {
-      audioMarca = pozo[iCorriendo];
-    } else {
-      let i;
-      do { i = Math.floor(Math.random() * pozo.length); } while (i === iCorriendo);
-      audioMarca = pozo[i];
+    const iQuepaso = SONIDOS_MARCA.findIndex(s => s.includes('quepaso'));
+    let i;
+    if (esVuela) i = iCorriendo;
+    else if (esVibra) i = iQuepaso;
+    else {
+      do { i = Math.floor(Math.random() * pozo.length); } while (i === iCorriendo || i === iQuepaso);
     }
+    if (SONIDOS_MARCA[i].includes('djstop')) retrasoAnim = 500;
+    audioMarca = pozo[i];
     audioMarca.currentTime = 0;
     audioMarca.play().catch(() => {});
-    corteMarca = setTimeout(() => { if (audioMarca) audioMarca.pause(); }, 4000);
+    if (esVibra) audioMarca.addEventListener('ended', quitarVibra, { once: true });
+    corteMarca = setTimeout(() => {
+      if (audioMarca) audioMarca.pause();
+      quitarVibra();   // si el sonido se corto a los 4s, la vibracion tambien
+    }, 4000);
   } catch (e) { /* sin audio */ }
+
+  const aplicar = () => {
+    for (const el of els) {
+      if (!el) continue;
+      el.classList.remove('marca-ida', ...ANIMS_MARCA);
+      void el.offsetWidth;   // fuerza reinicio de la animacion
+      el.classList.add(anim);
+      if (!esVibra) {
+        el.addEventListener('animationend', () => {
+          el.classList.remove(anim);
+          // Tras el disparo ya no regresa: queda ido hasta reentrar aqui.
+          if (esVuela) el.classList.add('marca-ida');
+        }, { once: true });
+      }
+    }
+  };
+  clearTimeout(retrasoAnimMarca);
+  if (retrasoAnim) retrasoAnimMarca = setTimeout(aplicar, retrasoAnim);
+  else aplicar();
 }
 
 /* ---------------------------------------------------------------- */
