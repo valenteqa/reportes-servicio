@@ -218,6 +218,17 @@ export function ensayoDeMarca() {
       src: 'icons/logo-serpro.png', alt: '',
       onclick: () => ejecutarMarca(animSel, [logo]),
     });
+    // En el menu real el vuelo deja el logo IDO hasta reentrar; aqui en el
+    // ensayo reaparece solito tras un respiro, para seguir probando. El
+    // setTimeout(0) deja que el listener de ejecutarMarca ponga marca-ida
+    // primero (corre despues de este, en orden de registro).
+    logo.addEventListener('animationend', () => {
+      setTimeout(() => {
+        if (logo.classList.contains('marca-ida')) {
+          setTimeout(() => logo.classList.remove('marca-ida'), 650);
+        }
+      }, 0);
+    });
 
     // El chip SOLO elige; la animacion corre al tocar el logo o un sonido.
     const chips = MARCAS_PROBADOR.map(([clase, nombre]) =>
