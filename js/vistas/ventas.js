@@ -63,6 +63,16 @@ function estatusActual(v) {
   return hist.length ? hist[hist.length - 1].texto : '';
 }
 
+// El contacto "vigente" es el de la accion mas reciente que tenga uno
+// (las ventas viejas con contacto de oportunidad tambien cuentan).
+function contactoVigente(v) {
+  const hist = v.historial || [];
+  for (let k = hist.length - 1; k >= 0; k--) {
+    if (hist[k].contacto) return hist[k].contacto;
+  }
+  return v.contacto || '';
+}
+
 // Un ATRASO automatico por cada fecha de seguimiento vencida sin accion.
 async function registrarAtrasos(ventas) {
   const hoy = fechaClave();
@@ -148,13 +158,11 @@ function hojaNuevaOportunidad(clientes) {
         return;
       }
       const cTitulo = campo('Oportunidad', { maxLength: 160, placeholder: 'p. ej. Refacciones para H400' });
-      const cContacto = campo('Contacto principal del cliente', { maxLength: 120, placeholder: 'A quien ver: p. ej. Ing. Ramirez - Mantenimiento' });
       const selPrio = h('select.org-select', ...PRIORIDADES.map(([v, n]) => h('option', { value: v }, n)));
       const cFecha = campo('Proximo seguimiento', { type: 'date', value: fechaClave() });
       poner(
         cabeza('La oportunidad'),
         cTitulo,
-        cContacto,
         h('label.campo', h('span.campo__etiqueta', 'Prioridad'), selPrio),
         cFecha,
         h('div.hoja__acciones',
@@ -166,7 +174,6 @@ function hojaNuevaOportunidad(clientes) {
               if (!titulo) { aviso('Describe la oportunidad.', 'error'); return; }
               cerrar({
                 cliente: sel.cliente, titulo,
-                contacto: cContacto.querySelector('input').value.trim(),
                 prioridad: selPrio.value,
                 fechaSeguimiento: cFecha.querySelector('input').value || '',
               });
@@ -202,38 +209,102 @@ function hojaNuevaAnotacion(v) {
   });
 }
 
-function hojaEditarContacto(v) {
-  return hoja('👤  Contacto principal', (cerrar) => {
-    const cC = campo('A quien ver con el cliente', { maxLength: 120, value: v.contacto || '' });
-    return h('div',
-      h('p.pista', v.cliente + ' · ' + v.titulo),
-      cC,
-      h('div.hoja__acciones',
-        h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
-        h('button.btn.btn--primario', {
-          type: 'button',
-          onclick: () => cerrar(cC.querySelector('input').value.trim()),
-        }, 'Guardar')));
-  });
+// Contactos conocidos del cliente: se juntan de lo ya usado en sus ventas
+// (acciones e historico), igual que los clientes se juntan de lo usado.
+async function contactosDe(cliente) {
+  const vistos = new Map();
+  const ver = (c) => { if (c && !vistos.has(c.toLowerCase())) vistos.set(c.toLowerCase(), c); };
+  try {
+    for (const v of await db.ventasTodas()) {
+      if (v.cliente !== cliente) continue;
+      ver(v.contacto);
+      for (const e of (v.historial || [])) ver(e.contacto);
+    }
+  } catch (e) { /* sin ventas */ }
+  return [...vistos.values()].sort((a, b) => a.localeCompare(b, 'es'));
 }
 
-function hojaNuevaAccion(v) {
+// El CONTACTO es POR ACCION (cada accion puede verse con alguien distinto)
+// y se elige IGUAL que el cliente: asistente con cuadricula + "＋ Agregar".
+function hojaNuevaAccion(v, contactos) {
   return hoja('✚  Nueva accion', (cerrar) => {
-    const cTexto = campo('¿Que se hizo? (nuevo estatus)', { maxLength: 240 });
-    const cFecha = campo('Proximo seguimiento', { type: 'date', value: '' });
-    return h('div',
-      h('p.pista', v.cliente + ' · ' + v.titulo),
-      cTexto, cFecha,
-      h('div.hoja__acciones',
-        h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
-        h('button.btn.btn--primario', {
-          type: 'button',
-          onclick: () => {
-            const texto = cTexto.querySelector('input').value.trim();
-            if (!texto) { aviso('Describe la accion.', 'error'); return; }
-            cerrar({ texto, fecha: cFecha.querySelector('input').value || '' });
-          },
-        }, 'Guardar')));
+    const sel = { contacto: '' };
+    let i = 0;
+    const TOTAL = 2;
+    const cont = h('div.asistente');
+    const poner = (...nodos) => cont.replaceChildren(...nodos.filter(Boolean));
+
+    const cabeza = (titulo) => h('div.asistente__cab',
+      h('div.asistente__fila',
+        i > 0 ? h('button.icono-btn', { type: 'button', 'aria-label': 'Paso anterior',
+          onclick: () => { i = 0; pintarPaso(); } }, '←') : null,
+        h('div.crece',
+          h('p.asistente__paso', 'PASO ' + (i + 1) + ' / ' + TOTAL),
+          h('h3.asistente__titulo', titulo)
+        )
+      ),
+      i > 0 ? h('p.asistente__miga', v.cliente + (sel.contacto ? ' · 👤 ' + sel.contacto : '')) : h('p.asistente__miga', v.cliente + ' · ' + v.titulo)
+    );
+
+    const avanzar = () => { i = 1; pintarPaso(); };
+
+    function pintarEntradaContacto() {
+      const entrada = h('input.campo__entrada', { type: 'text', placeholder: 'Contacto (a quien viste o veras)' });
+      poner(
+        cabeza('Contacto'),
+        entrada,
+        h('div.hoja__acciones',
+          contactos.length
+            ? h('button.btn.btn--fantasma', { type: 'button', onclick: () => pintarPaso() }, 'Ver opciones')
+            : h('button.btn.btn--fantasma', { type: 'button', onclick: () => { sel.contacto = ''; avanzar(); } }, 'Omitir'),
+          h('button.btn.btn--primario', {
+            type: 'button',
+            onclick: () => { sel.contacto = entrada.value.trim(); avanzar(); }
+          }, 'Continuar')
+        )
+      );
+      setTimeout(() => entrada.focus(), 80);
+    }
+
+    function pintarPaso() {
+      if (i === 0) {
+        if (!contactos.length) return pintarEntradaContacto();
+        poner(
+          cabeza('Contacto'),
+          h('button.asistente__nuevo', { type: 'button', onclick: () => pintarEntradaContacto() },
+            '＋  Agregar contacto'),
+          h('div.asistente__rejilla',
+            contactos.map(o => h('button.asistente__op', {
+              type: 'button',
+              onclick: () => { sel.contacto = o; avanzar(); }
+            }, o))),
+          h('div.hoja__acciones',
+            h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+            h('button.btn.btn--fantasma', { type: 'button', onclick: () => { sel.contacto = ''; avanzar(); } }, 'Omitir'))
+        );
+        return;
+      }
+      const cTexto = campo('¿Que se hizo? (nuevo estatus)', { maxLength: 240 });
+      const cFecha = campo('Proximo seguimiento', { type: 'date', value: '' });
+      poner(
+        cabeza('La accion'),
+        cTexto, cFecha,
+        h('div.hoja__acciones',
+          h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+          h('button.btn.btn--primario', {
+            type: 'button',
+            onclick: () => {
+              const texto = cTexto.querySelector('input').value.trim();
+              if (!texto) { aviso('Describe la accion.', 'error'); return; }
+              cerrar({ texto, fecha: cFecha.querySelector('input').value || '', contacto: sel.contacto });
+            },
+          }, 'Guardar'))
+      );
+      setTimeout(() => { const e = cTexto.querySelector('input'); if (e) e.focus(); }, 80);
+    }
+
+    pintarPaso();
+    return cont;
   });
 }
 
@@ -246,26 +317,39 @@ async function hojaDetalle(v, permisos, alCambiar) {
     const cuerpo = h('div');
     const pinta = () => {
       const cal = calificacion(v);
+      const contacto = contactoVigente(v);
       vaciar(cuerpo).append(
         h('p.venta-titulo', v.titulo),
         h('p.venta-meta',
           h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()),
           ' · seguimiento: ' + fechaBonita(v.fechaSeguimiento) + (v.cerrada ? ' · CERRADA' : '')),
-        h('p.venta-meta.venta-contacto',
-          '👤 Contacto: ' + (v.contacto || 'sin registrar'),
-          permisos.accionar ? h('button.icono-btn.venta-contacto__editar', {
-            type: 'button', 'aria-label': 'Cambiar contacto',
-            onclick: async () => {
-              const nuevo = await hojaEditarContacto(v);
-              if (nuevo === null) return;
-              v.contacto = nuevo;
-              await db.ventaGuardar(v);
-              pinta();
-              alCambiar();
-            },
-          }, '✎') : null),
+        contacto ? h('p.venta-meta', '👤 Contacto actual: ' + contacto) : null,
         h('p.venta-cal', 'CALIFICACION: ' + cal + '%  (' + (v.historial || []).length + ' estatus)'),
-        h('h3.venta-h3', 'ANOTACIONES'),
+
+        h('h3.venta-h3', 'HISTORIAL DE ACCIONES'),
+        h('div.venta-historial',
+          ...(v.historial || []).slice().reverse().map(e =>
+            h('div.venta-evento' + (e.tipo === 'atraso' ? '.venta-evento--atraso' : ''),
+              h('span.venta-evento__fecha', fechaBonita(e.fecha)),
+              h('span.venta-evento__texto', e.texto,
+                e.contacto ? h('span.venta-evento__contacto', '👤 ' + e.contacto) : null)))),
+        permisos.accionar && !v.cerrada ? h('button.btn.btn--primario.venta-btn', {
+          type: 'button',
+          onclick: async () => {
+            const accion = await hojaNuevaAccion(v, await contactosDe(v.cliente));
+            if (!accion) return;
+            v.historial.push({ ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo: 'estatus', texto: accion.texto, contacto: accion.contacto || '' });
+            if (accion.fecha) v.fechaSeguimiento = accion.fecha;
+            await db.ventaGuardar(v);
+            pinta();
+            alCambiar();
+          },
+        }, '✚  AGREGAR ACCION') : null,
+
+        // Divisor grueso: acciones y anotaciones son DOS cosas distintas.
+        h('hr.venta-divisor'),
+
+        h('h3.venta-h3', '💡 ANOTACIONES'),
         (v.anotaciones || []).length
           ? h('div.venta-notas',
             (v.anotaciones || []).slice().reverse().map(n =>
@@ -284,24 +368,6 @@ async function hojaDetalle(v, permisos, alCambiar) {
             pinta();
           },
         }, '💡  AGREGAR ANOTACION') : null,
-        h('h3.venta-h3', 'HISTORIAL'),
-        h('div.venta-historial',
-          ...(v.historial || []).slice().reverse().map(e =>
-            h('div.venta-evento' + (e.tipo === 'atraso' ? '.venta-evento--atraso' : ''),
-              h('span.venta-evento__fecha', fechaBonita(e.fecha)),
-              h('span.venta-evento__texto', e.texto)))),
-        permisos.accionar && !v.cerrada ? h('button.btn.btn--primario.venta-btn', {
-          type: 'button',
-          onclick: async () => {
-            const accion = await hojaNuevaAccion(v);
-            if (!accion) return;
-            v.historial.push({ ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo: 'estatus', texto: accion.texto });
-            if (accion.fecha) v.fechaSeguimiento = accion.fecha;
-            await db.ventaGuardar(v);
-            pinta();
-            alCambiar();
-          },
-        }, '✚  AGREGAR ACCION') : null,
         permisos.crear && !v.cerrada ? h('button.btn.btn--fantasma.venta-btn', {
           type: 'button',
           onclick: async () => {
@@ -409,7 +475,7 @@ export async function render(contenedor) {
         h('p.venta-meta',
           v.cerrada ? 'CERRADA' : h('span' + (vencida ? '.venta-vencida' : ''),
             (vencida ? '⚠ vencida · ' : 'seguimiento: ') + fechaBonita(v.fechaSeguimiento)),
-          v.contacto ? ' · 👤 ' + v.contacto : '',
+          contactoVigente(v) ? ' · 👤 ' + contactoVigente(v) : '',
           h('span.venta-estatus', ' · ' + estatusActual(v)))
       ));
     }
