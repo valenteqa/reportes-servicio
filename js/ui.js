@@ -153,7 +153,7 @@ export function vaciar(el) {
 // TODAS traen su sonido de pareja fija. Reinicia aunque se toque en rafaga.
 // (Archivadas sin sonido: marca-animada/Pulso, marca-brinca, marca-tiembla,
 // marca-late, marca-voltea — sus keyframes siguen en el CSS por si vuelven.)
-const ANIMS_MARCA = ['marca-gira', 'marca-vuela', 'marca-vibra', 'marca-cae', 'marca-rudo', 'marca-pato', 'marca-desmayo', 'marca-iris'];
+const ANIMS_MARCA = ['marca-gira', 'marca-vuela', 'marca-vibra', 'marca-cae', 'marca-rudo', 'marca-pato', 'marca-desmayo', 'marca-iris', 'marca-jazz'];
 
 // Pareja fija sonido↔animacion (nombre del archivo en SONIDOS_MARCA).
 const PAREJA_SONIDO = {
@@ -165,8 +165,9 @@ const PAREJA_SONIDO = {
   'marca-pato': 'pato',
   'marca-desmayo': 'dios',
   'marca-iris': 'resorte',
+  'marca-jazz': 'jazz',
 };
-const SONIDOS_MARCA = ['pato', 'corriendo', 'quepaso', 'rudo', 'djstop', 'grito', 'dios', 'golpe', 'resorte']
+const SONIDOS_MARCA = ['pato', 'corriendo', 'quepaso', 'rudo', 'djstop', 'grito', 'dios', 'golpe', 'resorte', 'jazz']
   .map(n => 'sonidos/' + n + '.mp3');
 let audioMarca = null;
 let corteMarca = null;
@@ -184,6 +185,13 @@ function quitarRudo() {
 let capaIris = null;
 function quitarIris() {
   if (capaIris) { capaIris.remove(); capaIris = null; }
+}
+
+// Capa "jazz": fedora y manita pensativa sobre el logo mientras noodlea
+// el sax; se retira cuando el sonido termina (o el corte).
+let capaJazz = null;
+function quitarJazz() {
+  if (capaJazz) { capaJazz.remove(); capaJazz = null; }
 }
 
 // POZO precargado: crear el Audio en el toque tardaba tanto (buscar el mp3
@@ -214,11 +222,12 @@ const MARCAS_PROBADOR = [
   ['marca-pato', 'Patito de hule (pato)'],
   ['marca-desmayo', 'Desmayo (dios)'],
   ['marca-iris', 'Cierre Looney (resorte)'],
+  ['marca-jazz', 'Pensando (fedora y jazz)'],
 ];
 
 // Nombres de los sonidos, en el MISMO orden que SONIDOS_MARCA.
 const SONIDOS_NOMBRES = ['Pato', 'Corriendo (pasos + disparo)', 'What the hell',
-  'Rudo', 'DJ stop', 'Grito', 'Dios', 'Golpe (caida)', 'Resorte'];
+  'Rudo', 'DJ stop', 'Grito', 'Dios', 'Golpe (caida)', 'Resorte', 'Jazz'];
 
 // Ensayo del logo: pantalla dedicada con fondo blanco. Tocar una ANIMACION
 // la corre sola (en silencio) y la deja elegida; tocar un SONIDO lo hace
@@ -237,6 +246,7 @@ export function ensayoDeMarca() {
       clearTimeout(golpeMarca);
       quitarRudo();
       quitarIris();
+      quitarJazz();
       pantalla.remove();
       if (porBack) ancla.desdePop();
       else await ancla.liberar();
@@ -308,6 +318,7 @@ function ejecutarMarca(anim, els, iSonido) {
   const esCae = anim === 'marca-cae';
   const esRudo = anim === 'marca-rudo';
   const esIris = anim === 'marca-iris';
+  const esJazz = anim === 'marca-jazz';
 
   // En el vuelo y la caida el logo sale de la pantalla: sin barras de
   // desborde mientras dura.
@@ -325,6 +336,7 @@ function ejecutarMarca(anim, els, iSonido) {
   let retrasoAnim = 0;
   quitarRudo();   // una corrida nueva limpia lentes/cigarro anteriores
   quitarIris();   // y cualquier iris a medio cerrar
+  quitarJazz();   // y la fedora con su manita
   try {
     if (audioMarca) audioMarca.pause();
     clearTimeout(corteMarca);
@@ -344,6 +356,7 @@ function ejecutarMarca(anim, els, iSonido) {
     audioMarca.play().catch(() => {});
     if (esVibra) audioMarca.addEventListener('ended', quitarVibra, { once: true });
     if (esRudo) audioMarca.addEventListener('ended', quitarRudo, { once: true });
+    if (esJazz) audioMarca.addEventListener('ended', quitarJazz, { once: true });
     // Caida con su grito: el GOLPE de caricatura se dispara a los 1680ms
     // para que su PICO (vive en 0.42s del archivo, medido en la onda)
     // truene EXACTO en el primer impacto de la coreografia (2.10s).
@@ -366,6 +379,7 @@ function ejecutarMarca(anim, els, iSonido) {
       quitarVibra();   // si el sonido se corto en el tope, la vibracion tambien
       quitarRudo();
       quitarIris();
+      quitarJazz();
     }, tope);
   } catch (e) { /* sin audio */ }
 
@@ -407,6 +421,19 @@ function ejecutarMarca(anim, els, iSonido) {
       capaIris.style.top = (r.top + r.height / 2) + 'px';
       capaIris.addEventListener('animationend', quitarIris, { once: true });
       document.body.appendChild(capaIris);
+    }
+    // Pensando: fedora del cielo a la "cabeza" y manita que golpetea la
+    // "barbilla"; la capa corre la misma pose que el logo y se mecen juntos.
+    if (esJazz && els[0]) {
+      const r = els[0].getBoundingClientRect();
+      const mano = h('div.jazz-mano', '☝️');
+      mano.style.fontSize = Math.round(r.width * 0.30) + 'px';
+      capaJazz = h('div.jazz-capa', h('div.jazz-fedora'), mano);
+      Object.assign(capaJazz.style, {
+        left: r.left + 'px', top: r.top + 'px',
+        width: r.width + 'px', height: r.height + 'px',
+      });
+      document.body.appendChild(capaJazz);
     }
   };
   clearTimeout(retrasoAnimMarca);
