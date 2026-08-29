@@ -283,16 +283,14 @@ button { font-family: inherit; font-size: inherit; }
   position: fixed; bottom: 0; z-index: 89;
   height: min(36vh, 300px); width: auto;
   pointer-events: none;
-  animation: cameoAsoma 2.8s ease both;
+  transform: translateY(108%);
+  transition: transform .3s ease-out;
+  will-change: transform;
 }
 .cameo--der { right: 2px; --giroCameo: -7deg; transform-origin: bottom right; }
 .cameo--izq { left: 2px; --giroCameo: 7deg; transform-origin: bottom left; }
-@keyframes cameoAsoma {
-  0%   { transform: translateY(108%) rotate(0deg); }
-  20%  { transform: translateY(4%) rotate(var(--giroCameo)); }
-  74%  { transform: translateY(4%) rotate(var(--giroCameo)); }
-  100% { transform: translateY(108%) rotate(0deg); }
-}
+/* Entra al aparecer y se mete JUSTO cuando su sonido termina. */
+.cameo--visible { transform: translateY(4%) rotate(var(--giroCameo)); }
 
 /* Vibracion sostenida (dura lo que dure el sonido de "what the hell"). */
 @keyframes marcaVibra {
