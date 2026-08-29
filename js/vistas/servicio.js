@@ -617,6 +617,11 @@ export async function render(contenedor, refrescar, params) {
           await galeriaDelTrabajo(servicio.id);
           alRefrescar();   // por si borro o excluyo fotos desde el visor
         } }, '🖼'),
+      h('button.icono-btn', { type: 'button', 'aria-label': 'Tablas del trabajo',
+        onclick: async () => {
+          const m = await import('./tabla.js');
+          await m.tablasDelTrabajo(servicio.id);
+        } }, '▦'),
       h('button.icono-btn', { type: 'button', 'aria-label': 'Editar datos',
         onclick: async () => { if (await editarServicio(servicio)) alRefrescar(); } }, '✎')
     ),

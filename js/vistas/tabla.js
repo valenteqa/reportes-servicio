@@ -81,21 +81,21 @@ async function editarColumna(evento, indice, repintar) {
   repintar();
 }
 
-// Comparar tablas: todas las tablas del trabajo en una sola pantalla,
-// en orden cronologico, cada una con su titulo y su leyenda. Para cotejar
-// mediciones (p. ej. antes vs despues de ajuste) sin brincar entre tarjetas.
-async function compararTablas(servicioId) {
-  const tablas = (await db.eventosDeServicio(servicioId)).filter(e => e.tipo === 'tabla');
-  if (!tablas.length) { aviso('Este trabajo no tiene tablas', 'error'); return; }
+/* Comparar tablas POR TIPO: solo tiene sentido cotejar tablas iguales.
+   El tipo es el TITULO (mismo titulo = mismo tipo, p. ej. las tres VT de
+   "valores iniciales / antes / despues"). Las tablas sin titulo van solas,
+   salvo que compartan titulo con otra. */
 
+const claveTabla = (t) => String((t && t.titulo) || '').trim().toUpperCase();
+
+function capaComparar(nombreGrupo, tablas) {
   const item = (ev) => {
     const t = ev.datos || {};
     const cols = t.columnas || [];
     const filas = (t.filas || []).filter(f => f.some(c => String(c).trim() !== ''));
     const sep = (i) => (t.separadores || []).includes(i) ? 'sep-grupo' : '';
     return h('section.comparar__item',
-      h('h3.comparar__titulo', String(t.titulo || 'Tabla sin titulo').toUpperCase()),
-      t.subtitulo ? h('p.comparar__sub', t.subtitulo) : null,
+      h('p.comparar__sub', t.subtitulo || 'Sin leyenda'),
       h('p.comparar__meta', hora(ev.ts) + ' · ' + fecha(ev.ts)),
       h('div.comparar__scroll',
         h('table.comparar__tabla',
@@ -142,6 +142,7 @@ async function compararTablas(servicioId) {
         }, icono('girar'))
       ),
       h('div.comparar__lista',
+        h('h3.comparar__titulo', nombreGrupo),
         h('p.pista', 'Desliza hacia abajo para recorrerlas y a los lados dentro de cada tabla.'),
         tablas.map(item))
     );
@@ -150,6 +151,45 @@ async function compararTablas(servicioId) {
     bloquearScroll();
     orientarLibre();
   });
+}
+
+// Desde una tabla abierta: comparar SOLO las de su mismo tipo.
+async function compararTablas(servicioId, eventoBase) {
+  const todas = (await db.eventosDeServicio(servicioId)).filter(e => e.tipo === 'tabla');
+  const clave = claveTabla(eventoBase.datos);
+  const grupo = clave ? todas.filter(e => claveTabla(e.datos) === clave) : [eventoBase];
+  return capaComparar(clave || 'TABLA SIN TITULO', grupo);
+}
+
+// Todas las tablas del trabajo, elegidas POR CATEGORIA (titulo). Las que
+// comparten titulo se agrupan; las sin titulo aparecen individuales.
+export async function tablasDelTrabajo(servicioId) {
+  const todas = (await db.eventosDeServicio(servicioId)).filter(e => e.tipo === 'tabla');
+  if (!todas.length) { aviso('Este trabajo no tiene tablas', 'error'); return; }
+
+  const grupos = new Map();
+  const sueltas = [];
+  for (const ev of todas) {
+    const c = claveTabla(ev.datos);
+    if (!c) { sueltas.push(ev); continue; }
+    if (!grupos.has(c)) grupos.set(c, []);
+    grupos.get(c).push(ev);
+  }
+
+  const eleccion = await hoja('▦  Tablas del trabajo', (cerrar) => h('div',
+    h('div.lista-acciones',
+      Array.from(grupos.entries()).map(([c, evs]) =>
+        h('button.lista-acciones__item.opcion-fuerte', { type: 'button', onclick: () => cerrar({ nombre: c, evs }) },
+          '▦  ' + c + '  (' + evs.length + ')')),
+      sueltas.map(ev =>
+        h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar({ nombre: 'TABLA SIN TITULO', evs: [ev] }) },
+          '▦  Tabla sin titulo · ' + hora(ev.ts) + ' · ' + fecha(ev.ts)))
+    ),
+    h('p.pista', 'Las tablas con el mismo titulo se agrupan para compararlas juntas.')
+  ));
+  if (!eleccion) return;
+  await capaComparar(eleccion.nombre, eleccion.evs);
+  return tablasDelTrabajo(servicioId);   // al cerrar el grupo, de vuelta a la lista
 }
 
 export async function render(contenedor, refrescar, params) {
@@ -246,7 +286,7 @@ export async function render(contenedor, refrescar, params) {
       h('span.crece'),
       soloVer ? h('button.enlace', {
         type: 'button',
-        onclick: () => compararTablas(evento.servicioId),
+        onclick: () => compararTablas(evento.servicioId, evento),
       }, '⇄  Comparar tablas') : null,
       soloVer ? null : h('button.enlace', {
         type: 'button',
