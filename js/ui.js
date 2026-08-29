@@ -157,6 +157,22 @@ const SONIDOS_MARCA = ['bruh', 'pato', 'corriendo', 'quepaso', 'rudo', 'djstop',
 let audioMarca = null;
 let corteMarca = null;
 
+// POZO precargado: crear el Audio en el toque tardaba tanto (buscar el mp3
+// y decodificarlo) que el sonido llegaba cuando la animacion ya acababa.
+// Precargados, el play() del toque arranca de inmediato.
+let pozoMarca = null;
+function pozoDeSonidos() {
+  if (!pozoMarca) {
+    pozoMarca = SONIDOS_MARCA.map(src => {
+      const a = new Audio(src);
+      a.preload = 'auto';
+      return a;
+    });
+  }
+  return pozoMarca;
+}
+setTimeout(() => { try { pozoDeSonidos(); } catch (e) { /* sin audio */ } }, 1500);
+
 export function animarMarca(...els) {
   const anim = ANIMS_MARCA[Math.floor(Math.random() * ANIMS_MARCA.length)];
   for (const el of els) {
@@ -166,13 +182,14 @@ export function animarMarca(...els) {
     el.classList.add(anim);
     el.addEventListener('animationend', () => el.classList.remove(anim), { once: true });
   }
-  // El sonido corta al anterior si tocan en rafaga (viene del cache del SW,
-  // asi que suena tambien sin señal) y se DETIENE solo a los 4 segundos.
-  // Si el sistema lo bloquea, silencio.
+  // Suena AL INSTANTE (pozo precargado); en rafaga corta al anterior, y se
+  // detiene solo a los 4 segundos. Si el sistema lo bloquea, silencio.
   try {
     if (audioMarca) audioMarca.pause();
     clearTimeout(corteMarca);
-    audioMarca = new Audio(SONIDOS_MARCA[Math.floor(Math.random() * SONIDOS_MARCA.length)]);
+    const pozo = pozoDeSonidos();
+    audioMarca = pozo[Math.floor(Math.random() * pozo.length)];
+    audioMarca.currentTime = 0;
     audioMarca.play().catch(() => {});
     corteMarca = setTimeout(() => { if (audioMarca) audioMarca.pause(); }, 4000);
   } catch (e) { /* sin audio */ }
