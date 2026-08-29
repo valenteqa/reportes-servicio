@@ -4,7 +4,7 @@
 import { h, aviso, animarMarca } from '../ui.js';
 import { esNativa } from '../nativo.js';
 import { temaActual, alternarTema } from '../tema.js';
-import { hojaConfiguracion, bannerActualizacion, lineaVersion } from './servicios.js';
+import { hojaConfiguracion, hojaAlmacenamiento, bannerActualizacion, lineaVersion } from './servicios.js';
 
 function boton(icono, texto, alPulsar, chip) {
   return h('button.menu__boton', { type: 'button', onclick: alPulsar },
@@ -14,12 +14,16 @@ function boton(icono, texto, alPulsar, chip) {
   );
 }
 
-export async function render(contenedor) {
+export async function render(contenedor, refrescar) {
   const logo = h('img.menu__logo', { src: 'icons/logo-serpro.png', alt: 'Grupo Ser Pro' });
   const titulo = h('h1.menu__titulo.marca', 'SER PRO APP');
   logo.onclick = titulo.onclick = () => animarMarca(logo, titulo);
 
   const pantalla = h('div.menu',
+    h('button.icono-btn.menu__respaldo', {
+      type: 'button', 'aria-label': 'Almacenamiento y respaldo',
+      onclick: () => hojaAlmacenamiento(refrescar),
+    }, '⛁'),
     h('button.icono-btn.menu__tema', {
       type: 'button', 'aria-label': 'Cambiar tema',
       onclick: (ev) => {

@@ -957,7 +957,8 @@ function tarjetaTrabajo(trabajo, resumen, refrescar) {
 /* Almacenamiento y respaldo                                         */
 /* ---------------------------------------------------------------- */
 
-async function hojaAlmacenamiento(refrescar) {
+// Exportada: el boton ⛁ vive en la PORTADA (menu de inicio).
+export async function hojaAlmacenamiento(refrescar) {
   const i = await db.estadoAlmacenamiento();
 
   await hoja('Almacenamiento y respaldo', (cerrar) => {
@@ -1133,10 +1134,6 @@ export async function render(contenedor, refrescar) {
           ev.currentTarget.textContent = nuevo === 'claro' ? '🌙' : '☀️';
         }
       }, temaActual() === 'claro' ? '🌙' : '☀️'),
-      h('button.icono-btn', {
-        type: 'button', 'aria-label': 'Almacenamiento y respaldo',
-        onclick: () => hojaAlmacenamiento(refrescar)
-      }, '⛁'),
       h('button.icono-btn', {
         type: 'button', 'aria-label': 'Configuracion',
         onclick: () => hojaConfiguracion()
