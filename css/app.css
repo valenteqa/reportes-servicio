@@ -741,7 +741,15 @@ button { font-family: inherit; font-size: inherit; }
 .venta-estatus { color: var(--tinta-tenue); }
 .venta-h3 { font-size: .78rem; letter-spacing: .1em; color: var(--tinta-suave); margin: .8rem 0 .35rem; }
 .venta-historial { max-height: 40vh; overflow-y: auto; }
-.venta-evento { display: flex; gap: .6rem; padding: .4rem 0; border-bottom: 1px dashed var(--borde); font-size: .88rem; }
+.venta-evento { position: relative; display: block; padding: .5rem 0; border-bottom: 1px dashed var(--borde); font-size: .88rem; }
+.venta-evento__fechas {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: .6rem; flex-wrap: wrap;
+  font-size: .72rem; color: var(--tinta-tenue); font-variant-numeric: tabular-nums;
+}
+.venta-evento__cuerpo { margin: .2rem 0 0; }
+.venta-evento:has(.venta-evento__tools) .venta-evento__cuerpo { padding-right: 4.4rem; }
+.venta-evento .venta-evento__tools { position: absolute; right: 0; bottom: .45rem; }
 .venta-evento__fecha { flex: none; color: var(--tinta-tenue); font-variant-numeric: tabular-nums; }
 .venta-evento--atraso .venta-evento__texto { color: var(--peligro, #c22a29); font-weight: 600; }
 .venta-btn { width: 100%; margin-top: .7rem; }

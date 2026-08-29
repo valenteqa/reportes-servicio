@@ -518,7 +518,6 @@ async function hojaDetalle(v, permisos, alCambiar) {
     const cuerpo = h('div');
     const pinta = () => {
       const cal = calificacion(v);
-      const contacto = contactoVigente(v);
       // OJO: append(null) pinta el texto "null" (h() si filtra nulos);
       // aqui los condicionales entregan null, se filtran antes de anexar.
       const partes = [
@@ -527,7 +526,6 @@ async function hojaDetalle(v, permisos, alCambiar) {
           h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()),
           ' · 📅 Creada: ' + fechaDeTs(v.creado) + (v.cerrada ? ' · CERRADA' : '')),
         v.cerrada || !compromisoVigente(v) ? null : h('p.venta-meta', 'Fecha compromiso: ' + fechaBonita(compromisoVigente(v)) + ' (de la ultima accion)'),
-        contacto ? h('p.venta-meta', '👤 Contacto actual: ' + contacto) : null,
         h('p.venta-cal', 'CALIFICACION: ' + cal + '%  (' + (v.historial || []).length + ' estatus)'),
         permisos.gestionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
           type: 'button',
@@ -545,10 +543,13 @@ async function hojaDetalle(v, permisos, alCambiar) {
         h('div.venta-historial',
           ...(v.historial || []).slice().reverse().map(e =>
             h('div.venta-evento' + (e.tipo === 'atraso' ? '.venta-evento--atraso' : ''),
-              h('span.venta-evento__fecha', fechaBonita(e.fecha)),
-              h('span.venta-evento__texto', e.texto,
-                e.contacto ? h('span.venta-evento__contacto', '👤 ' + e.contacto) : null,
-                e.compromiso ? h('span.venta-evento__contacto', '📅 Fecha compromiso: ' + fechaBonita(e.compromiso)) : null),
+              // Fechas etiquetadas: creacion a la IZQUIERDA, compromiso a
+              // la DERECHA (pedido de Vale para que no se confundan).
+              h('div.venta-evento__fechas',
+                h('span', 'Fecha de creacion: ' + fechaBonita(e.fecha)),
+                e.compromiso ? h('span', 'Fecha compromiso: ' + fechaBonita(e.compromiso)) : null),
+              h('p.venta-evento__cuerpo', e.texto,
+                e.contacto ? h('span.venta-evento__contacto', '👤 ' + e.contacto) : null),
               permisos.gestionar ? h('span.venta-evento__tools',
                 h('button.icono-btn.org-mini', {
                   type: 'button', 'aria-label': 'Editar accion',
