@@ -391,8 +391,10 @@ button { font-family: inherit; font-size: inherit; }
   8%   { transform: translateY(3vh) rotate(2deg); }
   15%  { transform: translateY(12vh) rotate(5deg); }
   24%  { transform: translateY(45vh) rotate(9deg); }
-  33%  { transform: translateY(115vh) rotate(13deg); }  /* salio por abajo */
-  36%  { transform: translateY(-120vh) rotate(0); }     /* brinco oculto arriba */
+  /* salio por abajo; step-end SOSTIENE este valor y brinca SECO al de
+     arriba (interpolar el tramo pintaba un flashazo del logo subiendo) */
+  33%  { transform: translateY(115vh) rotate(13deg); animation-timing-function: step-end; }
+  36%  { transform: translateY(-120vh) rotate(0); }     /* ya oculto arriba */
   59%  { transform: translateY(-120vh); }               /* espera en silencio */
   66%  { transform: translateY(-72vh); }
   72%  { transform: translateY(-30vh); }
