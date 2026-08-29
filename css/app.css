@@ -207,6 +207,11 @@ button { font-family: inherit; font-size: inherit; }
   75%  { transform: scale(1.18) rotate(-5deg); }
   100% { transform: scale(1) rotate(0deg); filter: drop-shadow(0 0 0 rgba(4, 91, 107, 0)); }
 }
+/* ═══ ARCHIVADAS (sin sonido asignado; guardadas a peticion de Vale) ═══
+   Pulso (.marca-animada), Brinco, Tembleque, Latido y Voltereta 3D ya no
+   estan en el sorteo ni en el ensayo. Para revivir una: reagregarla a
+   ANIMS_MARCA y MARCAS_PROBADOR en js/ui.js y darle su pareja en
+   PAREJA_SONIDO. Sus keyframes y clases siguen aqui, intactos. */
 .marca-animada { animation: marcaPulso .85s ease; }
 
 @keyframes marcaGira {
@@ -496,6 +501,26 @@ button { font-family: inherit; font-size: inherit; }
   100% { transform: scale(1, 1); }
 }
 .marca-pato { animation: marcaPato 1.1s ease-in-out; transform-origin: 50% 85%; }
+
+/* Desmayo con "dios" (1.64s medido, pico del OH en 0.24s): sacudida en el
+   pico, mareo con bamboleos crecientes, se va de lado al piso (~1.3s) con
+   rebotito, queda tendido mientras muere la frase, y revive de un brinco.
+   Pivota sobre la base (transform-origin abajo). Total 2.2s. */
+@keyframes marcaDesmayo {
+  0%   { transform: rotate(0); }
+  11%  { transform: rotate(-6deg) scale(1.05); }   /* golpe del OH (0.24s) */
+  20%  { transform: rotate(7deg) scale(1); }
+  29%  { transform: rotate(-10deg); }               /* mareo creciente */
+  38%  { transform: rotate(12deg); }
+  43%  { transform: rotate(-6deg); }                /* ultimo tambaleo */
+  59%  { transform: rotate(88deg) translateY(4%); } /* al piso */
+  63%  { transform: rotate(78deg) translateY(2%); } /* rebotito */
+  67%  { transform: rotate(88deg) translateY(4%); }
+  84%  { transform: rotate(88deg) translateY(4%); } /* tendido, desmayado */
+  93%  { transform: rotate(-7deg); }                /* revive de un brinco */
+  100% { transform: rotate(0); }
+}
+.marca-desmayo { animation: marcaDesmayo 2.2s ease-in-out; transform-origin: 50% 88%; }
 
 .rudo-humo {
   position: absolute; right: -6%; top: -140%;

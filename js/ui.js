@@ -149,9 +149,22 @@ export function vaciar(el) {
   return el;
 }
 
-// Animaciones de la marca (logo y nombre): cada toque sortea una distinta,
-// con su sonido goofy tambien al azar. Reinicia aunque se toque en rafaga.
-const ANIMS_MARCA = ['marca-animada', 'marca-gira', 'marca-brinca', 'marca-tiembla', 'marca-late', 'marca-voltea', 'marca-vuela', 'marca-vibra', 'marca-cae', 'marca-rudo', 'marca-pato'];
+// Animaciones de la marca (logo y nombre): cada toque sortea una distinta;
+// TODAS traen su sonido de pareja fija. Reinicia aunque se toque en rafaga.
+// (Archivadas sin sonido: marca-animada/Pulso, marca-brinca, marca-tiembla,
+// marca-late, marca-voltea — sus keyframes siguen en el CSS por si vuelven.)
+const ANIMS_MARCA = ['marca-gira', 'marca-vuela', 'marca-vibra', 'marca-cae', 'marca-rudo', 'marca-pato', 'marca-desmayo'];
+
+// Pareja fija sonido↔animacion (nombre del archivo en SONIDOS_MARCA).
+const PAREJA_SONIDO = {
+  'marca-gira': 'djstop',
+  'marca-vuela': 'corriendo',
+  'marca-vibra': 'quepaso',
+  'marca-cae': 'grito',
+  'marca-rudo': 'rudo',
+  'marca-pato': 'pato',
+  'marca-desmayo': 'dios',
+};
 const SONIDOS_MARCA = ['pato', 'corriendo', 'quepaso', 'rudo', 'djstop', 'grito', 'dios']
   .map(n => 'sonidos/' + n + '.mp3');
 let audioMarca = null;
@@ -185,17 +198,13 @@ let retrasoAnimMarca = null;
 
 // Nombres para el ensayo del logo.
 const MARCAS_PROBADOR = [
-  ['marca-animada', 'Pulso'],
   ['marca-gira', 'Giro doble (dj stop)'],
-  ['marca-brinca', 'Brinco'],
-  ['marca-tiembla', 'Tembleque'],
-  ['marca-late', 'Latido'],
-  ['marca-voltea', 'Voltereta 3D'],
   ['marca-vuela', 'Vuelo (disparado)'],
   ['marca-vibra', 'What the hell (crece, mini y vibra)'],
   ['marca-cae', 'Caida (grito y pato)'],
   ['marca-rudo', 'Rudo (lentes y cigarro)'],
   ['marca-pato', 'Patito de hule (pato)'],
+  ['marca-desmayo', 'Desmayo (dios)'],
 ];
 
 // Nombres de los sonidos, en el MISMO orden que SONIDOS_MARCA.
@@ -287,9 +296,7 @@ function ejecutarMarca(anim, els, iSonido) {
   const esVuela = anim === 'marca-vuela';
   const esVibra = anim === 'marca-vibra';
   const esCae = anim === 'marca-cae';
-  const esGira = anim === 'marca-gira';
   const esRudo = anim === 'marca-rudo';
-  const esPato = anim === 'marca-pato';
 
   // En el vuelo y la caida el logo sale de la pantalla: sin barras de
   // desborde mientras dura.
@@ -311,22 +318,13 @@ function ejecutarMarca(anim, els, iSonido) {
     clearTimeout(corteMarca);
     clearTimeout(patoMarca);
     const pozo = pozoDeSonidos();
-    const iCorriendo = SONIDOS_MARCA.findIndex(s => s.includes('corriendo'));
-    const iQuepaso = SONIDOS_MARCA.findIndex(s => s.includes('quepaso'));
-    const iGrito = SONIDOS_MARCA.findIndex(s => s.includes('grito'));
     const iPato = SONIDOS_MARCA.findIndex(s => s.includes('pato'));
-    const iDj = SONIDOS_MARCA.findIndex(s => s.includes('djstop'));
-    const iRudo = SONIDOS_MARCA.findIndex(s => s.includes('rudo'));
     let i;
     if (iSonido != null) i = iSonido;
-    else if (esVuela) i = iCorriendo;
-    else if (esVibra) i = iQuepaso;
-    else if (esCae) i = iGrito;
-    else if (esGira) i = iDj;         // pareja fija: giro doble ↔ dj stop
-    else if (esRudo) i = iRudo;       // pareja fija: rudo ↔ lentes y cigarro
-    else if (esPato) i = iPato;       // pareja fija: patito de hule ↔ pato
     else {
-      do { i = Math.floor(Math.random() * pozo.length); } while (i === iCorriendo || i === iQuepaso || i === iGrito || i === iDj || i === iRudo || i === iPato);
+      // Toda animacion viva tiene pareja fija en PAREJA_SONIDO.
+      i = SONIDOS_MARCA.findIndex(s => s.includes(PAREJA_SONIDO[anim] || 'dios'));
+      if (i < 0) i = 0;   // respaldo: nunca quedarse sin sonido
     }
     if (SONIDOS_MARCA[i].includes('djstop')) retrasoAnim = 500;
     audioMarca = pozo[i];
