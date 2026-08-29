@@ -247,20 +247,6 @@ async function hojaUsuarios() {
         h('p.pista', 'Elige con cuidado: solo se puede elegir UNA vez por telefono.'));
     }
 
-    const filas = org.usuarios.map(u => {
-      const selDepto = h('select.org-select',
-        h('option', { value: '' }, 'Sin depto'),
-        ...DEPTOS.map(d => h('option', { value: d, selected: u.depto === d }, d)));
-      const selRol = h('select.org-select',
-        ...Object.keys(ROLES).map(r => h('option', { value: r, selected: u.rol === r }, ROLES[r])));
-      selDepto.onchange = async () => { u.depto = selDepto.value; await organizacionGuardar(org); };
-      selRol.onchange = async () => { u.rol = selRol.value; await organizacionGuardar(org); };
-      if (!soyAdmin) { selDepto.disabled = true; selRol.disabled = true; }
-      return h('div.org-fila',
-        h('span.org-nombre', u.nombre),
-        h('div.org-selects', selDepto, selRol));
-    });
-
     // Al admin se le muestran la clave de HOY y la de MAÑANA (para no
     // depender de la tarjeta cuando trae su telefono a la mano).
     const lineaClaves = h('p.pista.org-claves');
@@ -270,15 +256,85 @@ async function hojaUsuarios() {
       }).catch(() => {});
     }
 
-    return h('div',
-      bloqueYo,
-      h('p.pista', soyAdmin
-        ? 'Eres administrador: puedes asignar depto y rol a cada quien.'
-        : 'Solo el administrador puede cambiar deptos y roles.'),
-      soyAdmin ? lineaClaves : null,
-      h('div.org-lista', ...filas),
-      h('p.pista', 'Deptos: ' + DEPTOS.join(', ') + '. El lider de area puede modificar o eliminar actividades de su gente; los usuarios solo agregan y marcan.')
-    );
+    // Nombre para crear o renombrar (solo el admin/developer llega aqui).
+    const pedirNombre = (titulo, valor) => hoja(titulo, (cerrarNombre) => {
+      const c = campo('Nombre completo', { maxLength: 80, value: valor || '' });
+      return h('div', c,
+        h('div.hoja__acciones',
+          h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrarNombre(null) }, 'Cancelar'),
+          h('button.btn.btn--primario', {
+            type: 'button',
+            onclick: () => {
+              const v = c.querySelector('input').value.trim();
+              if (!v) { aviso('Escribe el nombre.', 'error'); return; }
+              cerrarNombre(v);
+            },
+          }, 'Guardar')));
+    });
+
+    const cuerpo = h('div');
+    const pinta = () => {
+      const filas = org.usuarios.map(u => {
+        const selDepto = h('select.org-select',
+          h('option', { value: '' }, 'Sin depto'),
+          ...DEPTOS.map(d => h('option', { value: d, selected: u.depto === d }, d)));
+        const selRol = h('select.org-select',
+          ...Object.keys(ROLES).map(r => h('option', { value: r, selected: u.rol === r }, ROLES[r])));
+        selDepto.onchange = async () => { u.depto = selDepto.value; await organizacionGuardar(org); };
+        selRol.onchange = async () => { u.rol = selRol.value; await organizacionGuardar(org); };
+        if (!soyAdmin) { selDepto.disabled = true; selRol.disabled = true; }
+        return h('div.org-fila',
+          h('div.org-fila__cab',
+            h('span.org-nombre', u.nombre),
+            soyAdmin ? h('button.icono-btn.org-mini', {
+              type: 'button', 'aria-label': 'Renombrar usuario',
+              onclick: async () => {
+                const nuevo = await pedirNombre('✎  Renombrar usuario', u.nombre);
+                if (!nuevo) return;
+                u.nombre = nuevo;
+                await organizacionGuardar(org);
+                pinta();
+              },
+            }, '✎') : null,
+            soyAdmin ? h('button.icono-btn.org-mini', {
+              type: 'button', 'aria-label': 'Eliminar usuario',
+              onclick: async () => {
+                if (yo && u.id === yo.id) { aviso('No puedes eliminarte a ti mismo.', 'error'); return; }
+                if (u.rol === 'admin' && org.usuarios.filter(x => x.rol === 'admin').length <= 1) {
+                  aviso('No puedes eliminar al unico administrador.', 'error');
+                  return;
+                }
+                if (!(await confirmar('¿Eliminar a ' + u.nombre + ' del padron?'))) return;
+                org.usuarios = org.usuarios.filter(x => x !== u);
+                await organizacionGuardar(org);
+                pinta();
+              },
+            }, '🗑') : null),
+          h('div.org-selects', selDepto, selRol));
+      });
+
+      cuerpo.replaceChildren(...[
+        bloqueYo,
+        h('p.pista', soyAdmin
+          ? 'Eres administrador: puedes crear, renombrar y eliminar usuarios, y asignar depto y rol.'
+          : 'Solo el administrador puede cambiar el padron, los deptos y los roles.'),
+        soyAdmin ? lineaClaves : null,
+        soyAdmin ? h('button.btn.btn--fantasma.org-agregar', {
+          type: 'button',
+          onclick: async () => {
+            const nombre = await pedirNombre('＋  Nuevo usuario', '');
+            if (!nombre) return;
+            org.usuarios.push({ id: db.nuevoId(), nombre, depto: '', rol: 'usuario' });
+            await organizacionGuardar(org);
+            pinta();
+          },
+        }, '＋  AGREGAR USUARIO') : null,
+        h('div.org-lista', ...filas),
+        h('p.pista', 'Deptos: ' + DEPTOS.join(', ') + '. El lider de area puede modificar o eliminar actividades de su gente; los usuarios solo agregan y marcan.'),
+      ].filter(Boolean));
+    };
+    pinta();
+    return cuerpo;
   });
 }
 

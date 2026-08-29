@@ -684,7 +684,10 @@ button { font-family: inherit; font-size: inherit; }
 .org-lista { margin-top: .4rem; }
 .org-fila { padding: .55rem 0; border-bottom: 1px dashed var(--borde); }
 .org-fila:last-child { border-bottom: 0; }
-.org-nombre { display: block; font-weight: 600; margin-bottom: .3rem; }
+.org-fila__cab { display: flex; align-items: center; gap: .3rem; margin-bottom: .3rem; }
+.org-nombre { flex: 1; min-width: 0; font-weight: 600; }
+.org-mini { width: 1.8rem; height: 1.8rem; font-size: .82rem; flex: none; }
+.org-agregar { width: 100%; margin: .2rem 0 .5rem; }
 .org-selects { display: flex; gap: .5rem; }
 .org-select {
   flex: 1; min-width: 0; padding: .4rem .5rem;
