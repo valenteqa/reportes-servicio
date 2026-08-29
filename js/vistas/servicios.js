@@ -90,8 +90,9 @@ export async function hojaConfiguracion() {
     // Huevo de pascua: el probador de animaciones esta OCULTO; se abre
     // tocando 10 veces seguidas el TITULO de la hoja (max 1.5s entre
     // toques o el conteo se reinicia). El listener se engancha tras el
-    // montaje, porque el titulo lo construye hoja(), no nosotros.
-    setTimeout(() => {
+    // montaje (microtask: corre despues de que hoja() ya apendio el panel,
+    // y no lo frena el throttling de pestañas en segundo plano).
+    queueMicrotask(() => {
       const titulo = [...document.querySelectorAll('.hoja h2')].pop();
       if (!titulo || !titulo.textContent.includes('Configuracion')) return;
       let toques = 0;
@@ -103,7 +104,7 @@ export async function hojaConfiguracion() {
         toques += 1;
         if (toques >= 10) { toques = 0; cerrar('probador'); }
       });
-    }, 0);
+    });
     return h('div',
       h('div.lista-acciones',
         h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('tecnico') },
