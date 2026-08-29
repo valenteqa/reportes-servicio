@@ -459,9 +459,12 @@ async function generarConPlantilla(servicioId) {
   // El cuerpo arranca en pagina nueva, despues del indice (como el original).
   let cuerpo = ['<w:p><w:r><w:br w:type="page"/></w:r></w:p>'];
 
-  if (servicio.descripcion || servicio.titulo) {
+  // Antecedentes = la seccion fija del arbol. VACIA, no sale en el reporte
+  // (la descripcion del problema ya va en la tabla de datos de la portada).
+  const evAntecedentes = (porRama[db.ANTECEDENTES] || []);
+  if (evAntecedentes.length) {
     cuerpo.push(titulo1('Antecedentes'));
-    cuerpo.push(parrafosDe(servicio.descripcion || servicio.titulo));
+    for (const ev of evAntecedentes) cuerpo.push(await eventoXml(ev));
   }
 
   const evGeneral = (porRama[db.GENERAL] || []).filter(e => e.tipo !== 'pendiente');
@@ -635,10 +638,11 @@ async function generarReporteBasico(servicioId) {
     return '';   // los pendientes van en su propia seccion
   };
 
-  // ANTECEDENTES: la descripcion de la falla
-  if (servicio.descripcion || servicio.titulo) {
+  // ANTECEDENTES: la seccion fija del arbol (vacia, no sale).
+  const evAntecedentesB = (porRama[db.ANTECEDENTES] || []);
+  if (evAntecedentesB.length) {
     cuerpo.push(titulo1('Antecedentes'));
-    cuerpo.push(parrafosDe(servicio.descripcion || servicio.titulo));
+    for (const ev of evAntecedentesB) cuerpo.push(await eventoXml(ev));
   }
 
   // ACTIVIDADES: la rama General

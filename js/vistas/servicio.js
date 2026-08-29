@@ -438,6 +438,8 @@ function guardarCerradas(servicioId, lista) {
 function rama(servicio, actividad, eventos, refrescar, numeroPaso) {
   const esGeneral = actividad.id === db.GENERAL;
   const esObs = actividad.id === db.OBSERVACIONES;
+  const esAnte = actividad.id === db.ANTECEDENTES;
+  const esFija = esObs || esAnte;
   const esProc = (servicio.tipo === 'procedimiento');
   const sinResultado = eventos.filter(e => e.tipo === 'prueba' && !e.datos.resultado).length;
   const nombreVisible = numeroPaso ? numeroPaso + '. ' + actividad.nombre : actividad.nombre;
@@ -463,27 +465,30 @@ function rama(servicio, actividad, eventos, refrescar, numeroPaso) {
     eventos.length ? h('span.rama__conteo', String(eventos.length)) : null,
     sinResultado ? h('span.rama__pendiente', sinResultado + ' sin resultado') : null,
     h('span.crece'),
-    (esGeneral || esObs) ? null : menuRama(actividad, eventos.length, refrescar),
+    (esGeneral || esFija) ? null : menuRama(actividad, eventos.length, refrescar),
     h('span.rama__flecha', '▾')
   );
 
   // El + va al FINAL de la linea de tiempo: el siguiente nodo de la secuencia.
   // TODOS los tipos de trabajo ofrecen el menu completo (foto, texto, tabla,
-  // prueba, pendiente). Solo la seccion fija de observaciones se limita a
-  // textos e imagenes: cada texto sera una viñeta del reporte.
-  const opciones = esObs ? ['camara', 'galeria', 'nota'] : null;
+  // prueba, pendiente). Las secciones fijas (antecedentes y observaciones)
+  // se limitan a textos e imagenes: cada texto sale como viñeta.
+  const opciones = esFija ? ['camara', 'galeria', 'nota'] : null;
 
   const agregar = h('button.rama__agregar', {
     type: 'button', 'aria-label': 'Agregar en ' + actividad.nombre,
     onclick: () => menuAgregar(servicio.id, actividad.id, refrescar, nombreVisible, opciones, esProc),
   }, '+');
 
-  const seccion = h('section.rama' + (esObs ? '.rama--fija' : '') + (cerrada ? '.rama--cerrada' : ''),
+  const seccion = h('section.rama' + (esFija ? '.rama--fija' : '') + (cerrada ? '.rama--cerrada' : ''),
     { dataset: { rama: actividad.id } },
     cabeza,
     h('div.rama__cuerpo',
       esObs && !eventos.length
         ? h('p.rama__pista', 'Como quedo la maquina y que se recomienda. Cada texto sale como viñeta en el reporte.')
+        : null,
+      esAnte && !eventos.length
+        ? h('p.rama__pista', 'El contexto previo al servicio (historial, sintomas, visitas anteriores). Si se queda vacia, la seccion NO sale en el reporte.')
         : null,
       eventos.length ? lineaDeTiempo(eventos, refrescar) : null,
       agregar
@@ -622,6 +627,10 @@ export async function render(contenedor, refrescar, params) {
   const evGeneral = porRama[db.GENERAL] || [];
 
   const arbol = h('div.arbol',
+    // Seccion fija al inicio: antecedentes (si queda vacia, no sale en el reporte).
+    esProc ? null : rama(servicio,
+      { id: db.ANTECEDENTES, nombre: 'Antecedentes' },
+      porRama[db.ANTECEDENTES] || [], alRefrescar),
     // En procedimientos el tronco General se oculta si esta vacio: ahi solo
     // cuentan los pasos (cada uno una diapositiva).
     (esProc && !evGeneral.length) ? null : rama(servicio, general, evGeneral, alRefrescar),

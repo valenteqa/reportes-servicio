@@ -144,7 +144,8 @@ export async function vistaPreviaReporte(servicioId) {
   // Indice: los renglones existen desde ahora (su altura cuenta al paginar);
   // los numeros de pagina se rellenan al final, ya paginado.
   const secciones = [];
-  if (servicio.descripcion || servicio.titulo) secciones.push('ANTECEDENTES');
+  const evAntecedentes = porRama[db.ANTECEDENTES] || [];
+  if (evAntecedentes.length) secciones.push('ANTECEDENTES');
   const evGeneral = (porRama[db.GENERAL] || []).filter(e => e.tipo !== 'pendiente');
   if (evGeneral.length) secciones.push('ACTIVIDADES');
   for (const act of actividades) {
@@ -174,9 +175,9 @@ export async function vistaPreviaReporte(servicioId) {
     for (const ev of evs) meterVarios(await eventoNodo(ev));
   }
 
-  if (servicio.descripcion || servicio.titulo) {
+  if (evAntecedentes.length) {
     meter(h('h2.pw__h1', 'ANTECEDENTES'), { seccion: 'ANTECEDENTES', esTitulo: true });
-    meterVarios(parrafos(servicio.descripcion || servicio.titulo));
+    for (const ev of evAntecedentes) meterVarios(await eventoNodo(ev));
   }
   if (evGeneral.length) await meterSeccion('Actividades', evGeneral);
   for (const act of actividades) {

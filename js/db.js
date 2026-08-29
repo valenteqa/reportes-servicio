@@ -9,6 +9,7 @@ export const GENERAL = '__general__';
 // Rama fija al final del arbol (trabajos con reporte Word): ahi caen las
 // observaciones y recomendaciones como textos e imagenes.
 export const OBSERVACIONES = '__observaciones__';
+export const ANTECEDENTES = '__antecedentes__';
 
 // No todo lo que se registra es un servicio. El tipo se elige al crear y define
 // como se rotula en las listas y en el reporte.
