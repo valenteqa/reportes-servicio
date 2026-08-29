@@ -14,6 +14,7 @@ export const OBSERVACIONES = '__observaciones__';
 // como se rotula en las listas y en el reporte.
 export const TIPOS = {
   servicio:      { nombre: 'Servicio',               icono: '🔧' },
+  geometrica:    { nombre: 'Auditoria y Correccion Geometrica', icono: '📐' },
   laboratorio:   { nombre: 'Pruebas de laboratorio', icono: '🧪' },
   general:       { nombre: 'General',                icono: '📋' },
   procedimiento: { nombre: 'Procedimiento',          icono: '📑' },

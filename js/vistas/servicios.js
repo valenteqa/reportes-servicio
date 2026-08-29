@@ -1,7 +1,7 @@
 // Pantalla inicial: lista de trabajos (servicios, pruebas de laboratorio, generales).
 
 import * as db from '../db.js';
-import { h, campo, campoArea, hoja, aviso, confirmar, fecha, vacio, ocupado, libre } from '../ui.js';
+import { h, campo, campoArea, hoja, aviso, confirmar, fecha, vacio, ocupado, libre, animarMarca } from '../ui.js';
 import * as media from '../media.js';
 import { APP_VERSION } from '../version.js';
 import { temaActual, alternarTema, zoomActual, aplicarZoom } from '../tema.js';
@@ -68,7 +68,7 @@ const CAMPOS_CATALOGO = [
 
 // Linea con la version de la app (web) y la del cascaron APK. La del APK
 // se pregunta al plugin App y llega un instante despues.
-function version() {
+export function lineaVersion() {
   const linea = h('p.pista', { style: { marginTop: '.6rem' } },
     'Version de la app: ' + APP_VERSION + (esNativa() ? '' : ' · WEB (navegador)'));
   if (esNativa()) {
@@ -85,7 +85,7 @@ function version() {
   return linea;
 }
 
-async function hojaConfiguracion() {
+export async function hojaConfiguracion() {
   const accion = await hoja('⚙  Configuracion', (cerrar) => h('div',
     h('div.lista-acciones',
       h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('tecnico') },
@@ -98,7 +98,7 @@ async function hojaConfiguracion() {
         '🩺  Diagnostico de foto')
     ),
     h('p.pista', 'Administra las sugerencias que salen al crear o editar un servicio. Los servicios y reportes ya guardados no se tocan.'),
-    version()
+    lineaVersion()
   ));
   if (accion === 'tecnico') await hojaTecnico();
   if (accion === 'catalogo') await hojaCampoCatalogo();
@@ -309,7 +309,7 @@ async function bannerAlmacenamiento() {
 
 let apkPospuesto = 0;   // "Despues" oculta el aviso hasta reabrir la app
 
-async function bannerActualizacion() {
+export async function bannerActualizacion() {
   if (!esNativa()) return null;
   let v, build;
   try {
@@ -376,10 +376,15 @@ async function actualizarCascaron(v) {
 
 const PISTA_TIPO = {
   servicio:      'Mantenimiento o reparacion en sitio',
+  geometrica:    'Medicion y ajuste de la geometria de la maquina',
   laboratorio:   'Pruebas y mediciones en banco',
   general:       'Cualquier otro registro',
   procedimiento: 'Guia paso a paso — genera PowerPoint',
 };
+
+// Tipos que llevan datos de maquina: se crean con el asistente completo y
+// se editan con el menu de campos (los demas solo llevan titulo).
+const conMaquina = (tipo) => tipo === 'servicio' || tipo === 'geometrica';
 
 function elegirTipo() {
   return hoja('¿Que vas a registrar?', (cerrar) => h('div.selector-tipo',
@@ -563,23 +568,23 @@ export async function nuevoServicio() {
   const tipo = await elegirTipo();
   if (!tipo) return;
 
-  const datos = tipo === 'servicio'
+  const datos = conMaquina(tipo)
     ? await asistenteServicio()
     : await formularioTrabajo(null, tipo);
   if (!datos) return;
 
-  if (tipo === 'servicio' && !datos.cliente && !datos.planta) {
+  if (conMaquina(tipo) && !datos.cliente && !datos.planta) {
     aviso('Pon al menos cliente o planta', 'error');
     return;
   }
-  if (tipo !== 'servicio' && !datos.titulo) {
+  if (!conMaquina(tipo) && !datos.titulo) {
     aviso('Ponle un titulo', 'error');
     return;
   }
 
   const usuario = await db.ajusteLeer('usuario', 'Usuario');
   const trabajo = await db.servicioNuevo(Object.assign({ tipo, tecnico: usuario }, datos));
-  if (tipo === 'servicio') db.maquinaRecordar(trabajo);   // alimenta las sugerencias
+  if (conMaquina(tipo)) db.maquinaRecordar(trabajo);   // alimenta las sugerencias
   location.hash = '#/s/' + trabajo.id;
 }
 
@@ -701,7 +706,7 @@ async function editarServicioMenu(trabajo) {
 }
 
 export async function editarServicio(trabajo) {
-  if ((trabajo.tipo || 'servicio') === 'servicio') return editarServicioMenu(trabajo);
+  if (conMaquina(trabajo.tipo || 'servicio')) return editarServicioMenu(trabajo);
   const datos = await formularioTrabajo(trabajo, trabajo.tipo);
   if (!datos) return false;
   Object.assign(trabajo, datos);
@@ -934,7 +939,7 @@ async function hojaAlmacenamiento(refrescar) {
           esNativa() ? '💾 Respaldar a la carpeta' : 'Respaldar')
       ),
       estado,
-      version()
+      lineaVersion()
     );
   });
 }
@@ -943,13 +948,19 @@ export async function render(contenedor, refrescar) {
   media.liberarUrls();
   const trabajos = await db.serviciosTodos();
 
+  const logoCab = h('img.cabecera__logo', { src: 'icons/icono-192.png', alt: 'Grupo Ser Pro' });
+  const tituloCab = h('h1.marca', 'SER PRO APP');
+  logoCab.onclick = tituloCab.onclick = () => animarMarca(logoCab, tituloCab);
+
   const cabecera = h('header.cabecera',
     h('div.cabecera__fila',
-      h('img.cabecera__logo', { src: 'icons/icono-192.png', alt: 'Grupo Ser Pro' }),
-      h('h1', 'Ser Pro App'),
+      logoCab,
+      tituloCab,
       // Etiqueta para distinguir la version de navegador del APK: ambos
       // comparten icono y nombre, y confundirlos divide los datos.
       esNativa() ? null : h('span.tag-web', 'WEB'),
+      // Los botones van pegados a la derecha, lejos del titulo.
+      h('span.crece'),
       h('button.icono-btn', {
         type: 'button', 'aria-label': 'Cambiar tema',
         onclick: (ev) => {

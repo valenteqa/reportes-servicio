@@ -128,6 +128,18 @@ export function vaciar(el) {
   return el;
 }
 
+// Animacion generica de la marca (logo y nombre): pulso con brillo.
+// Reinicia aunque se toque en rafaga.
+export function animarMarca(...els) {
+  for (const el of els) {
+    if (!el) continue;
+    el.classList.remove('marca-animada');
+    void el.offsetWidth;   // fuerza reinicio de la animacion
+    el.classList.add('marca-animada');
+    el.addEventListener('animationend', () => el.classList.remove('marca-animada'), { once: true });
+  }
+}
+
 /* ---------------------------------------------------------------- */
 /* Formatos                                                          */
 /* ---------------------------------------------------------------- */

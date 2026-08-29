@@ -315,12 +315,10 @@ function rama(servicio, actividad, eventos, refrescar, numeroPaso) {
   );
 
   // El + va al FINAL de la linea de tiempo: el siguiente nodo de la secuencia.
-  // En procedimientos cada paso es una diapositiva: texto, imagenes, tablas
-  // y pendientes (sin pruebas). En la seccion fija de observaciones solo
-  // entran textos e imagenes: cada texto sera una viñeta del reporte.
-  const opciones = esObs ? ['camara', 'galeria', 'nota']
-    : esProc ? ['camara', 'galeria', 'nota', 'tabla', 'pendiente']
-    : null;
+  // TODOS los tipos de trabajo ofrecen el menu completo (foto, texto, tabla,
+  // prueba, pendiente). Solo la seccion fija de observaciones se limita a
+  // textos e imagenes: cada texto sera una viñeta del reporte.
+  const opciones = esObs ? ['camara', 'galeria', 'nota'] : null;
 
   const agregar = h('button.rama__agregar', {
     type: 'button', 'aria-label': 'Agregar en ' + actividad.nombre,
@@ -344,7 +342,7 @@ function rama(servicio, actividad, eventos, refrescar, numeroPaso) {
 export async function render(contenedor, refrescar, params) {
   media.liberarUrls();
   const servicio = await db.servicioLeer(params.sid);
-  if (!servicio) { location.replace('#/'); return; }
+  if (!servicio) { location.replace('#/t'); return; }
 
   // v3.18 guardaba observaciones/recomendaciones como campos de texto; hoy son
   // registros de la seccion fija. Migra al abrir (cada renglon, una viñeta).

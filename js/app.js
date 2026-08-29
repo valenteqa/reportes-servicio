@@ -1,13 +1,15 @@
 // Arranque y ruteo.
 //
 // Rutas:
-//   #/                      lista de trabajos
+//   #/                      menu principal
+//   #/t                     lista de trabajos (area del tecnico)
 //   #/s/<sid>               arbol del trabajo (actividades y sus registros)
 //   #/s/<sid>/t/<eventoId>  editor de tabla
 
 import { h, aviso, vaciar } from './ui.js';
 import * as media from './media.js';
 import { temaActual, aplicarTema } from './tema.js';
+import * as vistaMenu      from './vistas/menu.js';
 import * as vistaServicios from './vistas/servicios.js';
 import * as vistaServicio  from './vistas/servicio.js';
 import * as vistaTabla     from './vistas/tabla.js';
@@ -19,16 +21,18 @@ function analizarRuta() {
   const hash = location.hash.replace(/^#\/?/, '');
   const p = hash.split('/').filter(Boolean);
 
-  if (!p.length) return { vista: 'servicios', params: {} };
+  if (!p.length) return { vista: 'menu', params: {} };
+  if (p[0] === 't') return { vista: 'servicios', params: {} };
   if (p[0] === 's' && p[1]) {
     if (p[2] === 't' && p[3]) return { vista: 'tabla', params: { sid: p[1], eventoId: p[3] } };
     // '/e/<id>' era la vista por equipo; ahora todo vive en el arbol.
     return { vista: 'servicio', params: { sid: p[1] } };
   }
-  return { vista: 'servicios', params: {} };
+  return { vista: 'menu', params: {} };
 }
 
 const VISTAS = {
+  menu:      vistaMenu,
   servicios: vistaServicios,
   servicio:  vistaServicio,
   tabla:     vistaTabla,
@@ -125,9 +129,10 @@ window.addEventListener('pagehide', () => media.liberarUrls());
 function cadenaDeRuta() {
   const p = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
   if (p[0] === 's' && p[1]) {
-    if (p[2] === 't' && p[3]) return ['#/', '#/s/' + p[1], '#/s/' + p[1] + '/t/' + p[3]];
-    return ['#/', '#/s/' + p[1]];
+    if (p[2] === 't' && p[3]) return ['#/', '#/t', '#/s/' + p[1], '#/s/' + p[1] + '/t/' + p[3]];
+    return ['#/', '#/t', '#/s/' + p[1]];
   }
+  if (p[0] === 't') return ['#/', '#/t'];
   return ['#/'];
 }
 

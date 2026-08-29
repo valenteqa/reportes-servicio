@@ -168,6 +168,31 @@ button { font-family: inherit; font-size: inherit; }
 
 .cabecera__fila { display: flex; align-items: center; gap: .5rem; min-height: 44px; }
 
+/* La marca: nombre en fuente tecnologica (Orbitron, empacada en fonts/). */
+@font-face {
+  font-family: 'Orbitron';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('../fonts/orbitron.woff2') format('woff2');
+}
+.marca {
+  font-family: 'Orbitron', var(--mono), sans-serif;
+  letter-spacing: .07em;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.cabecera__fila h1.marca { font-size: .95rem; font-weight: 800; white-space: nowrap; }
+
+@keyframes marcaPulso {
+  0%   { transform: scale(1) rotate(0deg); filter: drop-shadow(0 0 0 rgba(4, 91, 107, 0)); }
+  35%  { transform: scale(1.16) rotate(-5deg); filter: drop-shadow(0 0 12px rgba(4, 91, 107, .6)); }
+  65%  { transform: scale(.95) rotate(3deg); filter: drop-shadow(0 0 6px rgba(4, 91, 107, .35)); }
+  100% { transform: scale(1) rotate(0deg); filter: drop-shadow(0 0 0 rgba(4, 91, 107, 0)); }
+}
+.marca-animada { animation: marcaPulso .7s ease; }
+
 .cabecera__titulo { flex: 1; min-width: 0; }
 .cabecera__titulo h1 {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -201,6 +226,38 @@ button { font-family: inherit; font-size: inherit; }
 }
 
 .crece { flex: 1; }
+
+/* ---------------------------------------------------------------- */
+/* Menu principal (portada)                                          */
+/* ---------------------------------------------------------------- */
+
+.menu {
+  min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1.9rem;
+  padding: calc(var(--sup) + 1.5rem) 1.2rem 2.2rem;
+}
+.menu .banner { width: 100%; max-width: 430px; }
+.menu__marca { display: flex; flex-direction: column; align-items: center; gap: .9rem; }
+.menu__logo { width: min(44vw, 180px); height: auto; cursor: pointer; }
+.menu__titulo { font-size: 1.5rem; font-weight: 800; letter-spacing: .12em; text-align: center; }
+.menu__botones { width: 100%; max-width: 430px; display: flex; flex-direction: column; gap: .7rem; }
+.menu__boton {
+  display: flex; align-items: center; gap: .9rem;
+  width: 100%; min-height: 62px; padding: .9rem 1rem;
+  background: var(--superficie); border: 1px solid var(--borde);
+  color: var(--tinta); font-size: 1.06rem; font-weight: 650; text-align: left;
+  cursor: pointer; clip-path: var(--corte);
+}
+.menu__boton:active { background: var(--superficie-2); }
+.menu__icono { font-size: 1.45rem; }
+.menu__texto { flex: 1; }
+.menu__chip {
+  font-size: .64rem; font-weight: 700; letter-spacing: .08em;
+  color: var(--aviso); border: 1px solid var(--aviso);
+  padding: .18rem .45rem; white-space: nowrap;
+}
+.menu__flecha { color: var(--tinta-tenue); font-size: 1.25rem; }
 
 /* ---------------------------------------------------------------- */
 /* Contenido                                                         */

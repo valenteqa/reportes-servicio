@@ -262,7 +262,11 @@ export async function generarPresentacion(servicioId) {
     if (!evs.length) continue;
     nPaso++;
 
-    const notas = evs.filter(e => e.tipo === 'nota').map(e => e.datos.texto || '');
+    // Las pruebas tambien entran a la lamina, como renglones de texto.
+    const notas = evs.filter(e => e.tipo === 'nota' || e.tipo === 'prueba').map(e =>
+      e.tipo === 'nota' ? (e.datos.texto || '')
+        : 'Prueba: ' + (e.datos.descripcion || '') +
+          (e.datos.resultado ? ' — Resultado: ' + e.datos.resultado : ' — (pendiente de resultado)'));
     const pendientes = evs.filter(e => e.tipo === 'pendiente').map(e => e.datos.texto || '');
     pendientes.forEach(p => pendientesGlobal.push({ paso: nPaso + '. ' + paso.nombre, texto: p }));
     const tablas = evs.filter(e => e.tipo === 'tabla');
