@@ -206,14 +206,14 @@ export async function vistaPreviaReporte(servicioId) {
   function nuevaPagina() {
     const cuerpo = h('div.pw__cuerpo');
     const el = h('div.pw',
-      h('img.pw__marca-agua', { src: 'plantilla/logo16.png', alt: '' }),
+      h('img.pw__marca-agua', { src: 'plantilla/logo15.jpeg', alt: '' }),
       h('div.pw__enc',
         h('div.pw__encfila',
           h('img.pw__logo', { src: 'plantilla/logo14.png', alt: '' }),
           h('div.pw__enctexto',
             h('strong', 'Reporte Complementario'),
             h('span', folio + '   ·   ' + fechaLarga(servicio.inicio)))),
-        h('img.pw__banda', { src: 'plantilla/logo15.jpeg', alt: '' })),
+        h('img.pw__banda', { src: 'plantilla/logo16.png', alt: '' })),
       cuerpo,
       h('div.pw__previa-marca',
         h('strong', 'VISTA PREVIA'),
