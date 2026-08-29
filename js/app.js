@@ -3,6 +3,7 @@
 // Rutas:
 //   #/                      menu principal
 //   #/t                     lista de trabajos (area del tecnico)
+//   #/d                     diario de actividades
 //   #/s/<sid>               arbol del trabajo (actividades y sus registros)
 //   #/s/<sid>/t/<eventoId>  editor de tabla
 
@@ -13,6 +14,7 @@ import * as vistaMenu      from './vistas/menu.js';
 import * as vistaServicios from './vistas/servicios.js';
 import * as vistaServicio  from './vistas/servicio.js';
 import * as vistaTabla     from './vistas/tabla.js';
+import * as vistaDiario    from './vistas/diario.js';
 
 const raiz = document.getElementById('app');
 let pintando = false;
@@ -23,6 +25,7 @@ function analizarRuta() {
 
   if (!p.length) return { vista: 'menu', params: {} };
   if (p[0] === 't') return { vista: 'servicios', params: {} };
+  if (p[0] === 'd') return { vista: 'diario', params: {} };
   if (p[0] === 's' && p[1]) {
     if (p[2] === 't' && p[3]) return { vista: 'tabla', params: { sid: p[1], eventoId: p[3] } };
     // '/e/<id>' era la vista por equipo; ahora todo vive en el arbol.
@@ -36,6 +39,7 @@ const VISTAS = {
   servicios: vistaServicios,
   servicio:  vistaServicio,
   tabla:     vistaTabla,
+  diario:    vistaDiario,
 };
 
 async function pintar() {
@@ -133,6 +137,7 @@ function cadenaDeRuta() {
     return ['#/', '#/t', '#/s/' + p[1]];
   }
   if (p[0] === 't') return ['#/', '#/t'];
+  if (p[0] === 'd') return ['#/', '#/d'];
   return ['#/'];
 }
 
@@ -150,3 +155,7 @@ registrarServiceWorker();
 
 // Cameos sorpresa (aparecen al azar tras acciones, con enfriamiento).
 import('./cameos.js').then(m => m.instalarCameos()).catch(() => {});
+
+// Candado del Diario: un dia anterior con actividades sin evaluar bloquea
+// la app hasta marcarlas (revisa al abrir y al volver a verse).
+vistaDiario.instalarCandado(pintar);

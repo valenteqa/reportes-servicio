@@ -2,7 +2,7 @@
 // Todo vive en el telefono. Nada se sube a ningun servidor.
 
 const DB_NOMBRE  = 'app-reportes';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export const GENERAL = '__general__';
 
@@ -85,6 +85,12 @@ export function abrir() {
 
       if (!db.objectStoreNames.contains('ajustes')) {
         db.createObjectStore('ajustes', { keyPath: 'clave' });
+      }
+
+      // Diario de actividades: un registro por dia (fecha YYYY-MM-DD),
+      // con su lista de actividades y si el dia ya fue evaluado.
+      if (!db.objectStoreNames.contains('diario')) {
+        db.createObjectStore('diario', { keyPath: 'fecha' });
       }
     };
 
@@ -474,7 +480,7 @@ export function ajusteGuardar(clave, valor) {
 /* Respaldo: acceso a stores completos                               */
 /* ---------------------------------------------------------------- */
 
-const STORES_RESPALDO = ['servicios', 'equipos', 'eventos', 'catalogo', 'ajustes'];
+const STORES_RESPALDO = ['servicios', 'equipos', 'eventos', 'catalogo', 'ajustes', 'diario'];
 
 export function todosDe(nombre) {
   return tx(nombre, 'readonly', st => pedir(st[nombre].getAll()));
@@ -482,12 +488,12 @@ export function todosDe(nombre) {
 
 export function volcadoCompleto() {
   return Promise.all(STORES_RESPALDO.map(s => todosDe(s)))
-    .then(([servicios, equipos, eventos, catalogo, ajustes]) =>
-      ({ servicios, equipos, eventos, catalogo, ajustes }));
+    .then(([servicios, equipos, eventos, catalogo, ajustes, diario]) =>
+      ({ servicios, equipos, eventos, catalogo, ajustes, diario }));
 }
 
 export function restaurarVolcado(volcado, fotos) {
-  return tx(['servicios', 'equipos', 'eventos', 'catalogo', 'ajustes', 'fotos'], 'readwrite', async (st) => {
+  return tx(['servicios', 'equipos', 'eventos', 'catalogo', 'ajustes', 'diario', 'fotos'], 'readwrite', async (st) => {
     let n = 0;
     for (const s of STORES_RESPALDO) {
       for (const registro of (volcado[s] || [])) {
@@ -515,6 +521,22 @@ export function restaurarVolcado(volcado, fotos) {
     }
     return n;
   });
+}
+
+/* ---------------------------------------------------------------- */
+/* Diario de actividades                                             */
+/* ---------------------------------------------------------------- */
+
+export function diaLeer(fecha) {
+  return tx('diario', 'readonly', st => pedir(st.diario.get(fecha)));
+}
+
+export function diaGuardar(dia) {
+  return tx('diario', 'readwrite', st => { st.diario.put(dia); });
+}
+
+export function diasTodos() {
+  return tx('diario', 'readonly', st => pedir(st.diario.getAll()));
 }
 
 /* ---------------------------------------------------------------- */

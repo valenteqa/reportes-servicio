@@ -618,6 +618,65 @@ button { font-family: inherit; font-size: inherit; }
   50%      { rotate: 4deg; }
 }
 
+/* ══ Diario de actividades ══ */
+.diario-fecha { margin-left: auto; font-size: .82rem; color: var(--tinta-tenue); font-variant-numeric: tabular-nums; }
+.diario-carta {
+  background: var(--superficie); border: 1px solid var(--borde);
+  border-radius: var(--r-md); padding: .95rem; margin-bottom: .9rem;
+  box-shadow: var(--sombra-1);
+}
+.diario-carta h3 { font-size: .78rem; letter-spacing: .1em; color: var(--tinta-suave); margin: 0 0 .55rem; }
+.diario-cerrado { font-weight: 700; color: var(--tinta); margin: 0 0 .45rem; }
+
+.dia-fila { display: flex; align-items: center; gap: .6rem; padding: .42rem 0; border-bottom: 1px dashed var(--borde); }
+.dia-fila:last-of-type { border-bottom: 0; }
+.dia-check {
+  width: 2.1rem; height: 2.1rem; flex: none;
+  border-radius: 50%; border: 2px solid var(--borde-fuerte);
+  background: none; color: #fff; font-size: 1.05rem; line-height: 1;
+}
+.dia-check--si { background: var(--ok); border-color: var(--ok); }
+.dia-check:disabled { opacity: .85; }
+.dia-texto { flex: 1; min-width: 0; overflow-wrap: break-word; }
+.dia-texto--hecha { text-decoration: line-through; color: var(--tinta-tenue); }
+.dia-borrar { flex: none; }
+
+.dia-barra { height: 8px; border-radius: 99px; background: var(--superficie-2); border: 1px solid var(--borde); overflow: hidden; margin-top: .7rem; }
+.dia-barra i { display: block; height: 100%; background: var(--ok); border-radius: 99px; transition: width .25s ease; }
+.dia-avance { font-size: .84rem; color: var(--tinta-suave); margin: .35rem 0 0; font-variant-numeric: tabular-nums; }
+
+.dia-agregar { display: flex; gap: .5rem; margin-top: .7rem; }
+.dia-entrada {
+  flex: 1; min-width: 0; padding: .55rem .7rem;
+  border: 1px solid var(--borde-fuerte); border-radius: var(--r-ch);
+  background: var(--superficie); color: var(--tinta); font: inherit;
+}
+.dia-cerrar { width: 100%; margin-top: .7rem; }
+
+.sem-fila { display: flex; justify-content: space-between; gap: .8rem; padding: .3rem 0; font-size: .9rem; }
+.sem-fila--hoy { font-weight: 700; }
+.sem-dato { color: var(--tinta-suave); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sem-barra { margin-top: .5rem; }
+.sem-total { font-weight: 700; margin: .4rem 0 .5rem; font-variant-numeric: tabular-nums; }
+
+/* Candado: pantalla completa que no deja usar la app hasta evaluar. */
+.candado-diario {
+  position: fixed; inset: 0; z-index: 95;
+  background: var(--fondo);
+  overflow-y: auto;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 1.4rem 1.1rem 2rem;
+}
+.candado-tarjeta {
+  width: 100%; max-width: 480px;
+  background: var(--superficie); border: 1px solid var(--borde);
+  border-radius: var(--r-gd); padding: 1.2rem; box-shadow: var(--sombra-2);
+}
+.candado-icono { font-size: 2.2rem; text-align: center; }
+.candado-tarjeta h2 { font-size: 1.05rem; text-align: center; margin: .4rem 0 .5rem; }
+.candado-lista { margin-top: .6rem; }
+.candado-btn { width: 100%; margin-top: .9rem; }
+
 .rudo-humo {
   position: absolute; right: -6%; top: -140%;
   width: 16%; aspect-ratio: 1; border-radius: 50%;
