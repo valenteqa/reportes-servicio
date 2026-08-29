@@ -277,6 +277,23 @@ button { font-family: inherit; font-size: inherit; }
 /* Despues del disparo: ido. Vuelve al reentrar a la pantalla (se repinta). */
 .marca-ida { visibility: hidden; pointer-events: none; }
 
+/* Cameos "Toasty!": el invitado se asoma desde abajo por una esquina,
+   saluda y se vuelve a meter. Encima de todo, sin estorbar los toques. */
+.cameo {
+  position: fixed; bottom: 0; z-index: 89;
+  height: min(36vh, 300px); width: auto;
+  pointer-events: none;
+  animation: cameoAsoma 2.8s ease both;
+}
+.cameo--der { right: 2px; --giroCameo: -7deg; transform-origin: bottom right; }
+.cameo--izq { left: 2px; --giroCameo: 7deg; transform-origin: bottom left; }
+@keyframes cameoAsoma {
+  0%   { transform: translateY(108%) rotate(0deg); }
+  20%  { transform: translateY(4%) rotate(var(--giroCameo)); }
+  74%  { transform: translateY(4%) rotate(var(--giroCameo)); }
+  100% { transform: translateY(108%) rotate(0deg); }
+}
+
 /* Vibracion sostenida (dura lo que dure el sonido de "what the hell"). */
 @keyframes marcaVibra {
   0%   { transform: translate(-4px, 2px) rotate(-2deg); }

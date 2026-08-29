@@ -1,7 +1,7 @@
 // Pantalla inicial: lista de trabajos (servicios, pruebas de laboratorio, generales).
 
 import * as db from '../db.js';
-import { h, campo, campoArea, hoja, aviso, confirmar, fecha, vacio, ocupado, libre, animarMarca } from '../ui.js';
+import { h, campo, campoArea, hoja, aviso, confirmar, fecha, vacio, ocupado, libre, animarMarca, probarMarca, MARCAS_PROBADOR } from '../ui.js';
 import * as media from '../media.js';
 import { APP_VERSION } from '../version.js';
 import { temaActual, alternarTema, zoomActual, aplicarZoom } from '../tema.js';
@@ -97,7 +97,9 @@ export async function hojaConfiguracion() {
       h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('zoom') },
         '🔍  Tamaño de la interfaz'),
       h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('diag') },
-        '🩺  Diagnostico de foto')
+        '🩺  Diagnostico de foto'),
+      h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('probador') },
+        '🎬  Probador de animaciones')
     ),
     h('p.pista', 'Administra las sugerencias que salen al crear o editar un servicio. Los servicios y reportes ya guardados no se tocan.'),
     lineaVersion()
@@ -107,6 +109,27 @@ export async function hojaConfiguracion() {
   if (accion === 'tablas') await hojaTablasPredeterminadas();
   if (accion === 'zoom') await hojaZoom();
   if (accion === 'diag') await hojaDiagnostico();
+  if (accion === 'probador') await hojaProbador();
+}
+
+// Probador: corre cada animacion del logo (mirala arriba, tras la hoja) y
+// cada cameo, por nombre. Para elegir favoritas y presumir el show.
+async function hojaProbador() {
+  const cam = await import('../cameos.js');
+  await hoja('🎬  Probador de animaciones', (cerrar) => h('div',
+    h('p.pista', 'Animaciones del logo (se ven arriba, detras de esta hoja):'),
+    h('div.lista-acciones',
+      MARCAS_PROBADOR.map(([clase, nombre]) =>
+        h('button.lista-acciones__item', { type: 'button', onclick: () => probarMarca(clase) },
+          '✨  ' + nombre))
+    ),
+    h('p.pista', 'Cameos (se asoman por abajo):'),
+    h('div.lista-acciones',
+      cam.CAMEOS.map(c =>
+        h('button.lista-acciones__item', { type: 'button', onclick: () => cam.mostrarCameo(c) },
+          '🎭  ' + c.nombre))
+    )
+  ));
 }
 
 // Administrar las tablas predeterminadas GUARDADAS (renombrar / eliminar).

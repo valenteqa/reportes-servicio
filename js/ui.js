@@ -175,8 +175,32 @@ setTimeout(() => { try { pozoDeSonidos(); } catch (e) { /* sin audio */ } }, 150
 
 let retrasoAnimMarca = null;
 
+// Nombres para el probador de ⚙ Configuracion.
+export const MARCAS_PROBADOR = [
+  ['marca-animada', 'Pulso'],
+  ['marca-gira', 'Giro doble'],
+  ['marca-brinca', 'Brinco'],
+  ['marca-tiembla', 'Tembleque'],
+  ['marca-late', 'Latido'],
+  ['marca-voltea', 'Voltereta 3D'],
+  ['marca-vuela', 'Vuelo (pasos y disparo)'],
+  ['marca-vibra', 'Vibracion (what the hell)'],
+];
+
+// Corre UNA animacion concreta sobre el logo/nombre visibles (probador).
+export function probarMarca(anim) {
+  const els = [
+    document.querySelector('.menu__logo') || document.querySelector('.cabecera__logo'),
+    document.querySelector('.menu__titulo') || document.querySelector('.cabecera__fila h1.marca'),
+  ];
+  ejecutarMarca(anim, els);
+}
+
 export function animarMarca(...els) {
-  const anim = ANIMS_MARCA[Math.floor(Math.random() * ANIMS_MARCA.length)];
+  ejecutarMarca(ANIMS_MARCA[Math.floor(Math.random() * ANIMS_MARCA.length)], els);
+}
+
+function ejecutarMarca(anim, els) {
   const esVuela = anim === 'marca-vuela';
   const esVibra = anim === 'marca-vibra';
 

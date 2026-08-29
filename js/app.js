@@ -147,3 +147,6 @@ aplicarTema(temaActual());   // sincroniza meta theme-color con lo aplicado al a
 pintar();
 protegerDatos();
 registrarServiceWorker();
+
+// Cameos sorpresa (aparecen al azar tras acciones, con enfriamiento).
+import('./cameos.js').then(m => m.instalarCameos()).catch(() => {});

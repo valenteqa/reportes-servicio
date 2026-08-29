@@ -14,7 +14,7 @@
 // Subir VERSION en cada publicacion (junto con APP_VERSION en js/version.js):
 // eso dispara un re-precacheo completo, que es la via mas confiable.
 
-const VERSION = 'v120';
+const VERSION = 'v121';
 const CACHE = 'reportes-' + VERSION;
 
 const CASCARON = [
@@ -33,6 +33,7 @@ const CASCARON = [
   'js/db.js',
   'js/ui.js',
   'js/media.js',
+  'js/cameos.js',
   'js/vistas/menu.js',
   'js/vistas/servicios.js',
   'js/vistas/servicio.js',
@@ -57,6 +58,16 @@ const CASCARON = [
   'sonidos/dios.mp3',
   'sonidos/esponja.mp3',
   'sonidos/despegue.mp3',
+  'cameos/cameo1.webp',
+  'cameos/cameo2.webp',
+  'cameos/cameo3.webp',
+  'cameos/cameo4.webp',
+  'cameos/cameo5.webp',
+  'cameos/toasty.mp3',
+  'cameos/cumbion.mp3',
+  'cameos/gta.mp3',
+  'cameos/bruh2.mp3',
+  'cameos/nonono.mp3',
   // Plantilla del reporte Word (logos, estilos, marca de agua): sin esto
   // el modo plantilla no funciona sin señal.
   'plantilla/app-props.xml',
