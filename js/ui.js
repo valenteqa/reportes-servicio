@@ -151,7 +151,7 @@ export function vaciar(el) {
 
 // Animaciones de la marca (logo y nombre): cada toque sortea una distinta,
 // con su sonido goofy tambien al azar. Reinicia aunque se toque en rafaga.
-const ANIMS_MARCA = ['marca-animada', 'marca-gira', 'marca-brinca', 'marca-tiembla', 'marca-late', 'marca-voltea', 'marca-vuela', 'marca-vibra', 'marca-cae', 'marca-rudo'];
+const ANIMS_MARCA = ['marca-animada', 'marca-gira', 'marca-brinca', 'marca-tiembla', 'marca-late', 'marca-voltea', 'marca-vuela', 'marca-vibra', 'marca-cae', 'marca-rudo', 'marca-pato'];
 const SONIDOS_MARCA = ['bruh', 'pato', 'corriendo', 'quepaso', 'rudo', 'djstop', 'grito', 'dios', 'esponja']
   .map(n => 'sonidos/' + n + '.mp3');
 let audioMarca = null;
@@ -195,6 +195,7 @@ const MARCAS_PROBADOR = [
   ['marca-vibra', 'What the hell (crece, mini y vibra)'],
   ['marca-cae', 'Caida (grito y pato)'],
   ['marca-rudo', 'Rudo (lentes y cigarro)'],
+  ['marca-pato', 'Patito de hule (pato)'],
 ];
 
 // Nombres de los sonidos, en el MISMO orden que SONIDOS_MARCA.
@@ -288,6 +289,7 @@ function ejecutarMarca(anim, els, iSonido) {
   const esCae = anim === 'marca-cae';
   const esGira = anim === 'marca-gira';
   const esRudo = anim === 'marca-rudo';
+  const esPato = anim === 'marca-pato';
 
   // En el vuelo y la caida el logo sale de la pantalla: sin barras de
   // desborde mientras dura.
@@ -322,8 +324,9 @@ function ejecutarMarca(anim, els, iSonido) {
     else if (esCae) i = iGrito;
     else if (esGira) i = iDj;         // pareja fija: giro doble ↔ dj stop
     else if (esRudo) i = iRudo;       // pareja fija: rudo ↔ lentes y cigarro
+    else if (esPato) i = iPato;       // pareja fija: patito de hule ↔ pato
     else {
-      do { i = Math.floor(Math.random() * pozo.length); } while (i === iCorriendo || i === iQuepaso || i === iGrito || i === iDj || i === iRudo);
+      do { i = Math.floor(Math.random() * pozo.length); } while (i === iCorriendo || i === iQuepaso || i === iGrito || i === iDj || i === iRudo || i === iPato);
     }
     if (SONIDOS_MARCA[i].includes('djstop')) retrasoAnim = 500;
     audioMarca = pozo[i];
