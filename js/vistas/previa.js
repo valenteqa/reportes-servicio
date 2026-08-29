@@ -79,7 +79,20 @@ export async function vistaPreviaReporte(servicioId) {
       nFigura++;
       const url = URL.createObjectURL(foto.blob);
       urls.push(url);
-      const dim = tamImagenPx(foto.ancho, foto.alto, ev.datos.tamImagen);
+      // Fotos sin ancho/alto guardado (viejas o restauradas): medir el archivo.
+      let aw = foto.ancho, ah = foto.alto;
+      if (!aw || !ah) {
+        const sonda = new Image();
+        sonda.src = url;
+        try {
+          await Promise.race([sonda.decode(), new Promise((x, rej) => setTimeout(rej, 1500))]);
+          aw = sonda.naturalWidth; ah = sonda.naturalHeight;
+        } catch (e) { aw = aw || 1600; ah = ah || 1200; }
+      }
+      const dim = tamImagenPx(aw, ah, ev.datos.tamImagen);
+      // Que la figura completa (foto + pie) quepa en una hoja: si la foto es
+      // mas alta que el area util, se reduce proporcionalmente.
+      if (dim.h > 715) { dim.w = Math.round(dim.w * 715 / dim.h); dim.h = 715; }
       return h('figure.pw__figura',
         h('img', { src: url, alt: '', style: { width: dim.w + 'px', height: dim.h + 'px' } }),
         h('figcaption', 'Figura ' + nFigura + (ev.datos.pie ? '. ' + ev.datos.pie : ''))
@@ -221,13 +234,12 @@ export async function vistaPreviaReporte(servicioId) {
   document.body.appendChild(medidor);
 
   let pag = nuevaPagina();
-  let previoH = 0;
+  // Cada bloque se mide AISLADO (el que llama lo mueve a su pagina despues;
+  // medir acumulado se descomponia al mover los bloques ya medidos).
   const alturaDe = (el) => {
     medidor.appendChild(el);
-    const total = medidor.scrollHeight;
-    const alto = total - previoH;
-    previoH = total;
-    return alto;
+    const cs = getComputedStyle(el);
+    return el.offsetHeight + (parseFloat(cs.marginTop) || 0) + (parseFloat(cs.marginBottom) || 0);
   };
 
   for (let i = 0; i < bloques.length; i++) {

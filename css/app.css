@@ -1472,7 +1472,8 @@ p.titulo-tabla--ver {
   border-bottom: 1px solid #7F7F7F; padding-bottom: 3px;
 }
 .pw__enctexto strong { display: block; font-size: 14px; }
-.pw__banda { display: block; width: 816px; height: 44px; object-fit: cover; }
+/* Word ESTIRA la banda a 8.5in x 0.46in (extent fijo): igual aqui. */
+.pw__banda { display: block; width: 816px; height: 44px; object-fit: fill; }
 .pw__cuerpo { position: absolute; top: 208px; left: 113px; width: 590px; height: 753px; overflow: hidden; }
 .pw__pie {
   position: absolute; left: 0; right: 0; bottom: 26px;
@@ -1505,7 +1506,7 @@ p.titulo-tabla--ver {
 .pw__datos th { background: #D9E4E8; font-weight: 700; width: 208px; }
 .pw__datos th.pw__datoCab { width: auto; }
 .pw__figura { margin: 6px 0 4px; text-align: center; }
-.pw__figura img { display: block; margin: 0 auto; object-fit: cover; }
+.pw__figura img { display: block; margin: 0 auto; object-fit: contain; background: #fff; }
 .pw__figura figcaption { font-size: 12px; color: #595959; font-style: italic; margin-top: 3px; }
 
 /* Velo de ocupado: siempre oscuro, encima de cualquier capa (menos avisos) */
