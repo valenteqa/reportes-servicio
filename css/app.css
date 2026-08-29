@@ -692,6 +692,7 @@ button { font-family: inherit; font-size: inherit; }
   background: var(--superficie); color: var(--tinta); font: inherit; font-size: .86rem;
 }
 .org-select:disabled { opacity: .6; }
+.org-yo-fijo { font-weight: 700; margin: .15rem 0 0; }
 
 .rudo-humo {
   position: absolute; right: -6%; top: -140%;

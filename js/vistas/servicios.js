@@ -145,13 +145,35 @@ async function hojaUsuarios() {
   const soyAdmin = esAdmin(yo);
 
   await hoja('👥  Usuarios y deptos', (cerrar) => {
-    const selYo = h('select.org-select',
-      h('option', { value: '' }, '— elegir —'),
-      ...org.usuarios.map(u => h('option', { value: u.id, selected: yo && yo.id === u.id }, u.nombre)));
-    selYo.onchange = async () => {
-      await serYo(selYo.value);
-      aviso('Guardado. Cierra y vuelve a abrir esta hoja para aplicar permisos.');
-    };
+    // La identidad del telefono se elige UNA sola vez (regla de Vale): ya
+    // elegida, se muestra fija y sin selector. El cambio real de identidad
+    // llegara con el inicio de sesion en la nube.
+    let bloqueYo;
+    if (yo) {
+      bloqueYo = h('div',
+        h('label.campo',
+          h('span.campo__etiqueta', 'Este telefono es de'),
+          h('p.org-yo-fijo', '🔒 ' + yo.nombre + (yo.depto ? ' · ' + yo.depto : ''))),
+        h('p.pista', 'La identidad se elige una sola vez por telefono.'));
+    } else {
+      const selYo = h('select.org-select',
+        h('option', { value: '' }, '— elegir —'),
+        ...org.usuarios.map(u => h('option', { value: u.id }, u.nombre)));
+      selYo.onchange = async () => {
+        const u = org.usuarios.find(x => x.id === selYo.value);
+        if (!u) return;
+        const ok = await confirmar(
+          '¿Este telefono es de ' + u.nombre + '? Solo se puede elegir UNA vez: ya no podras cambiarlo.',
+          { textoOk: 'Si, soy yo', peligro: false });
+        if (!ok) { selYo.value = ''; return; }
+        await serYo(u.id);
+        aviso('Identidad guardada: ' + u.nombre);
+        cerrar(null);
+      };
+      bloqueYo = h('div',
+        h('label.campo', h('span.campo__etiqueta', 'Este telefono es de'), selYo),
+        h('p.pista', 'Elige con cuidado: solo se puede elegir UNA vez por telefono.'));
+    }
 
     const filas = org.usuarios.map(u => {
       const selDepto = h('select.org-select',
@@ -168,9 +190,7 @@ async function hojaUsuarios() {
     });
 
     return h('div',
-      h('label.campo',
-        h('span.campo__etiqueta', 'Este telefono es de'),
-        selYo),
+      bloqueYo,
       h('p.pista', soyAdmin
         ? 'Eres administrador: puedes asignar depto y rol a cada quien.'
         : 'Solo el administrador puede cambiar deptos y roles.'),
