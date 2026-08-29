@@ -53,7 +53,10 @@ export async function vistaPreviaReporte(servicioId) {
   const vineta = (t) => h('p.pw__p.pw__vineta', t);
 
   async function eventoNodo(ev) {
-    if (ev.tipo === 'nota') return parrafos(ev.datos.texto);
+    // Los textos llevan la viñeta del formato, un renglon por viñeta.
+    if (ev.tipo === 'nota') {
+      return (ev.datos.texto || '').split('\n').map(s => s.trim()).filter(Boolean).map(vineta);
+    }
 
     if (ev.tipo === 'tabla') {
       const t = ev.datos;

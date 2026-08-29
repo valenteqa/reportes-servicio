@@ -417,7 +417,12 @@ async function generarConPlantilla(servicioId) {
   let nFigura = 0;
 
   const eventoXml = async (ev) => {
-    if (ev.tipo === 'nota') return parrafosDe(ev.datos.texto);
+    // Los textos van con la viñeta del formato, un renglon por viñeta.
+    if (ev.tipo === 'nota') {
+      return String(ev.datos.texto || '').split('
+').map(l => l.trim()).filter(Boolean)
+        .map(parVineta).join('');
+    }
     if (ev.tipo === 'tabla') {
       const t = ev.datos;
       let x = '';
@@ -587,7 +592,12 @@ async function generarReporteBasico(servicioId) {
 
   // Un evento -> su XML
   const eventoXml = async (ev) => {
-    if (ev.tipo === 'nota') return parrafosDe(ev.datos.texto);
+    // Sin plantilla no hay numbering: viñeta como texto.
+    if (ev.tipo === 'nota') {
+      return String(ev.datos.texto || '').split('
+').map(l => l.trim()).filter(Boolean)
+        .map(l => par([{ t: '•  ' }, { t: l }], { esp: [0, 40] })).join('');
+    }
 
     if (ev.tipo === 'tabla') {
       const t = ev.datos;
