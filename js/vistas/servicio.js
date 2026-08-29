@@ -72,13 +72,65 @@ async function elegirTamanoPorImagen(fotos) {
   return confirmar('¿Generar Reporte?', { textoOk: 'Generar', peligro: false });
 }
 
-async function hojaReporte(servicio) {
+// Huella del contenido que sale en el reporte: si cambia, el ultimo archivo
+// generado quedo viejo. Incluye datos del servicio, ramas, cada registro
+// incluido, y para las fotos su edicion (recortes/formas cambian la imagen).
+async function huellaReporte(servicio, incluidos) {
+  const nucleo = {
+    s: [servicio.titulo, servicio.descripcion, servicio.cliente, servicio.planta,
+      servicio.marca, servicio.modelo, servicio.serie, servicio.noMaquina,
+      servicio.tecnico, servicio.folio],
+    e: (await db.equiposDeServicio(servicio.id)).map(a => [a.id, a.nombre, a.orden]),
+    v: [],
+  };
+  for (const ev of incluidos) {
+    nucleo.v.push([ev.id, ev.tipo, ev.equipoId, JSON.stringify(ev.datos)]);
+    if (ev.tipo === 'foto' && ev.datos && ev.datos.fotoId) {
+      const f = await db.fotoLeer(ev.datos.fotoId);
+      nucleo.v.push(['ed', ev.datos.fotoId,
+        JSON.stringify((f && f.edicion) || null), (f && f.blob && f.blob.size) || 0]);
+    }
+  }
+  const bytes = new TextEncoder().encode(JSON.stringify(nucleo));
+  const hash = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function hojaReporte(servicio, previoAUsar) {
   const esProc = servicio.tipo === 'procedimiento';
   const eventos = await db.eventosDeServicio(servicio.id);
   const incluidos = eventos.filter(e => e.incluir !== false);
 
-  // Tamaño de las fotos (solo Word; el PowerPoint acomoda en rejilla fija).
-  if (!esProc) {
+  if (!previoAUsar) {
+    // ¿Ya hay un reporte generado de este trabajo? Ofrecer reusarlo.
+    const previo = await db.ajusteLeer('reporte:' + servicio.id);
+    const valido = previo && previo.blob instanceof Blob && previo.blob.size > 0;
+    if (valido) {
+      const cuando = fecha(previo.fecha) + ' · ' + hora(previo.fecha);
+      const sinCambios = previo.huella === await huellaReporte(servicio, incluidos);
+      const op = await hoja(esProc ? '📊  Presentacion' : '📄  Reporte', (cerrar) => h('div',
+        h('p.parrafo', sinCambios
+          ? 'Ya hay un reporte generado de este trabajo (' + cuando + ') y no ha habido cambios desde entonces. ¿Deseas compartirlo o crear uno nuevo?'
+          : 'Hubo cambios desde el ultimo reporte generado (' + cuando + '). ¿Generar el nuevo?'),
+        h('div.lista-acciones',
+          sinCambios
+            ? [h('button.lista-acciones__item.opcion-fuerte', { type: 'button', onclick: () => cerrar('previo') },
+                '📤  COMPARTIR EL GENERADO'),
+              h('button.lista-acciones__item.opcion-fuerte', { type: 'button', onclick: () => cerrar('nuevo') },
+                '📄  CREAR UNO NUEVO')]
+            : [h('button.lista-acciones__item.opcion-fuerte', { type: 'button', onclick: () => cerrar('nuevo') },
+                '📄  GENERAR EL NUEVO'),
+              h('button.lista-acciones__item.opcion-fuerte', { type: 'button', onclick: () => cerrar('previo') },
+                '📤  USAR EL ANTERIOR')]
+        )
+      ));
+      if (!op) return;
+      if (op === 'previo') return hojaReporte(servicio, previo);
+    }
+  }
+
+  // Tamaño de las fotos (solo Word y solo al crear archivo nuevo).
+  if (!esProc && !previoAUsar) {
     const fotos = incluidos.filter(e => e.tipo === 'foto');
     if (fotos.length && !(await elegirTamanoFotos(fotos))) return;
   }
@@ -112,13 +164,30 @@ async function hojaReporte(servicio) {
     let prepPromesa = null;
     const preparar = () => {
       if (preparado) return Promise.resolve(preparado);
+      // Entregando el archivo YA generado: nada que regenerar.
+      if (previoAUsar) {
+        preparado = { blob: previoAUsar.blob, nombreArchivo: previoAUsar.nombre };
+        estado.textContent = 'Archivo listo (generado el ' + fecha(previoAUsar.fecha) + ' · ' + hora(previoAUsar.fecha) + ').';
+        return Promise.resolve(preparado);
+      }
       if (!prepPromesa) {
         prepPromesa = (esProc
           ? import('../presentacion.js').then(m => m.generarPresentacion(servicio.id))
           : generarReporte(servicio.id))
-          .then(res => {
+          .then(async (res) => {
             preparado = res;
             estado.textContent = 'Archivo listo.';
+            // Recordar el archivo y la huella del contenido: la proxima vez
+            // se ofrece compartirlo directo o avisa si hubo cambios.
+            try {
+              const inc = (await db.eventosDeServicio(servicio.id)).filter(e => e.incluir !== false);
+              await db.ajusteGuardar('reporte:' + servicio.id, {
+                blob: res.blob,
+                nombre: res.nombreArchivo,
+                fecha: Date.now(),
+                huella: await huellaReporte(servicio, inc),
+              });
+            } catch (e2) { console.error('memoria del reporte', e2); }
             return res;
           })
           .catch(e => { prepPromesa = null; throw e; });

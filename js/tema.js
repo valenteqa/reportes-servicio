@@ -21,6 +21,17 @@ export function aplicarTema(tema) {
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = tema === 'claro' ? '#eef1f4' : '#07090d';
 
+  // Barra de estado NATIVA (APK 1.11+): iconos del sistema (hora, señal,
+  // bateria) oscuros en tema claro y claros en oscuro. En navegador el
+  // plugin no existe y se omite.
+  try {
+    const SB = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.StatusBar;
+    if (SB) {
+      SB.setStyle({ style: tema === 'claro' ? 'LIGHT' : 'DARK' }).catch(() => {});
+      if (SB.setBackgroundColor) SB.setBackgroundColor({ color: tema === 'claro' ? '#eef1f4' : '#07090d' }).catch(() => {});
+    }
+  } catch (e) { /* sin plugin */ }
+
   try { localStorage.setItem(CLAVE, tema); } catch (e) {}
 }
 

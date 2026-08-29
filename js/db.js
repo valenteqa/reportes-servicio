@@ -170,7 +170,7 @@ export function servicioGuardar(servicio) {
 }
 
 export function servicioBorrar(id) {
-  return tx(['servicios', 'equipos', 'eventos', 'fotos'], 'readwrite', async (st) => {
+  return tx(['servicios', 'equipos', 'eventos', 'fotos', 'ajustes'], 'readwrite', async (st) => {
     const eventos = await porIndice(st.eventos, 'servicioId', IDBKeyRange.only(id));
     for (const ev of eventos) {
       if (ev.tipo === 'foto' && ev.datos && ev.datos.fotoId) st.fotos.delete(ev.datos.fotoId);
@@ -178,6 +178,7 @@ export function servicioBorrar(id) {
     }
     const equipos = await porIndice(st.equipos, 'servicioId', IDBKeyRange.only(id));
     for (const eq of equipos) st.equipos.delete(eq.id);
+    st.ajustes.delete('reporte:' + id);   // el ultimo reporte generado (blob)
     st.servicios.delete(id);
   });
 }

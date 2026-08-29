@@ -275,11 +275,13 @@ button { font-family: inherit; font-size: inherit; }
 /* ---------------------------------------------------------------- */
 
 .menu {
+  position: relative;
   min-height: 100vh;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 1.9rem;
   padding: calc(var(--sup) + 1.5rem) 1.2rem 2.2rem;
 }
+.menu__tema { position: absolute; top: calc(var(--sup) + .55rem); right: .8rem; }
 .menu .banner { width: 100%; max-width: 430px; }
 .menu__marca { display: flex; flex-direction: column; align-items: center; gap: .9rem; }
 .menu__logo { width: min(44vw, 180px); height: auto; cursor: pointer; }

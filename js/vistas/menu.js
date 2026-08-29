@@ -3,6 +3,7 @@
 
 import { h, aviso, animarMarca } from '../ui.js';
 import { esNativa } from '../nativo.js';
+import { temaActual, alternarTema } from '../tema.js';
 import { hojaConfiguracion, bannerActualizacion, lineaVersion } from './servicios.js';
 
 function boton(icono, texto, alPulsar, chip) {
@@ -19,6 +20,13 @@ export async function render(contenedor) {
   logo.onclick = titulo.onclick = () => animarMarca(logo, titulo);
 
   const pantalla = h('div.menu',
+    h('button.icono-btn.menu__tema', {
+      type: 'button', 'aria-label': 'Cambiar tema',
+      onclick: (ev) => {
+        const nuevo = alternarTema();
+        ev.currentTarget.textContent = nuevo === 'claro' ? '🌙' : '☀️';
+      }
+    }, temaActual() === 'claro' ? '🌙' : '☀️'),
     h('div.menu__marca',
       logo,
       titulo,
