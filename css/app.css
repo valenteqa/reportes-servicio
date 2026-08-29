@@ -478,21 +478,21 @@ button { font-family: inherit; font-size: inherit; }
   0%, 100% { filter: drop-shadow(0 0 2px rgba(255, 122, 0, .5)); }
   50%      { filter: drop-shadow(0 0 7px rgba(255, 150, 0, .95)); }
 }
-/* Patito de hule: DOS apretones clavados en los DOS chillidos del pato
-   (0.20s y 0.48s medidos en la onda) — primero aplastado desde arriba,
-   luego pellizcado de los lados — y rebote elastico al soltar. La base
+/* Patito de hule: DOS apretones VERTICALES (aplastado desde arriba)
+   clavados en los DOS chillidos del pato (0.20s y 0.48s medidos en la
+   onda), el segundo mas a fondo, y rebote elastico al soltar. La base
    queda plantada (transform-origin abajo), como juguete sobre la mesa. */
 @keyframes marcaPato {
   0%   { transform: scale(1, 1); }
   10%  { transform: scale(1.06, .94); }                 /* la mano se acomoda */
   18%  { transform: scale(1.45, .52) rotate(-3deg); }   /* APRETON 1: chillido */
   32%  { transform: scale(1.42, .55) rotate(2deg); }
-  40%  { transform: scale(1.05, .95) rotate(0); }       /* suelta */
-  44%  { transform: scale(.58, 1.42) rotate(3deg); }    /* APRETON 2: chillido */
-  55%  { transform: scale(.62, 1.38) rotate(-2deg); }
-  63%  { transform: scale(1.18, .86); }                 /* rebota */
-  75%  { transform: scale(.92, 1.08); }
-  87%  { transform: scale(1.05, .96); }
+  40%  { transform: scale(1.05, .95) rotate(0); }       /* suelta tantito */
+  44%  { transform: scale(1.52, .44) rotate(2deg); }    /* APRETON 2: mas a fondo */
+  55%  { transform: scale(1.48, .47) rotate(-2deg); }
+  63%  { transform: scale(.88, 1.18); }                 /* rebota alto */
+  75%  { transform: scale(1.1, .92); }
+  87%  { transform: scale(.96, 1.04); }
   100% { transform: scale(1, 1); }
 }
 .marca-pato { animation: marcaPato 1.1s ease-in-out; transform-origin: 50% 85%; }
