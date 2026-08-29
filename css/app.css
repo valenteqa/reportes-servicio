@@ -214,7 +214,21 @@ button { font-family: inherit; font-size: inherit; }
   55% { transform: rotate(400deg) scale(1.35); }
   100% { transform: rotate(720deg) scale(1); }
 }
-.marca-gira { animation: marcaGira 1s cubic-bezier(.3, 1.4, .5, 1); }
+/* Temblorcito suave montado sobre el giro: usa la propiedad `translate`
+   (independiente de `transform`, se COMBINAN en vez de pisarse). Dura un
+   pelo mas que el giro: el animationend del giro quita la clase primero y
+   el corte del jitter (±2px) no se alcanza a notar. */
+@keyframes marcaGiraVibra {
+  0%   { translate: -2px 1px; }
+  25%  { translate: 2px -1px; }
+  50%  { translate: -2px -2px; }
+  75%  { translate: 2px 2px; }
+  100% { translate: 0px 0px; }
+}
+.marca-gira {
+  animation: marcaGira 1s cubic-bezier(.3, 1.4, .5, 1),
+             marcaGiraVibra .15s linear 7;
+}
 
 @keyframes marcaBrinca {
   0% { transform: translateY(0) scale(1, 1); }
