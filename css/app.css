@@ -277,16 +277,48 @@ button { font-family: inherit; font-size: inherit; }
 /* Despues del disparo: ido. Vuelve al reentrar a la pantalla (se repinta). */
 .marca-ida { visibility: hidden; pointer-events: none; }
 
-/* Escenario del probador de animaciones: flota ENCIMA de la hoja para que
-   la animacion del logo se vea mientras eliges de la lista. */
-.probador-escenario {
-  position: fixed; top: 9vh; left: 50%; transform: translateX(-50%);
-  z-index: 70; pointer-events: none;
+/* Ensayo del logo: pantalla dedicada con fondo blanco (en ambos temas)
+   para revisar animaciones y sonidos por separado o en pareja. Colores
+   explicitos a proposito: no usa las variables del tema. */
+.ensayo {
+  position: fixed; inset: 0; z-index: 62; background: #fff; color: #16181d;
+  display: flex; flex-direction: column;
 }
-.probador-escenario__logo {
-  width: min(34vw, 150px); height: auto;
-  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, .35));
+.ensayo__cabeza {
+  display: flex; align-items: center; gap: .55rem; padding: .55rem .8rem;
+  border-bottom: 1px solid #e2e2e2; flex: none;
 }
+.ensayo__cabeza h2 { margin: 0; font-size: 1.05rem; }
+.ensayo__volver {
+  border: 0; background: none; color: #16181d; font-size: 1.55rem;
+  line-height: 1; padding: .15rem .5rem;
+}
+.ensayo__centro {
+  flex: 1; min-height: 130px; display: flex; align-items: center;
+  justify-content: center;
+}
+.ensayo__logo { width: min(38vw, 170px); height: auto; }
+.ensayo__zona {
+  flex: none; max-height: 58vh; overflow-y: auto;
+  padding: .4rem .8rem calc(1rem + env(safe-area-inset-bottom));
+}
+.ensayo__titulo {
+  margin: .7rem 0 .4rem; font-size: .72rem; font-weight: 700;
+  letter-spacing: .07em; color: #70747c;
+}
+.ensayo__chips { display: flex; gap: .4rem; overflow-x: auto; padding-bottom: .3rem; }
+.chip-ensayo {
+  flex: none; border: 1.5px solid #c4c7cd; background: #fff; color: #16181d;
+  border-radius: 999px; padding: .45rem .75rem; font-size: .82rem; font-weight: 600;
+}
+.chip-ensayo--activo { background: #16181d; border-color: #16181d; color: #fff; }
+.ensayo__sonidos { display: grid; grid-template-columns: repeat(2, 1fr); gap: .45rem; }
+.boton-sonido {
+  border: 1.5px solid #c4c7cd; background: #f6f7f9; color: #16181d;
+  border-radius: 12px; padding: .65rem .55rem; font-size: .84rem; font-weight: 600;
+  text-align: left;
+}
+.boton-sonido:active { background: #e8eaee; }
 
 /* Gafete flotante: en que rama vas al scrollear una linea de tiempo larga. */
 .rama-flotante {
@@ -326,7 +358,26 @@ button { font-family: inherit; font-size: inherit; }
   75%  { transform: translate(4px, 3px) rotate(2deg); }
   100% { transform: translate(-3px, 1px) rotate(-2deg); }
 }
-.marca-vibra { animation: marcaVibra .12s linear infinite; }
+
+/* Coreografia medida en la onda de quepaso.mp3: "what" arranca en 0.12s
+   (CRECE), "the" en 0.74s (se hace MINI) y "HELL" pega en 1.18s (regresa
+   de golpe al tamano normal). Los porcentajes mapean esos tiempos sobre
+   1.2s; al terminar entra la vibracion infinita (retrasada 1.2s), que como
+   va despues en la lista manda sobre el transform y vibra a tamano normal
+   hasta que el sonido termina (o el corte de 4s). */
+@keyframes marcaQuePaso {
+  0%   { transform: scale(1); }
+  10%  { transform: scale(1); }      /* silencio antes del "what" */
+  40%  { transform: scale(1.6); }    /* WHAT: crece */
+  61%  { transform: scale(1.6); }    /* aguanta hasta el "the" */
+  83%  { transform: scale(.32); }    /* THE: mini */
+  96%  { transform: scale(.32); }
+  100% { transform: scale(1); }      /* HELL: regresa de golpe */
+}
+.marca-vibra {
+  animation: marcaQuePaso 1.2s linear forwards,
+             marcaVibra .12s linear 1.2s infinite;
+}
 
 /* Mientras vuela, que la pagina no muestre barras ni se estire. */
 html.sin-desborde-vuelo, html.sin-desborde-vuelo body { overflow: hidden !important; }

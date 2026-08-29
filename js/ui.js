@@ -175,38 +175,84 @@ setTimeout(() => { try { pozoDeSonidos(); } catch (e) { /* sin audio */ } }, 150
 
 let retrasoAnimMarca = null;
 
-// Nombres para el probador de ⚙ Configuracion.
-export const MARCAS_PROBADOR = [
+// Nombres para el ensayo del logo.
+const MARCAS_PROBADOR = [
   ['marca-animada', 'Pulso'],
   ['marca-gira', 'Giro doble'],
   ['marca-brinca', 'Brinco'],
   ['marca-tiembla', 'Tembleque'],
   ['marca-late', 'Latido'],
   ['marca-voltea', 'Voltereta 3D'],
-  ['marca-vuela', 'Vuelo (pasos y disparo)'],
-  ['marca-vibra', 'Vibracion (what the hell)'],
+  ['marca-vuela', 'Vuelo (disparado)'],
+  ['marca-vibra', 'What the hell (crece, mini y vibra)'],
 ];
 
-// Corre UNA animacion concreta (probador). El logo real queda TAPADO por la
-// hoja del probador, asi que se anima una copia en un escenario flotante
-// ENCIMA de la hoja; se recoge solo tras unos segundos sin uso.
-export function probarMarca(anim) {
-  let escenario = document.querySelector('.probador-escenario');
-  if (!escenario) {
-    escenario = h('div.probador-escenario',
-      h('img.probador-escenario__logo', { src: 'icons/logo-serpro.png', alt: '' }));
-    document.body.appendChild(escenario);
-  }
-  ejecutarMarca(anim, [escenario.querySelector('img')]);
-  clearTimeout(escenario.__cierre);
-  escenario.__cierre = setTimeout(() => escenario.remove(), 6500);
+// Nombres de los sonidos, en el MISMO orden que SONIDOS_MARCA.
+const SONIDOS_NOMBRES = ['Bruh', 'Pato', 'Corriendo (pasos + disparo)', 'What the hell',
+  'Rudo', 'DJ stop', 'Grito', 'Espera', 'Dios', 'Esponja', 'Despegue'];
+
+// Ensayo del logo: pantalla dedicada con fondo blanco. Tocar una ANIMACION
+// la corre sola (en silencio) y la deja elegida; tocar un SONIDO lo hace
+// sonar Y corre la animacion elegida al mismo tiempo, para revisar las
+// parejas una por una.
+export function ensayoDeMarca() {
+  return new Promise((resolve) => {
+    let resuelto = false;
+    let porBack = false;
+    const ancla = anclarCapa(() => { porBack = true; cerrar(); });
+    const cerrar = async () => {
+      if (resuelto) return;
+      resuelto = true;
+      try { if (audioMarca) audioMarca.pause(); } catch (e) { /* sin audio */ }
+      clearTimeout(corteMarca);
+      pantalla.remove();
+      if (porBack) ancla.desdePop();
+      else await ancla.liberar();
+      resolve();
+    };
+
+    let animSel = MARCAS_PROBADOR[0][0];
+    const logo = h('img.ensayo__logo', { src: 'icons/logo-serpro.png', alt: '' });
+
+    const chips = MARCAS_PROBADOR.map(([clase, nombre]) =>
+      h('button.chip-ensayo', {
+        type: 'button',
+        onclick: (ev) => {
+          animSel = clase;
+          for (const c of chips) c.classList.toggle('chip-ensayo--activo', c === ev.currentTarget);
+          ejecutarMarca(clase, [logo], -1);   // vista previa en silencio
+        },
+      }, nombre));
+    chips[0].classList.add('chip-ensayo--activo');
+
+    const pantalla = h('div.ensayo',
+      h('header.ensayo__cabeza',
+        h('button.ensayo__volver', { type: 'button', 'aria-label': 'Volver', onclick: () => cerrar() }, '←'),
+        h('h2', 'Ensayo del logo')
+      ),
+      h('div.ensayo__centro', logo),
+      h('div.ensayo__zona',
+        h('p.ensayo__titulo', 'ANIMACION · toca para verla sola'),
+        h('div.ensayo__chips', chips),
+        h('p.ensayo__titulo', 'SONIDOS · suena y corre la animacion elegida'),
+        h('div.ensayo__sonidos',
+          SONIDOS_NOMBRES.map((nombre, i) =>
+            h('button.boton-sonido', { type: 'button', onclick: () => ejecutarMarca(animSel, [logo], i) },
+              '🔊 ' + nombre))
+        )
+      )
+    );
+    document.body.appendChild(pantalla);
+  });
 }
 
 export function animarMarca(...els) {
   ejecutarMarca(ANIMS_MARCA[Math.floor(Math.random() * ANIMS_MARCA.length)], els);
 }
 
-function ejecutarMarca(anim, els) {
+// iSonido: indice para FORZAR un sonido (ensayo), -1 = en silencio,
+// null/ausente = pareja coreografiada o sorteo (uso normal).
+function ejecutarMarca(anim, els, iSonido) {
   const esVuela = anim === 'marca-vuela';
   const esVibra = anim === 'marca-vibra';
 
@@ -226,24 +272,30 @@ function ejecutarMarca(anim, els) {
   try {
     if (audioMarca) audioMarca.pause();
     clearTimeout(corteMarca);
-    const pozo = pozoDeSonidos();
-    const iCorriendo = SONIDOS_MARCA.findIndex(s => s.includes('corriendo'));
-    const iQuepaso = SONIDOS_MARCA.findIndex(s => s.includes('quepaso'));
-    let i;
-    if (esVuela) i = iCorriendo;
-    else if (esVibra) i = iQuepaso;
-    else {
-      do { i = Math.floor(Math.random() * pozo.length); } while (i === iCorriendo || i === iQuepaso);
+    if (iSonido === -1) {
+      // Ensayo en silencio: aun asi la vibracion se corta a los 4s.
+      corteMarca = setTimeout(quitarVibra, 4000);
+    } else {
+      const pozo = pozoDeSonidos();
+      const iCorriendo = SONIDOS_MARCA.findIndex(s => s.includes('corriendo'));
+      const iQuepaso = SONIDOS_MARCA.findIndex(s => s.includes('quepaso'));
+      let i;
+      if (iSonido != null) i = iSonido;
+      else if (esVuela) i = iCorriendo;
+      else if (esVibra) i = iQuepaso;
+      else {
+        do { i = Math.floor(Math.random() * pozo.length); } while (i === iCorriendo || i === iQuepaso);
+      }
+      if (SONIDOS_MARCA[i].includes('djstop')) retrasoAnim = 500;
+      audioMarca = pozo[i];
+      audioMarca.currentTime = 0;
+      audioMarca.play().catch(() => {});
+      if (esVibra) audioMarca.addEventListener('ended', quitarVibra, { once: true });
+      corteMarca = setTimeout(() => {
+        if (audioMarca) audioMarca.pause();
+        quitarVibra();   // si el sonido se corto a los 4s, la vibracion tambien
+      }, 4000);
     }
-    if (SONIDOS_MARCA[i].includes('djstop')) retrasoAnim = 500;
-    audioMarca = pozo[i];
-    audioMarca.currentTime = 0;
-    audioMarca.play().catch(() => {});
-    if (esVibra) audioMarca.addEventListener('ended', quitarVibra, { once: true });
-    corteMarca = setTimeout(() => {
-      if (audioMarca) audioMarca.pause();
-      quitarVibra();   // si el sonido se corto a los 4s, la vibracion tambien
-    }, 4000);
   } catch (e) { /* sin audio */ }
 
   const aplicar = () => {
