@@ -237,14 +237,16 @@ function hojaNuevaOportunidad(clientes) {
 
       if (i === 1) {
         const continuarSede = (v) => { sel.sede = v; i = 2; pintarPaso(); };
-        if (!sedes.length) return pintarEntrada('Sede', 'Sede / planta del cliente', sedes, continuarSede, true);
+        // "N/A" siempre disponible (clientes donde la sede no aplica); por
+        // eso la cuadricula existe aunque no haya sedes conocidas.
         poner(
           cabeza('Sede'),
           h('button.asistente__nuevo', {
             type: 'button',
-            onclick: () => pintarEntrada('Sede', 'Sede / planta del cliente', sedes, continuarSede, true)
+            onclick: () => pintarEntrada('Sede', 'Sede / planta del cliente', ['N/A', ...sedes], continuarSede, true)
           }, '＋  Agregar sede'),
           h('div.asistente__rejilla',
+            h('button.asistente__op', { type: 'button', onclick: () => continuarSede('N/A') }, 'N/A'),
             sedes.map(o => h('button.asistente__op', { type: 'button', onclick: () => continuarSede(o) }, o))),
           h('div.hoja__acciones',
             h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
