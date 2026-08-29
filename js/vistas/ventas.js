@@ -1,13 +1,14 @@
-// Ventas: aqui NO hay diario. El tablero es GLOBAL, por cliente y
+// Ventas: aqui NO hay diario. El tablero es GLOBAL, por cliente, SEDE y
 // oportunidad de venta, ordenado por fecha de seguimiento y prioridad.
-// Cada oportunidad lleva su HISTORIAL: al crearla nace su primer estatus,
+// Una oportunidad NACE con su primera accion (sin accion no se guarda);
 // cada nueva accion se vuelve el estatus vigente, y cada seguimiento
 // vencido registra un ATRASO automatico (uno por fecha vencida).
-// CALIFICACION de la venta = 1 / total de estatus (menos vueltas y menos
-// atrasos = mejor calificacion; una recien creada vale 100%).
+// CALIFICACION de la venta = 1 / total de estatus.
 //
-// Permisos: crear oportunidades = lider de Ventas (Usuario2) o admin;
-// registrar acciones = cualquiera del depto Ventas (o admin); ver = todos.
+// Permisos: VER el tablero = solo depto Ventas (o admin); crear/cerrar =
+// lider de Ventas o admin; acciones y anotaciones = depto Ventas o admin.
+// El DIRECTORIO de clientes lo ven Ventas, Administracion y el admin.
+// Los porcentajes del depto siguen siendo publicos en Organizacion.
 
 import { h, aviso, vaciar, confirmar, hoja, campo, campoArea } from '../ui.js';
 import * as db from '../db.js';
@@ -37,9 +38,20 @@ function fechaBonita(clave) {
   return d.getDate() + ' ' + MESES[d.getMonth()] + ' ' + d.getFullYear();
 }
 
+function veTablero(yo) {
+  return !!yo && (yo.rol === 'admin' || yo.depto === 'Ventas');
+}
+
+function veDirectorio(yo) {
+  return !!yo && (yo.rol === 'admin' || yo.depto === 'Ventas' || yo.depto === 'Administracion');
+}
+
+/* ---------------------------------------------------------------- */
+/* Fuentes globales: clientes, sedes y contactos                     */
+/* ---------------------------------------------------------------- */
+
 // La base de clientes es GLOBAL: los conocidos por toda la app (mismo
-// catalogo que el asistente de Servicio) + los ya usados en ventas. Y al
-// crear con un cliente nuevo, este se recuerda en el catalogo global.
+// catalogo que el asistente de Servicio) + los ya usados en ventas.
 async function clientesGlobales() {
   const vistos = new Map();
   try {
@@ -52,6 +64,65 @@ async function clientesGlobales() {
   } catch (e) { /* sin ventas */ }
   return [...vistos.values()].sort((a, b) => a.localeCompare(b, 'es'));
 }
+
+// Sedes conocidas de un cliente: las plantas del catalogo global (modulo
+// Tecnico) + las sedes ya usadas en sus ventas.
+async function sedesDe(cliente) {
+  const clave = (cliente || '').trim().toLowerCase();
+  const vistos = new Map();
+  const ver = (s) => { const t = (s || '').trim(); if (t && !vistos.has(t.toLowerCase())) vistos.set(t.toLowerCase(), t); };
+  try {
+    for (const m of await db.maquinasCatalogo()) {
+      if ((m.cliente || '').trim().toLowerCase() === clave) ver(m.planta);
+    }
+  } catch (e) { /* sin catalogo */ }
+  try {
+    for (const v of await db.ventasTodas()) {
+      if ((v.cliente || '').trim().toLowerCase() === clave) ver(v.sede);
+    }
+  } catch (e) { /* sin ventas */ }
+  return [...vistos.values()].sort((a, b) => a.localeCompare(b, 'es'));
+}
+
+// Contactos del cliente EN ESA SEDE (los contactos dependen de la sede).
+async function contactosDe(cliente, sede) {
+  const cl = (cliente || '').trim().toLowerCase();
+  const sd = (sede || '').trim().toLowerCase();
+  const vistos = new Map();
+  const ver = (c) => { if (c && !vistos.has(c.toLowerCase())) vistos.set(c.toLowerCase(), c); };
+  try {
+    for (const v of await db.ventasTodas()) {
+      if ((v.cliente || '').trim().toLowerCase() !== cl) continue;
+      if (sd && (v.sede || '').trim().toLowerCase() !== sd) continue;
+      ver(v.contacto);
+      for (const e of (v.historial || [])) ver(e.contacto);
+    }
+  } catch (e) { /* sin ventas */ }
+  return [...vistos.values()].sort((a, b) => a.localeCompare(b, 'es'));
+}
+
+// TODOS los contactos de la organizacion, con su cliente y sede (para
+// "ver lista de contactos global": un contacto de otro cliente puede
+// servir, p. ej. si tiene una pieza que le sirve al actual).
+async function contactosGlobales() {
+  const vistos = new Map();
+  try {
+    for (const v of await db.ventasTodas()) {
+      const ver = (c) => {
+        if (!c) return;
+        const clave = c.toLowerCase() + '|' + (v.cliente || '').toLowerCase() + '|' + (v.sede || '').toLowerCase();
+        if (!vistos.has(clave)) vistos.set(clave, { nombre: c, cliente: v.cliente || '', sede: v.sede || '' });
+      };
+      ver(v.contacto);
+      for (const e of (v.historial || [])) ver(e.contacto);
+    }
+  } catch (e) { /* sin ventas */ }
+  return [...vistos.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+}
+
+/* ---------------------------------------------------------------- */
+/* Calculo                                                           */
+/* ---------------------------------------------------------------- */
 
 function calificacion(v) {
   const n = (v.historial || []).length || 1;
@@ -92,46 +163,54 @@ async function registrarAtrasos(ventas) {
 /* Formularios                                                       */
 /* ---------------------------------------------------------------- */
 
-// Asistente de 2 pasos, CALCADO del asistente de Servicio (consistencia):
-// paso 1 el cliente en cuadricula de botones con "＋ Agregar cliente";
-// paso 2 los datos de la oportunidad, con la miga del cliente elegido.
+// Asistente CALCADO del de Servicio (consistencia): paso 1 el cliente en
+// cuadricula, paso 2 la SEDE del cliente (los contactos dependen de ella),
+// paso 3 los datos de la oportunidad, con la miga de lo elegido.
 function hojaNuevaOportunidad(clientes) {
   return hoja('💼  Nueva oportunidad', (cerrar) => {
-    const sel = { cliente: '' };
+    const sel = { cliente: '', sede: '' };
+    let sedes = [];
     let i = 0;
-    const TOTAL = 2;
+    const TOTAL = 3;
     const cont = h('div.asistente');
     const poner = (...nodos) => cont.replaceChildren(...nodos.filter(Boolean));
 
     const cabeza = (titulo) => h('div.asistente__cab',
       h('div.asistente__fila',
         i > 0 ? h('button.icono-btn', { type: 'button', 'aria-label': 'Paso anterior',
-          onclick: () => { i = 0; pintarPaso(); } }, '←') : null,
+          onclick: () => { i -= 1; pintarPaso(); } }, '←') : null,
         h('div.crece',
           h('p.asistente__paso', 'PASO ' + (i + 1) + ' / ' + TOTAL),
           h('h3.asistente__titulo', titulo)
         )
       ),
-      i > 0 && sel.cliente ? h('p.asistente__miga', sel.cliente) : null
+      i > 0 ? h('p.asistente__miga', [sel.cliente, sel.sede].filter(Boolean).join(' · ')) : null
     );
 
-    function pintarEntradaCliente() {
-      const entrada = h('input.campo__entrada', { type: 'text', placeholder: 'Cliente' });
+    const elegirCliente = async (nombre) => {
+      sel.cliente = nombre;
+      sedes = await sedesDe(nombre);
+      i = 1;
+      pintarPaso();
+    };
+
+    function pintarEntrada(titulo, placeholder, opciones, alContinuar, omitible) {
+      const entrada = h('input.campo__entrada', { type: 'text', placeholder });
       poner(
-        cabeza('Cliente'),
+        cabeza(titulo),
         entrada,
         h('div.hoja__acciones',
-          clientes.length
+          opciones.length
             ? h('button.btn.btn--fantasma', { type: 'button', onclick: () => pintarPaso() }, 'Ver opciones')
-            : h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+            : (omitible
+              ? h('button.btn.btn--fantasma', { type: 'button', onclick: () => alContinuar('') }, 'Omitir')
+              : h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar')),
           h('button.btn.btn--primario', {
             type: 'button',
             onclick: () => {
               const v = entrada.value.trim();
-              if (!v) return;
-              sel.cliente = v;
-              i = 1;
-              pintarPaso();
+              if (!v && !omitible) return;
+              alContinuar(v);
             }
           }, 'Continuar')
         )
@@ -141,22 +220,39 @@ function hojaNuevaOportunidad(clientes) {
 
     function pintarPaso() {
       if (i === 0) {
-        // Sin nada guardado no hay cuadricula que mostrar: directo a escribir.
-        if (!clientes.length) return pintarEntradaCliente();
+        if (!clientes.length) return pintarEntrada('Cliente', 'Cliente', clientes, (v) => { if (v) elegirCliente(v); }, false);
         poner(
           cabeza('Cliente'),
-          h('button.asistente__nuevo', { type: 'button', onclick: () => pintarEntradaCliente() },
-            '＋  Agregar cliente'),
+          h('button.asistente__nuevo', {
+            type: 'button',
+            onclick: () => pintarEntrada('Cliente', 'Cliente', clientes, (v) => { if (v) elegirCliente(v); }, false)
+          }, '＋  Agregar cliente'),
           h('div.asistente__rejilla',
-            clientes.map(o => h('button.asistente__op', {
-              type: 'button',
-              onclick: () => { sel.cliente = o; i = 1; pintarPaso(); }
-            }, o))),
+            clientes.map(o => h('button.asistente__op', { type: 'button', onclick: () => elegirCliente(o) }, o))),
           h('div.hoja__acciones',
             h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'))
         );
         return;
       }
+
+      if (i === 1) {
+        const continuarSede = (v) => { sel.sede = v; i = 2; pintarPaso(); };
+        if (!sedes.length) return pintarEntrada('Sede', 'Sede / planta del cliente', sedes, continuarSede, true);
+        poner(
+          cabeza('Sede'),
+          h('button.asistente__nuevo', {
+            type: 'button',
+            onclick: () => pintarEntrada('Sede', 'Sede / planta del cliente', sedes, continuarSede, true)
+          }, '＋  Agregar sede'),
+          h('div.asistente__rejilla',
+            sedes.map(o => h('button.asistente__op', { type: 'button', onclick: () => continuarSede(o) }, o))),
+          h('div.hoja__acciones',
+            h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+            h('button.btn.btn--fantasma', { type: 'button', onclick: () => continuarSede('') }, 'Omitir'))
+        );
+        return;
+      }
+
       const cTitulo = campo('Oportunidad', { maxLength: 160, placeholder: 'p. ej. Refacciones para H400' });
       const selPrio = h('select.org-select', ...PRIORIDADES.map(([v, n]) => h('option', { value: v }, n)));
       const cFecha = campo('Proximo seguimiento', { type: 'date', value: fechaClave() });
@@ -173,12 +269,12 @@ function hojaNuevaOportunidad(clientes) {
               const titulo = cTitulo.querySelector('input').value.trim();
               if (!titulo) { aviso('Describe la oportunidad.', 'error'); return; }
               cerrar({
-                cliente: sel.cliente, titulo,
+                cliente: sel.cliente, sede: sel.sede, titulo,
                 prioridad: selPrio.value,
                 fechaSeguimiento: cFecha.querySelector('input').value || '',
               });
             },
-          }, 'Crear'))
+          }, 'Continuar'))
       );
       setTimeout(() => { const e = cTitulo.querySelector('input'); if (e) e.focus(); }, 80);
     }
@@ -194,7 +290,7 @@ function hojaNuevaAnotacion(v) {
   return hoja('💡  Nueva anotacion', (cerrar) => {
     const cTexto = campoArea('Dato importante, tip, seña…', { maxLength: 400 });
     return h('div',
-      h('p.pista', v.cliente + ' · ' + v.titulo),
+      h('p.pista', v.cliente + (v.sede ? ' · ' + v.sede : '') + ' · ' + v.titulo),
       cTexto,
       h('div.hoja__acciones',
         h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
@@ -209,27 +305,14 @@ function hojaNuevaAnotacion(v) {
   });
 }
 
-// Contactos conocidos del cliente: se juntan de lo ya usado en sus ventas
-// (acciones e historico), igual que los clientes se juntan de lo usado.
-async function contactosDe(cliente) {
-  const vistos = new Map();
-  const ver = (c) => { if (c && !vistos.has(c.toLowerCase())) vistos.set(c.toLowerCase(), c); };
-  try {
-    for (const v of await db.ventasTodas()) {
-      if (v.cliente !== cliente) continue;
-      ver(v.contacto);
-      for (const e of (v.historial || [])) ver(e.contacto);
-    }
-  } catch (e) { /* sin ventas */ }
-  return [...vistos.values()].sort((a, b) => a.localeCompare(b, 'es'));
-}
-
-// El CONTACTO es POR ACCION (cada accion puede verse con alguien distinto)
-// y se elige IGUAL que el cliente: asistente con cuadricula + "＋ Agregar".
-function hojaNuevaAccion(v, contactos) {
+// El CONTACTO es POR ACCION y se elige IGUAL que el cliente: cuadricula de
+// los contactos de ESTE cliente y sede + "＋ Agregar", con OMITIR, y el
+// boton "VER LISTA DE CONTACTOS GLOBAL" para tomar uno de otro cliente.
+function hojaNuevaAccion(v, contactos, globales) {
   return hoja('✚  Nueva accion', (cerrar) => {
     const sel = { contacto: '' };
     let i = 0;
+    let modoGlobal = false;
     const TOTAL = 2;
     const cont = h('div.asistente');
     const poner = (...nodos) => cont.replaceChildren(...nodos.filter(Boolean));
@@ -243,7 +326,9 @@ function hojaNuevaAccion(v, contactos) {
           h('h3.asistente__titulo', titulo)
         )
       ),
-      i > 0 ? h('p.asistente__miga', v.cliente + (sel.contacto ? ' · 👤 ' + sel.contacto : '')) : h('p.asistente__miga', v.cliente + ' · ' + v.titulo)
+      i > 0
+        ? h('p.asistente__miga', [v.cliente, v.sede].filter(Boolean).join(' · ') + (sel.contacto ? ' · 👤 ' + sel.contacto : ''))
+        : h('p.asistente__miga', [v.cliente, v.sede].filter(Boolean).join(' · ') + ' · ' + v.titulo)
     );
 
     const avanzar = () => { i = 1; pintarPaso(); };
@@ -254,7 +339,7 @@ function hojaNuevaAccion(v, contactos) {
         cabeza('Contacto'),
         entrada,
         h('div.hoja__acciones',
-          contactos.length
+          (contactos.length || globales.length)
             ? h('button.btn.btn--fantasma', { type: 'button', onclick: () => pintarPaso() }, 'Ver opciones')
             : h('button.btn.btn--fantasma', { type: 'button', onclick: () => { sel.contacto = ''; avanzar(); } }, 'Omitir'),
           h('button.btn.btn--primario', {
@@ -268,16 +353,26 @@ function hojaNuevaAccion(v, contactos) {
 
     function pintarPaso() {
       if (i === 0) {
-        if (!contactos.length) return pintarEntradaContacto();
+        if (!contactos.length && !globales.length) return pintarEntradaContacto();
+        const rejilla = modoGlobal
+          ? globales.map(g => h('button.asistente__op', {
+            type: 'button',
+            onclick: () => { sel.contacto = g.nombre; avanzar(); }
+          }, g.nombre, h('span.venta-op__seña', [g.cliente, g.sede].filter(Boolean).join(' · '))))
+          : contactos.map(o => h('button.asistente__op', {
+            type: 'button',
+            onclick: () => { sel.contacto = o; avanzar(); }
+          }, o));
         poner(
-          cabeza('Contacto'),
+          cabeza(modoGlobal ? 'Contacto (global)' : 'Contacto'),
           h('button.asistente__nuevo', { type: 'button', onclick: () => pintarEntradaContacto() },
             '＋  Agregar contacto'),
-          h('div.asistente__rejilla',
-            contactos.map(o => h('button.asistente__op', {
-              type: 'button',
-              onclick: () => { sel.contacto = o; avanzar(); }
-            }, o))),
+          rejilla.length ? h('div.asistente__rejilla', rejilla)
+            : h('p.pista', modoGlobal ? 'Aun no hay contactos en la organizacion.' : 'Sin contactos de este cliente y sede.'),
+          globales.length ? h('button.btn.btn--fantasma.venta-btn-mini', {
+            type: 'button',
+            onclick: () => { modoGlobal = !modoGlobal; pintarPaso(); },
+          }, modoGlobal ? '👤  VER CONTACTOS DE ESTE CLIENTE' : '🌐  VER LISTA DE CONTACTOS GLOBAL') : null,
           h('div.hoja__acciones',
             h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
             h('button.btn.btn--fantasma', { type: 'button', onclick: () => { sel.contacto = ''; avanzar(); } }, 'Omitir'))
@@ -313,7 +408,7 @@ function hojaNuevaAccion(v, contactos) {
 /* ---------------------------------------------------------------- */
 
 async function hojaDetalle(v, permisos, alCambiar) {
-  await hoja(v.cliente, (cerrar) => {
+  await hoja(v.cliente + (v.sede ? ' · ' + v.sede : ''), (cerrar) => {
     const cuerpo = h('div');
     const pinta = () => {
       const cal = calificacion(v);
@@ -338,7 +433,7 @@ async function hojaDetalle(v, permisos, alCambiar) {
         permisos.accionar && !v.cerrada ? h('button.btn.btn--primario.venta-btn', {
           type: 'button',
           onclick: async () => {
-            const accion = await hojaNuevaAccion(v, await contactosDe(v.cliente));
+            const accion = await hojaNuevaAccion(v, await contactosDe(v.cliente, v.sede), await contactosGlobales());
             if (!accion) return;
             v.historial.push({ ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo: 'estatus', texto: accion.texto, contacto: accion.contacto || '' });
             if (accion.fecha) v.fechaSeguimiento = accion.fecha;
@@ -389,10 +484,82 @@ async function hojaDetalle(v, permisos, alCambiar) {
 }
 
 /* ---------------------------------------------------------------- */
+/* Directorio de clientes (Ventas, Administracion y admin)           */
+/* ---------------------------------------------------------------- */
+
+async function directorioClientes() {
+  const mapa = new Map();
+  const asegura = (cliente, sede) => {
+    const c = (cliente || '').trim();
+    if (!c) return null;
+    if (!mapa.has(c.toLowerCase())) mapa.set(c.toLowerCase(), { nombre: c, sedes: new Map() });
+    const ent = mapa.get(c.toLowerCase());
+    const s = (sede || '').trim();
+    if (!ent.sedes.has(s.toLowerCase())) ent.sedes.set(s.toLowerCase(), { nombre: s, contactos: new Map() });
+    return ent.sedes.get(s.toLowerCase());
+  };
+  try {
+    for (const m of await db.maquinasCatalogo()) if (m.cliente) asegura(m.cliente, m.planta);
+  } catch (e) { /* sin catalogo */ }
+  try {
+    for (const v of await db.ventasTodas()) {
+      if (!v.cliente) continue;
+      const sede = asegura(v.cliente, v.sede);
+      const ver = (c) => { if (c && sede && !sede.contactos.has(c.toLowerCase())) sede.contactos.set(c.toLowerCase(), c); };
+      ver(v.contacto);
+      for (const e of (v.historial || [])) ver(e.contacto);
+    }
+  } catch (e) { /* sin ventas */ }
+  return [...mapa.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+}
+
+async function renderDirectorio(contenedor) {
+  const yo = await quienSoy();
+  contenedor.append(h('header.cabecera',
+    h('div.cabecera__fila',
+      h('button.icono-btn', { type: 'button', 'aria-label': 'Volver', onclick: () => history.back() }, '←'),
+      h('h1', '📇 Directorio de clientes'),
+    )));
+  const cont = h('div.contenido.diario');
+  contenedor.append(cont);
+
+  if (!veDirectorio(yo)) {
+    cont.append(h('div.diario-carta', h('p.pista',
+      'El directorio de clientes lo ven Ventas y Administracion. Si te falta depto, pide al administrador que te lo asigne en ⚙.')));
+    return;
+  }
+
+  const clientes = await directorioClientes();
+  if (!clientes.length) {
+    cont.append(h('div.diario-carta', h('p.pista', 'Aun no hay clientes dados de alta.')));
+    return;
+  }
+
+  for (const c of clientes) {
+    const carta = h('section.diario-carta');
+    carta.append(h('h3', c.nombre));
+    const sedes = [...c.sedes.values()].sort((a, b) => (a.nombre || '~').localeCompare(b.nombre || '~', 'es'));
+    for (const s of sedes) {
+      carta.append(h('p.dir-sede', '📍 ' + (s.nombre || 'Sede sin especificar')));
+      const contactos = [...s.contactos.values()].sort((a, b) => a.localeCompare(b, 'es'));
+      if (contactos.length) {
+        for (const nombre of contactos) carta.append(h('p.dir-contacto', '👤 ' + nombre));
+      } else {
+        carta.append(h('p.dir-contacto.dir-contacto--vacio', 'Sin contactos registrados.'));
+      }
+    }
+    cont.append(carta);
+  }
+  cont.append(h('p.pista', 'Los contactos se registran solos con cada accion de venta; las sedes salen del catalogo y de las oportunidades.'));
+}
+
+/* ---------------------------------------------------------------- */
 /* Tablero                                                           */
 /* ---------------------------------------------------------------- */
 
-export async function render(contenedor) {
+export async function render(contenedor, refrescar, params = {}) {
+  if (params.sub === 'dir') return renderDirectorio(contenedor);
+
   const yo = await quienSoy();
   const permisos = { crear: puedeCrearVentas(yo), accionar: puedeAccionarVentas(yo) };
 
@@ -404,6 +571,14 @@ export async function render(contenedor) {
     )));
   const cont = h('div.contenido.diario');
   contenedor.append(cont);
+
+  // Las oportunidades SOLO las ve el equipo de Ventas (y el admin); los
+  // porcentajes del depto siguen siendo publicos en Organizacion.
+  if (!veTablero(yo)) {
+    cont.append(h('div.diario-carta', h('p.pista',
+      'Las oportunidades de venta solo las ve el equipo de Ventas. El estatus del depto esta en 🏢 Organizacion.')));
+    return;
+  }
 
   let filtroCliente = '';
 
@@ -426,16 +601,32 @@ export async function render(contenedor) {
         onclick: async () => {
           const datos = await hojaNuevaOportunidad(await clientesGlobales());
           if (!datos) return;
+          // La PRIMERA ACCION es OBLIGATORIA: sin ella no se guarda nada.
+          const previa = { cliente: datos.cliente, sede: datos.sede, titulo: datos.titulo };
+          const accion = await hojaNuevaAccion(previa,
+            await contactosDe(datos.cliente, datos.sede), await contactosGlobales());
+          if (!accion) {
+            aviso('Sin una primera accion no se guarda la oportunidad.', 'error');
+            return;
+          }
           const v = {
             id: db.nuevoId(), ...datos, cerrada: false, creado: db.marcaDeTiempo(),
-            historial: [{ ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo: 'estatus', texto: 'Oportunidad creada' }],
+            anotaciones: [],
+            historial: [{ ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo: 'estatus', texto: accion.texto, contacto: accion.contacto || '' }],
           };
+          if (accion.fecha) v.fechaSeguimiento = accion.fecha;
           await db.ventaGuardar(v);
-          // cliente nuevo → al catalogo global de toda la app
-          try { await db.maquinaRecordar({ cliente: datos.cliente }); } catch (e) { /* opcional */ }
-          pintar();
+          // cliente y sede nuevos → al catalogo global de toda la app
+          try { await db.maquinaRecordar({ cliente: datos.cliente, planta: datos.sede }); } catch (e) { /* opcional */ }
+          await pintar();
+          // directo al menu de acciones y anotaciones de la recien creada
+          hojaDetalle(v, permisos, pintar);
         },
       }, '✚  NUEVA') : null));
+
+    cont.append(h('button.btn.btn--fantasma.venta-abrir', {
+      type: 'button', onclick: () => { location.hash = '#/d/ventas/dir'; },
+    }, '📇  DIRECTORIO DE CLIENTES'));
 
     let lista = ventas.filter(v => !filtroCliente || v.cliente === filtroCliente);
     // Orden: abiertas primero por fecha de seguimiento y luego prioridad;
@@ -472,7 +663,7 @@ export async function render(contenedor) {
       },
         h('div.venta-carta__fila',
           h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()),
-          h('span.venta-cliente', v.cliente),
+          h('span.venta-cliente', v.cliente + (v.sede ? ' · ' + v.sede : '')),
           h('span.venta-cal', calificacion(v) + '%')),
         h('p.venta-titulo', v.titulo),
         h('p.venta-meta',

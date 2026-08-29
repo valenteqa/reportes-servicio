@@ -28,8 +28,8 @@ function analizarRuta() {
   if (!p.length) return { vista: 'menu', params: {} };
   if (p[0] === 't') return { vista: 'servicios', params: {} };
   // #/d mi dia · #/d/org organizacion · #/d/depto mi depto ·
-  // #/d/u/<id> miembro · #/d/ventas tablero de ventas
-  if (p[0] === 'd' && p[1] === 'ventas') return { vista: 'ventas', params: {} };
+  // #/d/u/<id> miembro · #/d/ventas tablero · #/d/ventas/dir directorio
+  if (p[0] === 'd' && p[1] === 'ventas') return { vista: 'ventas', params: { sub: p[2] || '' } };
   if (p[0] === 'd') return { vista: 'diario', params: { sub: p[1] || '', id: p[2] || '' } };
   if (p[0] === 's' && p[1]) {
     if (p[2] === 't' && p[3]) return { vista: 'tabla', params: { sid: p[1], eventoId: p[3] } };

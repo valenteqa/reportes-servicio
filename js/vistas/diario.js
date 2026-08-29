@@ -239,6 +239,7 @@ function filaMiembro(u, resumen, clickeable) {
 
 async function renderOrganizacion(contenedor) {
   const org = await organizacion();
+  const yoOrg = await quienSoy();
   const lunes = lunesDe(fechaClave());
   contenedor.append(cabeceraSub('🏢 Organizacion', 'semana actual'));
   const cont = h('div.contenido.diario');
@@ -262,8 +263,9 @@ async function renderOrganizacion(contenedor) {
     carta.append(h('p.sem-total', dTotal
       ? 'DEPTO: ' + dHechas + ' de ' + dTotal + ' · ' + pct + '%'
       : 'Depto sin actividades registradas en este telefono.'));
-    // Ventas se gestiona distinto: su tablero global se abre desde aqui.
-    if (depto === 'Ventas') {
+    // Ventas se gestiona distinto: su tablero se abre desde aqui, pero las
+    // OPORTUNIDADES solo las ve el equipo de Ventas (y el admin).
+    if (depto === 'Ventas' && yoOrg && (yoOrg.rol === 'admin' || yoOrg.depto === 'Ventas')) {
       carta.append(h('button.btn.btn--fantasma.venta-abrir', {
         type: 'button', onclick: () => { location.hash = '#/d/ventas'; },
       }, '💼  Ver oportunidades de venta'));
@@ -428,10 +430,15 @@ export async function render(contenedor, refrescar, params = {}) {
         'Este telefono aun no dice de quien es: eligelo en ⚙ Configuracion → Usuarios y deptos. Mientras, cuenta como usuario normal.'));
     }
 
-    // Abre en TU dia; desde aqui se brinca a la gestion completa.
+    // Abre en TU dia; desde aqui se brinca a la gestion completa. El
+    // directorio de clientes lo ven Ventas y Administracion (los de Ventas
+    // ya lo tienen en su tablero).
     cont.append(h('div.gd-nav',
       h('button.btn.btn--fantasma', { type: 'button', onclick: () => { location.hash = '#/d/org'; } }, '🏢  ORGANIZACION'),
-      h('button.btn.btn--fantasma', { type: 'button', onclick: () => { location.hash = '#/d/depto'; } }, '👥  MI DEPTO')));
+      h('button.btn.btn--fantasma', { type: 'button', onclick: () => { location.hash = '#/d/depto'; } }, '👥  MI DEPTO'),
+      yo && (yo.rol === 'admin' || yo.depto === 'Administracion')
+        ? h('button.btn.btn--fantasma', { type: 'button', onclick: () => { location.hash = '#/d/ventas/dir'; } }, '📇  DIRECTORIO')
+        : null));
 
     /* ── HOY ── */
     const cHoy = conteo(dia);
