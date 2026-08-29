@@ -297,7 +297,9 @@ button { font-family: inherit; font-size: inherit; }
   flex: 1; min-height: 130px; display: flex; align-items: center;
   justify-content: center;
 }
-.ensayo__logo { width: min(38vw, 170px); height: auto; }
+.ensayo__escena { text-align: center; }
+.ensayo__logo { width: min(38vw, 170px); height: auto; cursor: pointer; }
+.ensayo__pista { margin: .6rem 0 0; font-size: .74rem; color: #8a8e96; }
 .ensayo__zona {
   flex: none; max-height: 58vh; overflow-y: auto;
   padding: .4rem .8rem calc(1rem + env(safe-area-inset-bottom));

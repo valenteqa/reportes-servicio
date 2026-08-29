@@ -212,7 +212,12 @@ export function ensayoDeMarca() {
     };
 
     let animSel = MARCAS_PROBADOR[0][0];
-    const logo = h('img.ensayo__logo', { src: 'icons/logo-serpro.png', alt: '' });
+    // Tocar el logo corre la animacion elegida CON su sonido asignado
+    // (la pareja real de la app, sin forzar indice).
+    const logo = h('img.ensayo__logo', {
+      src: 'icons/logo-serpro.png', alt: '',
+      onclick: () => ejecutarMarca(animSel, [logo]),
+    });
 
     const chips = MARCAS_PROBADOR.map(([clase, nombre]) =>
       h('button.chip-ensayo', {
@@ -230,7 +235,9 @@ export function ensayoDeMarca() {
         h('button.ensayo__volver', { type: 'button', 'aria-label': 'Volver', onclick: () => cerrar() }, '←'),
         h('h2', 'Ensayo del logo')
       ),
-      h('div.ensayo__centro', logo),
+      h('div.ensayo__centro',
+        h('div.ensayo__escena', logo,
+          h('p.ensayo__pista', 'Toca el logo: corre con su sonido asignado'))),
       h('div.ensayo__zona',
         h('p.ensayo__titulo', 'ANIMACION · toca para verla sola'),
         h('div.ensayo__chips', chips),
