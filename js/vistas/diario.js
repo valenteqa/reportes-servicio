@@ -9,12 +9,17 @@
 
 import { h, aviso, vaciar, confirmar, hoja, campo } from '../ui.js';
 import * as db from '../db.js';
-import { DEPTOS, ROLES, organizacion, quienSoy, puedeEditarActividades, puedeVerActividadesDe, AVISO_SOLO_LIDER } from '../organizacion.js';
+import { DEPTOS, ROLES, organizacion, quienSoy, puedeEditarActividades, puedeVerActividadesDe, AVISO_SOLO_LIDER, fechaSimulada } from '../organizacion.js';
 
 const DIAS_CORTOS = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'];
 const MESES_CORTOS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
 
-export function fechaClave(d = new Date()) {
+export function fechaClave(d) {
+  if (!d) {
+    const simulada = fechaSimulada();   // modo prueba: la app vive ahi
+    if (simulada) return simulada;
+    d = new Date();
+  }
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 

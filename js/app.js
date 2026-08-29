@@ -16,6 +16,7 @@ import * as vistaServicio  from './vistas/servicio.js';
 import * as vistaTabla     from './vistas/tabla.js';
 import * as vistaDiario    from './vistas/diario.js';
 import * as vistaVentas    from './vistas/ventas.js';
+import { cargarModoPrueba, estadoPrueba } from './organizacion.js';
 
 const raiz = document.getElementById('app');
 let pintando = false;
@@ -73,7 +74,26 @@ async function pintar() {
     );
   } finally {
     pintando = false;
+    pintarGafetePrueba();
   }
+}
+
+// Gafete ambar fijo mientras el MODO PRUEBA este activo (fecha simulada
+// y/o viendo la app como otro usuario), para que no se quede encendido
+// por accidente.
+async function pintarGafetePrueba() {
+  try {
+    const est = await estadoPrueba();
+    let gafete = document.querySelector('.gafete-prueba');
+    if (!est.fecha && !est.comoId) { if (gafete) gafete.remove(); return; }
+    if (!gafete) {
+      gafete = h('div.gafete-prueba');
+      document.body.appendChild(gafete);
+    }
+    gafete.textContent = '🧪 PRUEBA' +
+      (est.fecha ? ' · fecha: ' + est.fecha : '') +
+      (est.comoNombre ? ' · viendo como ' + est.comoNombre : '');
+  } catch (e) { /* sin datos aun */ }
 }
 
 window.addEventListener('hashchange', pintar);
@@ -157,13 +177,17 @@ if (cadena.length > 1) {
 }
 
 aplicarTema(temaActual());   // sincroniza meta theme-color con lo aplicado al arrancar
-pintar();
+
+// La fecha/usuario del MODO PRUEBA se cargan ANTES del primer pintado y
+// del candado del Diario, para que toda la app viva ya en ese estado.
+cargarModoPrueba().catch(() => {}).finally(() => {
+  pintar();
+  // Candado del Diario: un dia anterior con actividades sin evaluar
+  // bloquea la app hasta marcarlas (revisa al abrir y al volver a verse).
+  vistaDiario.instalarCandado(pintar);
+});
 protegerDatos();
 registrarServiceWorker();
 
 // Cameos sorpresa (aparecen al azar tras acciones, con enfriamiento).
 import('./cameos.js').then(m => m.instalarCameos()).catch(() => {});
-
-// Candado del Diario: un dia anterior con actividades sin evaluar bloquea
-// la app hasta marcarlas (revisa al abrir y al volver a verse).
-vistaDiario.instalarCandado(pintar);

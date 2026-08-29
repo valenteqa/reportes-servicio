@@ -11,7 +11,7 @@
 
 import { h, aviso, vaciar, confirmar, hoja, campo } from '../ui.js';
 import * as db from '../db.js';
-import { quienSoy, puedeCrearVentas, puedeAccionarVentas } from '../organizacion.js';
+import { quienSoy, puedeCrearVentas, puedeAccionarVentas, fechaSimulada } from '../organizacion.js';
 
 const PRIORIDADES = [
   ['alta',  'ALTA'],
@@ -20,7 +20,12 @@ const PRIORIDADES = [
 ];
 const ORDEN_PRIO = { alta: 0, media: 1, baja: 2 };
 
-function fechaClave(d = new Date()) {
+function fechaClave(d) {
+  if (!d) {
+    const simulada = fechaSimulada();   // modo prueba: la app vive ahi
+    if (simulada) return simulada;
+    d = new Date();
+  }
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 

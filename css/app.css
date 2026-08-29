@@ -743,6 +743,17 @@ button { font-family: inherit; font-size: inherit; }
 .venta-evento--atraso .venta-evento__texto { color: var(--peligro, #c22a29); font-weight: 600; }
 .venta-btn { width: 100%; margin-top: .7rem; }
 
+/* Gafete del modo prueba: siempre visible mientras este activo. */
+.gafete-prueba {
+  position: fixed; left: 50%; bottom: .7rem; transform: translateX(-50%);
+  z-index: 56; pointer-events: none;
+  max-width: 92vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  padding: .3rem .8rem; border-radius: 999px;
+  background: #b8860b; color: #fff;
+  font-size: .78rem; font-weight: 700; letter-spacing: .03em;
+  box-shadow: var(--sombra-2);
+}
+
 .rudo-humo {
   position: absolute; right: -6%; top: -140%;
   width: 16%; aspect-ratio: 1; border-radius: 50%;

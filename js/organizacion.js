@@ -59,9 +59,12 @@ export function organizacionGuardar(org) {
 }
 
 // Quien dice ser el dueño de ESTE telefono (elegido en ⚙ → Usuarios).
+// En MODO PRUEBA, el admin puede "ver como" otro usuario: esa identidad
+// simulada manda mientras este activa.
 export async function quienSoy() {
   const org = await organizacion();
-  const yoId = await ajusteLeer('diario:yo');
+  const comoId = await ajusteLeer('test:como');
+  const yoId = comoId || await ajusteLeer('diario:yo');
   return org.usuarios.find(u => u.id === yoId) || null;
 }
 
@@ -124,4 +127,41 @@ export function claveDeManana() {
   const d = new Date();
   d.setDate(d.getDate() + 1);
   return claveDelDia(fechaClaveLocal(d));
+}
+
+/* ---------------------------------------------------------------- */
+/* Modo prueba (solo tras la clave de admin en ⚙)                    */
+/* ---------------------------------------------------------------- */
+
+// Fecha simulada: Diario y Ventas viven en esa fecha (atrasos, candados,
+// semanas). La clave de ⚙ sigue siendo la del dia REAL, para no dejar al
+// admin fuera. El cache es sincrono porque fechaClave() se llama por todas
+// partes sin await; se carga al arrancar la app.
+let _fechaSimulada = null;
+
+export function fechaSimulada() {
+  return _fechaSimulada;
+}
+
+export async function cargarModoPrueba() {
+  _fechaSimulada = (await ajusteLeer('test:fecha')) || null;
+}
+
+export async function simularFecha(fecha) {
+  _fechaSimulada = fecha || null;
+  await ajusteGuardar('test:fecha', fecha || '');
+}
+
+export async function verComo(id) {
+  await ajusteGuardar('test:como', id || '');
+}
+
+export async function estadoPrueba() {
+  const comoId = (await ajusteLeer('test:como')) || '';
+  let comoNombre = '';
+  if (comoId) {
+    const org = await organizacion();
+    comoNombre = (org.usuarios.find(u => u.id === comoId) || {}).nombre || '';
+  }
+  return { fecha: _fechaSimulada || '', comoId, comoNombre };
 }
