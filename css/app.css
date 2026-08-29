@@ -1464,8 +1464,8 @@ p.titulo-tabla--ver {
 }
 .pw__previa-marca strong { display: block; font-size: 104px; font-weight: 800; letter-spacing: .06em; white-space: nowrap; }
 .pw__previa-marca span { display: block; font-size: 30px; margin-top: 6px; }
-.pw__enc { position: absolute; top: 47px; left: 0; right: 0; }
-.pw__encfila { display: flex; align-items: flex-end; gap: 10px; padding: 0 113px 4px; }
+.pw__enc { position: absolute; top: 0; left: 0; right: 0; }
+.pw__encfila { display: flex; align-items: flex-end; gap: 10px; padding: 8px 113px 4px; }
 .pw__logo { width: 236px; height: 99px; object-fit: contain; object-position: left bottom; }
 .pw__enctexto {
   margin-left: auto; text-align: right; font-size: 13px; color: #333;
@@ -1474,7 +1474,7 @@ p.titulo-tabla--ver {
 .pw__enctexto strong { display: block; font-size: 14px; }
 /* Word ESTIRA la banda a 8.5in x 0.46in (extent fijo): igual aqui. */
 .pw__banda { display: block; width: 816px; height: 44px; object-fit: fill; }
-.pw__cuerpo { position: absolute; top: 208px; left: 113px; width: 590px; height: 753px; overflow: hidden; }
+.pw__cuerpo { position: absolute; top: 172px; left: 113px; width: 590px; height: 789px; overflow: hidden; }
 .pw__pie {
   position: absolute; left: 0; right: 0; bottom: 26px;
   text-align: center; font-size: 10.5px; color: #595959; line-height: 1.35;

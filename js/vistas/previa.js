@@ -16,9 +16,9 @@ const PAG_W = 816;
 const PAG_H = 1056;
 const MARG_X = 113;              // 1701 twips
 const CONT_W = PAG_W - MARG_X * 2;   // 590
-const ENC_TOP = 47;              // header a 708 twips del borde
-const CUERPO_TOP = 208;          // bajo el membrete (logo 99px + banda 44px)
-const CUERPO_H = 753;            // hasta arriba del pie
+const ENC_TOP = 0;               // la banda va pegada al borde superior
+const CUERPO_TOP = 172;          // bajo el membrete (banda 44px + logo 99px)
+const CUERPO_H = 789;            // hasta arriba del pie
 const ANCHO_TABLA = 624;         // tblW 9360 twips = 6.5in (rebasa 34px el margen, como Word)
 
 // Tamaño de imagen: LA MISMA formula que imagenXml del generador.
@@ -208,12 +208,12 @@ export async function vistaPreviaReporte(servicioId) {
     const el = h('div.pw',
       h('img.pw__marca-agua', { src: 'plantilla/logo15.jpeg', alt: '' }),
       h('div.pw__enc',
+        h('img.pw__banda', { src: 'plantilla/logo16.png', alt: '' }),
         h('div.pw__encfila',
           h('img.pw__logo', { src: 'plantilla/logo14.png', alt: '' }),
           h('div.pw__enctexto',
             h('strong', 'Reporte Complementario'),
-            h('span', folio + '   ·   ' + fechaLarga(servicio.inicio)))),
-        h('img.pw__banda', { src: 'plantilla/logo16.png', alt: '' })),
+            h('span', folio + '   ·   ' + fechaLarga(servicio.inicio))))),
       cuerpo,
       h('div.pw__previa-marca',
         h('strong', 'VISTA PREVIA'),
