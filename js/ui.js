@@ -130,15 +130,18 @@ export function vaciar(el) {
   return el;
 }
 
-// Animacion generica de la marca (logo y nombre): pulso con brillo.
+// Animaciones de la marca (logo y nombre): cada toque sortea una distinta.
 // Reinicia aunque se toque en rafaga.
+const ANIMS_MARCA = ['marca-animada', 'marca-gira', 'marca-brinca', 'marca-tiembla', 'marca-late', 'marca-voltea'];
+
 export function animarMarca(...els) {
+  const anim = ANIMS_MARCA[Math.floor(Math.random() * ANIMS_MARCA.length)];
   for (const el of els) {
     if (!el) continue;
-    el.classList.remove('marca-animada');
+    el.classList.remove(...ANIMS_MARCA);
     void el.offsetWidth;   // fuerza reinicio de la animacion
-    el.classList.add('marca-animada');
-    el.addEventListener('animationend', () => el.classList.remove('marca-animada'), { once: true });
+    el.classList.add(anim);
+    el.addEventListener('animationend', () => el.classList.remove(anim), { once: true });
   }
 }
 

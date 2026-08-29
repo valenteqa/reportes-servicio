@@ -193,6 +193,49 @@ button { font-family: inherit; font-size: inherit; }
 }
 .marca-animada { animation: marcaPulso .7s ease; }
 
+/* Mas animaciones de la marca: cada toque sortea una. */
+@keyframes marcaGira {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(180deg) scale(1.12); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+.marca-gira { animation: marcaGira .8s ease; }
+
+@keyframes marcaBrinca {
+  0% { transform: translateY(0) scale(1, 1); }
+  25% { transform: translateY(-16px) scale(.96, 1.06); }
+  45% { transform: translateY(0) scale(1.08, .9); }
+  62% { transform: translateY(-7px) scale(1, 1); }
+  78% { transform: translateY(0) scale(1.03, .97); }
+  100% { transform: translateY(0) scale(1, 1); }
+}
+.marca-brinca { animation: marcaBrinca .75s ease; }
+
+@keyframes marcaTiembla {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-7px) rotate(-3deg); }
+  30% { transform: translateX(6px) rotate(2deg); }
+  45% { transform: translateX(-5px); }
+  60% { transform: translateX(4px) rotate(1deg); }
+  75% { transform: translateX(-2px); }
+}
+.marca-tiembla { animation: marcaTiembla .55s ease; }
+
+@keyframes marcaLate {
+  0%, 100% { transform: scale(1); }
+  20% { transform: scale(1.15); }
+  35% { transform: scale(1); }
+  50% { transform: scale(1.22); }
+  70% { transform: scale(1); }
+}
+.marca-late { animation: marcaLate .7s ease; }
+
+@keyframes marcaVoltea {
+  from { transform: perspective(420px) rotateY(0deg); }
+  to { transform: perspective(420px) rotateY(360deg); }
+}
+.marca-voltea { animation: marcaVoltea .9s ease; }
+
 .cabecera__titulo { flex: 1; min-width: 0; }
 .cabecera__titulo h1 {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -543,7 +586,7 @@ button { font-family: inherit; font-size: inherit; }
   font-family: var(--mono); font-variant-numeric: tabular-nums;
 }
 .tarjeta__menu { margin-left: auto; width: 36px; height: 36px; font-size: 1.1rem; }
-.tarjeta__titulo { margin-bottom: .4rem; }
+.tarjeta__titulo { margin-bottom: .4rem; text-transform: uppercase; font-weight: 750; }
 .tarjeta__texto { font-size: .92rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 .tarjeta__pie { margin-top: .45rem; font-size: .82rem; color: var(--tinta-suave); }
 
@@ -992,8 +1035,11 @@ body.pantalla-ancha #app { max-width: none; }
 .titulo-tabla {
   width: 100%; padding: .1rem 0; margin: 0;
   border: none; background: transparent; color: var(--tinta);
-  font-family: inherit; font-size: 1.02rem; font-weight: 650;
+  font-family: inherit; font-size: 1.02rem; font-weight: 750;
+  text-transform: uppercase;
 }
+/* Opciones destacadas (p. ej. "¿Que tabla es?"): mayusculas y negritas. */
+.opcion-fuerte { text-transform: uppercase; font-weight: 750; }
 .titulo-tabla:focus { outline: none; }
 .titulo-tabla::placeholder { color: var(--tinta-tenue); }
 /* En solo-ver el titulo es texto: puede partirse en dos lineas completas. */

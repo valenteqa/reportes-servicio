@@ -36,7 +36,7 @@ export async function vistaPreviaReporte(servicioId) {
       const filas = (t.filas || []).filter(f => f.some(c => String(c).trim() !== ''));
       const sep = (i) => (t.separadores || []).includes(i) ? 'sep-grupo' : '';
       return [
-        t.titulo ? h('p.previa__p', h('strong', t.titulo)) : null,
+        t.titulo ? h('p.previa__p', h('strong', String(t.titulo).toUpperCase())) : null,
         t.subtitulo ? h('p.previa__p.previa__sub', t.subtitulo) : null,
         h('div.previa__desborde', h('table.previa__tabla',
           // las columnas son objetos {nombre, unidad}: pasarlos directo a h()

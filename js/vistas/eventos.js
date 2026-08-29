@@ -317,10 +317,10 @@ function tablaVTDe(abrevs, subtitulo) {
 function elegirLeyendaVT() {
   return hoja('¿Que tabla es?', (cerrar) => h('div',
     h('div.lista-acciones',
-      ['Valores iniciales', 'Antes de ajuste', 'Despues de ajuste'].map(t =>
-        h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar(t) }, t)),
-      h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('__otro__') },
-        '✎  Otro (leyenda propia)')
+      ['VALORES INICIALES', 'ANTES DE AJUSTE', 'DESPUES DE AJUSTE'].map(t =>
+        h('button.lista-acciones__item.opcion-fuerte', { type: 'button', onclick: () => cerrar(t) }, t)),
+      h('button.lista-acciones__item.opcion-fuerte', { type: 'button', onclick: () => cerrar('__otro__') },
+        '✎  OTRO (LEYENDA PROPIA)')
     )
   )).then(async (op) => {
     if (!op) return null;
@@ -336,7 +336,7 @@ function elegirLeyendaVT() {
             onclick: () => {
               const v = cLeyenda.querySelector('input').value.trim();
               if (!v) { aviso('Escribe la leyenda', 'error'); return; }
-              texto = v;
+              texto = v.toUpperCase();
               cerrar(true);
             }
           }, 'Continuar'))

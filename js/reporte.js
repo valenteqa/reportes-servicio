@@ -418,7 +418,7 @@ async function generarConPlantilla(servicioId) {
     if (ev.tipo === 'tabla') {
       const t = ev.datos;
       let x = '';
-      if (t.titulo) x += par([{ t: t.titulo, b: true }], { esp: [160, 60] });
+      if (t.titulo) x += par([{ t: String(t.titulo).toUpperCase(), b: true }], { esp: [160, 60] });
       if (t.subtitulo) x += par(t.subtitulo, { esp: [0, 60] });
       x += tablaXml(t.columnas || [], (t.filas || []).filter(f => f.some(c => String(c).trim() !== '')), t.separadores);
       x += par('', { esp: [0, 60] });
@@ -589,7 +589,7 @@ async function generarReporteBasico(servicioId) {
     if (ev.tipo === 'tabla') {
       const t = ev.datos;
       let x = '';
-      if (t.titulo) x += par([{ t: t.titulo, b: true }], { esp: [160, 60] });
+      if (t.titulo) x += par([{ t: String(t.titulo).toUpperCase(), b: true }], { esp: [160, 60] });
       if (t.subtitulo) x += par(t.subtitulo, { esp: [0, 60] });
       const filas = (t.filas || []).filter(f => f.some(c => String(c).trim() !== ''));
       x += tablaXml(t.columnas || [], filas, t.separadores);

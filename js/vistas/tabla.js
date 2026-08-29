@@ -246,6 +246,9 @@ export async function render(contenedor, refrescar, params) {
 
   // Terminar la captura: la tabla queda agregada y pasa a solo-ver.
   const terminar = async () => {
+    const ok = await confirmar('¿Tabla lista? Una vez agregada no se puede modificar.',
+      { textoOk: 'Agregar', peligro: false });
+    if (!ok) return;
     delete evento.enEdicion;
     await guardarYa(evento);
     history.back();
