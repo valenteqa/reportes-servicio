@@ -38,6 +38,10 @@ function fechaBonita(clave) {
   return d.getDate() + ' ' + MESES[d.getMonth()] + ' ' + d.getFullYear();
 }
 
+function fechaDeTs(ts) {
+  return ts ? fechaBonita(fechaClave(new Date(ts))) : 'sin fecha';
+}
+
 function veTablero(yo) {
   return !!yo && (yo.rol === 'admin' || yo.depto === 'Ventas');
 }
@@ -257,7 +261,7 @@ function hojaNuevaOportunidad(clientes) {
 
       const cTitulo = campo('Oportunidad', { maxLength: 160, placeholder: 'p. ej. Refacciones para H400' });
       const selPrio = h('select.org-select', ...PRIORIDADES.map(([v, n]) => h('option', { value: v }, n)));
-      const cFecha = campo('Proximo seguimiento', { type: 'date', value: fechaClave() });
+      const cFecha = campo('Fecha compromiso', { type: 'date', value: fechaClave() });
       poner(
         cabeza('La oportunidad'),
         cTitulo,
@@ -382,7 +386,7 @@ function hojaNuevaAccion(v, contactos, globales) {
         return;
       }
       const cTexto = campo('¿Que se hizo? (nuevo estatus)', { maxLength: 240 });
-      const cFecha = campo('Proximo seguimiento', { type: 'date', value: '' });
+      const cFecha = campo('Fecha compromiso', { type: 'date', value: '' });
       poner(
         cabeza('La accion'),
         cTexto, cFecha,
@@ -406,6 +410,86 @@ function hojaNuevaAccion(v, contactos, globales) {
 }
 
 /* ---------------------------------------------------------------- */
+/* Edicion (SOLO lider de Ventas o admin: "poder cambiar todo")      */
+/* ---------------------------------------------------------------- */
+
+function hojaEditarOportunidad(v) {
+  return hoja('✎  Editar oportunidad', (cerrar) => {
+    const cCliente = campo('Cliente', { maxLength: 80, value: v.cliente || '' });
+    const cSede = campo('Sede', { maxLength: 80, value: v.sede || '' });
+    const cTitulo = campo('Oportunidad', { maxLength: 160, value: v.titulo || '' });
+    const selPrio = h('select.org-select',
+      ...PRIORIDADES.map(([val, n]) => h('option', { value: val, selected: v.prioridad === val }, n)));
+    const cFecha = campo('Fecha compromiso', { type: 'date', value: v.fechaSeguimiento || '' });
+    return h('div',
+      cCliente, cSede, cTitulo,
+      h('label.campo', h('span.campo__etiqueta', 'Prioridad'), selPrio),
+      cFecha,
+      h('div.hoja__acciones',
+        h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+        h('button.btn.btn--primario', {
+          type: 'button',
+          onclick: () => {
+            const cliente = cCliente.querySelector('input').value.trim();
+            const titulo = cTitulo.querySelector('input').value.trim();
+            if (!cliente || !titulo) { aviso('El cliente y la oportunidad no pueden quedar vacios.', 'error'); return; }
+            cerrar({
+              cliente,
+              sede: cSede.querySelector('input').value.trim(),
+              titulo,
+              prioridad: selPrio.value,
+              fechaSeguimiento: cFecha.querySelector('input').value || '',
+            });
+          },
+        }, 'Guardar')));
+  });
+}
+
+function hojaEditarAccion(e) {
+  return hoja('✎  Editar accion', (cerrar) => {
+    const cTexto = campo('Texto del estatus', { maxLength: 240, value: e.texto || '' });
+    const cContacto = campo('Contacto', { maxLength: 120, value: e.contacto || '' });
+    const cFecha = campo('Fecha compromiso', { type: 'date', value: e.compromiso || '' });
+    return h('div',
+      cTexto, cContacto, cFecha,
+      h('div.hoja__acciones',
+        h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+        h('button.btn.btn--primario', {
+          type: 'button',
+          onclick: () => {
+            const texto = cTexto.querySelector('input').value.trim();
+            if (!texto) { aviso('El texto no puede quedar vacio.', 'error'); return; }
+            cerrar({
+              texto,
+              contacto: cContacto.querySelector('input').value.trim(),
+              compromiso: cFecha.querySelector('input').value || '',
+            });
+          },
+        }, 'Guardar')));
+  });
+}
+
+function hojaEditarAnotacion(n) {
+  return hoja('✎  Editar anotacion', (cerrar) => {
+    const cTexto = campoArea('Anotacion', { maxLength: 400 });
+    const area = cTexto.querySelector('textarea, input');
+    area.value = n.texto || '';
+    return h('div',
+      cTexto,
+      h('div.hoja__acciones',
+        h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+        h('button.btn.btn--primario', {
+          type: 'button',
+          onclick: () => {
+            const texto = area.value.trim();
+            if (!texto) { aviso('La anotacion no puede quedar vacia.', 'error'); return; }
+            cerrar(texto);
+          },
+        }, 'Guardar')));
+  });
+}
+
+/* ---------------------------------------------------------------- */
 /* Detalle de una oportunidad                                        */
 /* ---------------------------------------------------------------- */
 
@@ -421,9 +505,21 @@ async function hojaDetalle(v, permisos, alCambiar) {
         h('p.venta-titulo', v.titulo),
         h('p.venta-meta',
           h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()),
-          ' · seguimiento: ' + fechaBonita(v.fechaSeguimiento) + (v.cerrada ? ' · CERRADA' : '')),
+          ' · 📅 Creada: ' + fechaDeTs(v.creado) + (v.cerrada ? ' · CERRADA' : '')),
+        v.cerrada ? null : h('p.venta-meta', 'Fecha compromiso: ' + fechaBonita(v.fechaSeguimiento)),
         contacto ? h('p.venta-meta', '👤 Contacto actual: ' + contacto) : null,
         h('p.venta-cal', 'CALIFICACION: ' + cal + '%  (' + (v.historial || []).length + ' estatus)'),
+        permisos.gestionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
+          type: 'button',
+          onclick: async () => {
+            const datos = await hojaEditarOportunidad(v);
+            if (!datos) return;
+            Object.assign(v, datos);
+            await db.ventaGuardar(v);
+            pinta();
+            alCambiar();
+          },
+        }, '✎  EDITAR OPORTUNIDAD') : null,
 
         h('h3.venta-h3', 'HISTORIAL DE ACCIONES'),
         h('div.venta-historial',
@@ -431,13 +527,42 @@ async function hojaDetalle(v, permisos, alCambiar) {
             h('div.venta-evento' + (e.tipo === 'atraso' ? '.venta-evento--atraso' : ''),
               h('span.venta-evento__fecha', fechaBonita(e.fecha)),
               h('span.venta-evento__texto', e.texto,
-                e.contacto ? h('span.venta-evento__contacto', '👤 ' + e.contacto) : null)))),
+                e.contacto ? h('span.venta-evento__contacto', '👤 ' + e.contacto) : null,
+                e.compromiso ? h('span.venta-evento__contacto', '📅 Fecha compromiso: ' + fechaBonita(e.compromiso)) : null),
+              permisos.gestionar ? h('span.venta-evento__tools',
+                h('button.icono-btn.org-mini', {
+                  type: 'button', 'aria-label': 'Editar accion',
+                  onclick: async () => {
+                    const datos = await hojaEditarAccion(e);
+                    if (!datos) return;
+                    e.texto = datos.texto;
+                    e.contacto = datos.contacto;
+                    e.compromiso = datos.compromiso;
+                    // si es la accion mas reciente, su compromiso es el vigente
+                    if (datos.compromiso && v.historial[v.historial.length - 1] === e) {
+                      v.fechaSeguimiento = datos.compromiso;
+                    }
+                    await db.ventaGuardar(v);
+                    pinta();
+                    alCambiar();
+                  },
+                }, '✎'),
+                h('button.icono-btn.org-mini', {
+                  type: 'button', 'aria-label': 'Eliminar accion',
+                  onclick: async () => {
+                    if (!(await confirmar('¿Eliminar este estatus del historial? La calificacion se recalcula.'))) return;
+                    v.historial = v.historial.filter(x => x !== e);
+                    await db.ventaGuardar(v);
+                    pinta();
+                    alCambiar();
+                  },
+                }, '🗑')) : null))),
         permisos.accionar && !v.cerrada ? h('button.btn.btn--primario.venta-btn', {
           type: 'button',
           onclick: async () => {
             const accion = await hojaNuevaAccion(v, await contactosDe(v.cliente, v.sede), await contactosGlobales());
             if (!accion) return;
-            v.historial.push({ ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo: 'estatus', texto: accion.texto, contacto: accion.contacto || '' });
+            v.historial.push({ ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo: 'estatus', texto: accion.texto, contacto: accion.contacto || '', compromiso: accion.fecha || '' });
             if (accion.fecha) v.fechaSeguimiento = accion.fecha;
             await db.ventaGuardar(v);
             pinta();
@@ -454,7 +579,27 @@ async function hojaDetalle(v, permisos, alCambiar) {
             (v.anotaciones || []).slice().reverse().map(n =>
               h('div.venta-nota',
                 h('span.venta-evento__fecha', fechaBonita(n.fecha)),
-                h('span.venta-nota__texto', n.texto))))
+                h('span.venta-nota__texto', n.texto),
+                permisos.gestionar ? h('span.venta-evento__tools',
+                  h('button.icono-btn.org-mini', {
+                    type: 'button', 'aria-label': 'Editar anotacion',
+                    onclick: async () => {
+                      const texto = await hojaEditarAnotacion(n);
+                      if (!texto) return;
+                      n.texto = texto;
+                      await db.ventaGuardar(v);
+                      pinta();
+                    },
+                  }, '✎'),
+                  h('button.icono-btn.org-mini', {
+                    type: 'button', 'aria-label': 'Eliminar anotacion',
+                    onclick: async () => {
+                      if (!(await confirmar('¿Eliminar esta anotacion?'))) return;
+                      v.anotaciones = v.anotaciones.filter(x => x !== n);
+                      await db.ventaGuardar(v);
+                      pinta();
+                    },
+                  }, '🗑')) : null)))
           : h('p.pista', 'Datos importantes, tips, señas del cliente… (no afectan la calificacion)'),
         permisos.accionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
           type: 'button',
@@ -592,6 +737,7 @@ export async function render(contenedor, refrescar, params = {}) {
   }
 
   let filtroCliente = '';
+  let filtroVendedor = '';
 
   const pintar = async () => {
     const todasLasVentas = await db.ventasTodas();
@@ -627,7 +773,7 @@ export async function render(contenedor, refrescar, params = {}) {
             id: db.nuevoId(), ...datos, cerrada: false, creado: db.marcaDeTiempo(),
             duenoId: yo ? yo.id : '', dueno: yo ? yo.nombre : '',
             anotaciones: [],
-            historial: [{ ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo: 'estatus', texto: accion.texto, contacto: accion.contacto || '' }],
+            historial: [{ ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo: 'estatus', texto: accion.texto, contacto: accion.contacto || '', compromiso: accion.fecha || '' }],
           };
           if (accion.fecha) v.fechaSeguimiento = accion.fecha;
           await db.ventaGuardar(v);
@@ -639,11 +785,26 @@ export async function render(contenedor, refrescar, params = {}) {
         },
       }, '✚  NUEVA') : null));
 
+    // Filtro por VENDEDOR (solo la vista del lider ve todas las cajas).
+    if (veTodas) {
+      const duenos = [...new Set(ventas.map(v => v.dueno).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+      const haySinDueno = ventas.some(v => !v.dueno);
+      const selVendedor = h('select.org-select.venta-filtro',
+        h('option', { value: '' }, 'Todos los vendedores'),
+        ...duenos.map(d => h('option', { value: d, selected: filtroVendedor === d }, d)),
+        haySinDueno ? h('option', { value: '__sin__', selected: filtroVendedor === '__sin__' }, 'Sin vendedor') : null);
+      selVendedor.onchange = () => { filtroVendedor = selVendedor.value; pintar(); };
+      cont.append(h('div.gd-nav', selVendedor));
+    }
+
     cont.append(h('button.btn.btn--fantasma.venta-abrir', {
       type: 'button', onclick: () => { location.hash = '#/d/ventas/dir'; },
     }, '📇  DIRECTORIO DE CLIENTES'));
 
     let lista = ventas.filter(v => !filtroCliente || v.cliente === filtroCliente);
+    if (veTodas && filtroVendedor) {
+      lista = lista.filter(v => filtroVendedor === '__sin__' ? !v.dueno : v.dueno === filtroVendedor);
+    }
     // Orden: abiertas primero por fecha de seguimiento y luego prioridad;
     // cerradas al final.
     lista.sort((a, b) => {
@@ -670,9 +831,9 @@ export async function render(contenedor, refrescar, params = {}) {
     }
 
     const hoy = fechaClave();
-    for (const v of lista) {
+    const tarjeta = (v) => {
       const vencida = !v.cerrada && v.fechaSeguimiento && v.fechaSeguimiento < hoy;
-      cont.append(h('button.venta-carta' + (v.cerrada ? '.venta-carta--cerrada' : ''), {
+      return h('button.venta-carta' + (v.cerrada ? '.venta-carta--cerrada' : ''), {
         type: 'button',
         onclick: () => hojaDetalle(v, permisos, pintar),
       },
@@ -680,15 +841,39 @@ export async function render(contenedor, refrescar, params = {}) {
           h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()),
           h('span.venta-cliente', v.cliente + (v.sede ? ' · ' + v.sede : '')),
           h('span.venta-cal', calificacion(v) + '%')),
-        // El lider ve de quien es cada caja; el vendedor solo ve la suya.
-        veTodas && v.dueno ? h('p.venta-dueno', '🧑‍🔧 ' + v.dueno) : null,
         h('p.venta-titulo', v.titulo),
+        h('p.venta-meta', '📅 Creada: ' + fechaDeTs(v.creado),
+          v.cerrada ? ' · CERRADA' : h('span' + (vencida ? '.venta-vencida' : ''),
+            ' · ' + (vencida ? '⚠ vencida · ' : '') + 'Fecha compromiso: ' + fechaBonita(v.fechaSeguimiento))),
         h('p.venta-meta',
-          v.cerrada ? 'CERRADA' : h('span' + (vencida ? '.venta-vencida' : ''),
-            (vencida ? '⚠ vencida · ' : 'seguimiento: ') + fechaBonita(v.fechaSeguimiento)),
-          contactoVigente(v) ? ' · 👤 ' + contactoVigente(v) : '',
-          h('span.venta-estatus', ' · ' + estatusActual(v)))
-      ));
+          contactoVigente(v) ? '👤 ' + contactoVigente(v) + ' · ' : '',
+          h('span.venta-estatus', estatusActual(v)))
+      );
+    };
+
+    if (!veTodas) {
+      for (const v of lista) cont.append(tarjeta(v));
+      return;
+    }
+
+    // Vista del lider: AGRUPADAS por vendedor (sin dueño al final).
+    const grupos = new Map();
+    for (const v of lista) {
+      const clave = v.dueno || 'Sin vendedor';
+      if (!grupos.has(clave)) grupos.set(clave, []);
+      grupos.get(clave).push(v);
+    }
+    const nombres = [...grupos.keys()].sort((a, b) =>
+      (a === 'Sin vendedor') - (b === 'Sin vendedor') || a.localeCompare(b, 'es'));
+    for (const nombre of nombres) {
+      const suyas = grupos.get(nombre);
+      const abiertasG = suyas.filter(v => !v.cerrada);
+      const promG = abiertasG.length
+        ? Math.round(abiertasG.reduce((s, v) => s + calificacion(v), 0) / abiertasG.length)
+        : null;
+      cont.append(h('h3.venta-grupo', '🧑‍🔧 ' + nombre,
+        h('span.sem-dato', abiertasG.length + ' abierta' + (abiertasG.length === 1 ? '' : 's') + (promG !== null ? ' · ' + promG + '%' : ''))));
+      for (const v of suyas) cont.append(tarjeta(v));
     }
   };
 
