@@ -219,13 +219,13 @@ export function ensayoDeMarca() {
       onclick: () => ejecutarMarca(animSel, [logo]),
     });
 
+    // El chip SOLO elige; la animacion corre al tocar el logo o un sonido.
     const chips = MARCAS_PROBADOR.map(([clase, nombre]) =>
       h('button.chip-ensayo', {
         type: 'button',
         onclick: (ev) => {
           animSel = clase;
           for (const c of chips) c.classList.toggle('chip-ensayo--activo', c === ev.currentTarget);
-          ejecutarMarca(clase, [logo], -1);   // vista previa en silencio
         },
       }, nombre));
     chips[0].classList.add('chip-ensayo--activo');
@@ -239,7 +239,7 @@ export function ensayoDeMarca() {
         h('div.ensayo__escena', logo,
           h('p.ensayo__pista', 'Toca el logo: corre con su sonido asignado'))),
       h('div.ensayo__zona',
-        h('p.ensayo__titulo', 'ANIMACION · toca para verla sola'),
+        h('p.ensayo__titulo', 'ANIMACION · elige una'),
         h('div.ensayo__chips', chips),
         h('p.ensayo__titulo', 'SONIDOS · suena y corre la animacion elegida'),
         h('div.ensayo__sonidos',
@@ -257,8 +257,8 @@ export function animarMarca(...els) {
   ejecutarMarca(ANIMS_MARCA[Math.floor(Math.random() * ANIMS_MARCA.length)], els);
 }
 
-// iSonido: indice para FORZAR un sonido (ensayo), -1 = en silencio,
-// null/ausente = pareja coreografiada o sorteo (uso normal).
+// iSonido: indice para FORZAR un sonido (ensayo); null/ausente = pareja
+// coreografiada o sorteo (uso normal).
 function ejecutarMarca(anim, els, iSonido) {
   const esVuela = anim === 'marca-vuela';
   const esVibra = anim === 'marca-vibra';
@@ -279,30 +279,28 @@ function ejecutarMarca(anim, els, iSonido) {
   try {
     if (audioMarca) audioMarca.pause();
     clearTimeout(corteMarca);
-    if (iSonido === -1) {
-      // Ensayo en silencio: aun asi la vibracion se corta a los 4s.
-      corteMarca = setTimeout(quitarVibra, 4000);
-    } else {
-      const pozo = pozoDeSonidos();
-      const iCorriendo = SONIDOS_MARCA.findIndex(s => s.includes('corriendo'));
-      const iQuepaso = SONIDOS_MARCA.findIndex(s => s.includes('quepaso'));
-      let i;
-      if (iSonido != null) i = iSonido;
-      else if (esVuela) i = iCorriendo;
-      else if (esVibra) i = iQuepaso;
-      else {
-        do { i = Math.floor(Math.random() * pozo.length); } while (i === iCorriendo || i === iQuepaso);
-      }
-      if (SONIDOS_MARCA[i].includes('djstop')) retrasoAnim = 500;
-      audioMarca = pozo[i];
-      audioMarca.currentTime = 0;
-      audioMarca.play().catch(() => {});
-      if (esVibra) audioMarca.addEventListener('ended', quitarVibra, { once: true });
-      corteMarca = setTimeout(() => {
-        if (audioMarca) audioMarca.pause();
-        quitarVibra();   // si el sonido se corto a los 4s, la vibracion tambien
-      }, 4000);
+    const pozo = pozoDeSonidos();
+    const iCorriendo = SONIDOS_MARCA.findIndex(s => s.includes('corriendo'));
+    const iQuepaso = SONIDOS_MARCA.findIndex(s => s.includes('quepaso'));
+    let i;
+    if (iSonido != null) i = iSonido;
+    else if (esVuela) i = iCorriendo;
+    else if (esVibra) i = iQuepaso;
+    else {
+      do { i = Math.floor(Math.random() * pozo.length); } while (i === iCorriendo || i === iQuepaso);
     }
+    if (SONIDOS_MARCA[i].includes('djstop')) retrasoAnim = 500;
+    audioMarca = pozo[i];
+    audioMarca.currentTime = 0;
+    audioMarca.play().catch(() => {});
+    if (esVibra) audioMarca.addEventListener('ended', quitarVibra, { once: true });
+    // "What the hell" suena COMPLETO (dura 7.7s y la vibracion lo acompana);
+    // los demas se cortan a los 4s.
+    const tope = SONIDOS_MARCA[i].includes('quepaso') ? 8000 : 4000;
+    corteMarca = setTimeout(() => {
+      if (audioMarca) audioMarca.pause();
+      quitarVibra();   // si el sonido se corto en el tope, la vibracion tambien
+    }, tope);
   } catch (e) { /* sin audio */ }
 
   const aplicar = () => {

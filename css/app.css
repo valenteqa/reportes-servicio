@@ -366,7 +366,7 @@ button { font-family: inherit; font-size: inherit; }
    de golpe al tamano normal). Los porcentajes mapean esos tiempos sobre
    1.2s; al terminar entra la vibracion infinita (retrasada 1.2s), que como
    va despues en la lista manda sobre el transform y vibra a tamano normal
-   hasta que el sonido termina (o el corte de 4s). */
+   hasta que el sonido termina (este suena completo, sin corte). */
 @keyframes marcaQuePaso {
   0%   { transform: scale(1); }
   10%  { transform: scale(1); }      /* silencio antes del "what" */
