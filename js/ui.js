@@ -152,7 +152,7 @@ export function vaciar(el) {
 // Animaciones de la marca (logo y nombre): cada toque sortea una distinta,
 // con su sonido goofy tambien al azar. Reinicia aunque se toque en rafaga.
 const ANIMS_MARCA = ['marca-animada', 'marca-gira', 'marca-brinca', 'marca-tiembla', 'marca-late', 'marca-voltea', 'marca-vuela', 'marca-vibra', 'marca-cae', 'marca-rudo', 'marca-pato'];
-const SONIDOS_MARCA = ['bruh', 'pato', 'corriendo', 'quepaso', 'rudo', 'djstop', 'grito', 'dios', 'esponja']
+const SONIDOS_MARCA = ['pato', 'corriendo', 'quepaso', 'rudo', 'djstop', 'grito', 'dios']
   .map(n => 'sonidos/' + n + '.mp3');
 let audioMarca = null;
 let corteMarca = null;
@@ -199,8 +199,8 @@ const MARCAS_PROBADOR = [
 ];
 
 // Nombres de los sonidos, en el MISMO orden que SONIDOS_MARCA.
-const SONIDOS_NOMBRES = ['Bruh', 'Pato', 'Corriendo (pasos + disparo)', 'What the hell',
-  'Rudo', 'DJ stop', 'Grito', 'Dios', 'Esponja'];
+const SONIDOS_NOMBRES = ['Pato', 'Corriendo (pasos + disparo)', 'What the hell',
+  'Rudo', 'DJ stop', 'Grito', 'Dios'];
 
 // Ensayo del logo: pantalla dedicada con fondo blanco. Tocar una ANIMACION
 // la corre sola (en silencio) y la deja elegida; tocar un SONIDO lo hace

@@ -14,7 +14,7 @@
 // Subir VERSION en cada publicacion (junto con APP_VERSION en js/version.js):
 // eso dispara un re-precacheo completo, que es la via mas confiable.
 
-const VERSION = 'v145';
+const VERSION = 'v146';
 const CACHE = 'reportes-' + VERSION;
 
 const CASCARON = [
@@ -46,8 +46,7 @@ const CASCARON = [
   'icons/logo-serpro.png',
   'fonts/orbitron.woff2',
   'fonts/roboto-condensed.woff2',
-  // Sonidos goofy del logo (688KB): tambien sin señal.
-  'sonidos/bruh.mp3',
+  // Sonidos goofy del logo: tambien sin señal.
   'sonidos/pato.mp3',
   'sonidos/corriendo.mp3',
   'sonidos/quepaso.mp3',
@@ -55,7 +54,6 @@ const CASCARON = [
   'sonidos/djstop.mp3',
   'sonidos/grito.mp3',
   'sonidos/dios.mp3',
-  'sonidos/esponja.mp3',
   'cameos/cameo1.webp',
   'cameos/cameo2.webp',
   'cameos/cameo3.webp',
