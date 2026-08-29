@@ -72,6 +72,15 @@ export function serYo(id) {
   return ajusteGuardar('diario:yo', id);
 }
 
+// Identidad REAL del telefono, ignorando el "ver como" del modo prueba.
+// La usa el porton de ⚙: el admin de verdad entra sin clave aunque este
+// simulando ser otro usuario.
+export async function quienSoyReal() {
+  const org = await organizacion();
+  const yoId = await ajusteLeer('diario:yo');
+  return org.usuarios.find(u => u.id === yoId) || null;
+}
+
 // Sin identificarse se trata como usuario normal (lo mas restrictivo).
 export function puedeEditarActividades(yo) {
   return !!yo && (yo.rol === 'lider' || yo.rol === 'admin');

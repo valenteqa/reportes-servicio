@@ -6,7 +6,7 @@ import * as media from '../media.js';
 import { APP_VERSION } from '../version.js';
 import { temaActual, alternarTema, zoomActual, aplicarZoom } from '../tema.js';
 import { esNativa, compartirArchivoNativo, guardarEnCarpetaNativa, nombreSeguro, guardarUltimoRespaldo, leerUltimoRespaldo, instalarActualizacionApk } from '../nativo.js';
-import { DEPTOS, ROLES, organizacion, organizacionGuardar, quienSoy, serYo, esAdmin, claveDelDia, claveDeManana, fechaSimulada, simularFecha, verComo, estadoPrueba } from '../organizacion.js';
+import { DEPTOS, ROLES, organizacion, organizacionGuardar, quienSoy, quienSoyReal, serYo, esAdmin, claveDelDia, claveDeManana, fechaSimulada, simularFecha, verComo, estadoPrueba } from '../organizacion.js';
 
 // La ⚙ completa se abre con la CLAVE DEL DIA (solo el administrador la
 // tiene). Una vez dada, queda abierta hasta cerrar la app: variable en
@@ -15,6 +15,10 @@ import { DEPTOS, ROLES, organizacion, organizacionGuardar, quienSoy, serYo, esAd
 let configDesbloqueada = false;
 
 export async function abrirConfiguracion() {
+  // El ADMINISTRADOR entra sin clave: su identidad REAL (no la simulada
+  // del modo prueba) esta sellada en su telefono. Reinstalar borra la
+  // identidad, asi que un telefono recien instalado siempre pide clave.
+  if (!configDesbloqueada && esAdmin(await quienSoyReal())) configDesbloqueada = true;
   if (configDesbloqueada) return hojaConfiguracion();
   const ok = await hoja('🔐  Clave de administrador', (cerrar) => {
     const c = campo('Clave del dia (6 digitos)', { type: 'password', inputMode: 'numeric', maxLength: 6, autocomplete: 'off' });
