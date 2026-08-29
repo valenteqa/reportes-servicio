@@ -215,26 +215,30 @@ function parrafosDe(texto, opts) {
     .map(l => par(l, opts)).join('');
 }
 
-function tablaXml(columnas, filas) {
+function tablaXml(columnas, filas, separadores) {
   const nCols = Math.max(1, columnas.length);
   const ancho = Math.floor(9360 / nCols);
+  const seps = separadores || [];
   const bordes =
     '<w:tblBorders>' +
     ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']
       .map(b => '<w:' + b + ' w:val="single" w:sz="4" w:space="0" w:color="7F7F7F"/>').join('') +
     '</w:tblBorders>';
 
-  const celda = (texto, cabecera) =>
+  // La columna que arranca un grupo (p. ej. cada bomba en la tabla VT)
+  // lleva borde izquierdo GRUESO para separarlo a simple vista.
+  const celda = (texto, cabecera, sep) =>
     '<w:tc><w:tcPr><w:tcW w:w="' + ancho + '" w:type="dxa"/>' +
+    (sep ? '<w:tcBorders><w:left w:val="single" w:sz="18" w:space="0" w:color="404040"/></w:tcBorders>' : '') +
     (cabecera ? '<w:shd w:val="clear" w:color="auto" w:fill="D9E4E8"/>' : '') +
     '</w:tcPr>' +
     par(cabecera ? [{ t: texto, b: true }] : String(texto || ''), { esp: [20, 20] }) +
     '</w:tc>';
 
-  const filaCab = '<w:tr>' + columnas.map(c =>
-    celda(c.nombre + (c.unidad ? ' (' + c.unidad + ')' : ''), true)).join('') + '</w:tr>';
+  const filaCab = '<w:tr>' + columnas.map((c, i) =>
+    celda(c.nombre + (c.unidad ? ' (' + c.unidad + ')' : ''), true, seps.includes(i))).join('') + '</w:tr>';
   const cuerpo = filas.map(f =>
-    '<w:tr>' + columnas.map((c, i) => celda(f[i], false)).join('') + '</w:tr>').join('');
+    '<w:tr>' + columnas.map((c, i) => celda(f[i], false, seps.includes(i))).join('') + '</w:tr>').join('');
 
   return '<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/>' + bordes +
     '<w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid>' +
@@ -415,7 +419,8 @@ async function generarConPlantilla(servicioId) {
       const t = ev.datos;
       let x = '';
       if (t.titulo) x += par([{ t: t.titulo, b: true }], { esp: [160, 60] });
-      x += tablaXml(t.columnas || [], (t.filas || []).filter(f => f.some(c => String(c).trim() !== '')));
+      if (t.subtitulo) x += par(t.subtitulo, { esp: [0, 60] });
+      x += tablaXml(t.columnas || [], (t.filas || []).filter(f => f.some(c => String(c).trim() !== '')), t.separadores);
       x += par('', { esp: [0, 60] });
       return x;
     }
@@ -585,8 +590,9 @@ async function generarReporteBasico(servicioId) {
       const t = ev.datos;
       let x = '';
       if (t.titulo) x += par([{ t: t.titulo, b: true }], { esp: [160, 60] });
+      if (t.subtitulo) x += par(t.subtitulo, { esp: [0, 60] });
       const filas = (t.filas || []).filter(f => f.some(c => String(c).trim() !== ''));
-      x += tablaXml(t.columnas || [], filas);
+      x += tablaXml(t.columnas || [], filas, t.separadores);
       x += par('', { esp: [0, 60] });
       return x;
     }

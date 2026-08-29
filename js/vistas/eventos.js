@@ -2,7 +2,7 @@
 
 import * as db from '../db.js';
 import * as media from '../media.js';
-import { h, hora, fecha, aviso, hoja, confirmar, campoArea, vacio, anclarCapa, bloquearScroll, liberarScroll, icono, orientarLibre, orientarHorizontal, orientarNormal, ocupado, libre } from '../ui.js';
+import { h, hora, fecha, aviso, hoja, confirmar, campo, campoArea, vacio, anclarCapa, bloquearScroll, liberarScroll, icono, orientarLibre, orientarHorizontal, orientarNormal, ocupado, libre } from '../ui.js';
 import { editarFoto } from '../editor-foto.js';
 import { esNativa, compartirArchivoNativo, guardarEnCarpetaNativa, nombreSeguro } from '../nativo.js';
 
@@ -300,15 +300,50 @@ const BOMBAS_VT = [
   ['Extruder 2', 'E2'],
 ];
 
-function tablaVTDe(abrevs) {
+function tablaVTDe(abrevs, subtitulo) {
   const columnas = [{ nombre: 'Pin', unidad: '', tipo: 'texto' }];
+  const separadores = [];   // columna donde ARRANCA cada bomba: borde grueso
   for (const a of abrevs) {
+    separadores.push(columnas.length);
     columnas.push({ nombre: a + ' Off', unidad: '', tipo: 'numero' });
     columnas.push({ nombre: a + ' On',  unidad: '', tipo: 'numero' });
   }
   const filas = ['Pin 1', 'Pin 2', 'Pin 3', 'Pin 4', 'Pin 5', 'Pin 6', 'Presion']
     .map(p => columnas.map((c, i) => (i === 0 ? p : '')));
-  return { titulo: TABLA_VT.nombre, columnas, filas };
+  return { titulo: TABLA_VT.nombre, subtitulo: subtitulo || '', columnas, filas, separadores };
+}
+
+// ¿Que tabla es? La leyenda va debajo del titulo en la tabla y el reporte.
+function elegirLeyendaVT() {
+  return hoja('¿Que tabla es?', (cerrar) => h('div',
+    h('div.lista-acciones',
+      ['Valores iniciales', 'Antes de ajuste', 'Despues de ajuste'].map(t =>
+        h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar(t) }, t)),
+      h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('__otro__') },
+        '✎  Otro (leyenda propia)')
+    )
+  )).then(async (op) => {
+    if (!op) return null;
+    if (op !== '__otro__') return op;
+    let texto = null;
+    await hoja('Leyenda de la tabla', (cerrar) => {
+      const cLeyenda = campo('Leyenda', { value: '' });
+      return h('div',
+        cLeyenda,
+        h('div.hoja__acciones',
+          h('button.btn.btn--primario', {
+            type: 'button',
+            onclick: () => {
+              const v = cLeyenda.querySelector('input').value.trim();
+              if (!v) { aviso('Escribe la leyenda', 'error'); return; }
+              texto = v;
+              cerrar(true);
+            }
+          }, 'Continuar'))
+      );
+    });
+    return texto;
+  });
 }
 
 // Seleccion multiple: cuales bombas tiene la maquina (todas marcadas de inicio).
@@ -367,7 +402,9 @@ export async function agregarTabla(servicioId, equipoId) {
   } else if (eleccion.esVT) {
     const abrevs = await elegirBombasVT();
     if (!abrevs) return null;
-    datos = tablaVTDe(abrevs);
+    const leyenda = await elegirLeyendaVT();
+    if (!leyenda) return null;
+    datos = tablaVTDe(abrevs, leyenda);
   } else {
     datos = JSON.parse(JSON.stringify(eleccion.tabla));
   }
@@ -893,10 +930,11 @@ function tarjetaTabla(evento, refrescar) {
 
   const previa = h('div.tabla-previa');
   const tabla = h('table.tabla-mini');
-  tabla.append(h('thead', h('tr', cols.map(c =>
-    h('th', c.nombre + (c.unidad ? ' (' + c.unidad + ')' : ''))))));
+  const sep = (i) => (evento.datos.separadores || []).includes(i) ? 'sep-grupo' : '';
+  tabla.append(h('thead', h('tr', cols.map((c, i) =>
+    h('th', { class: sep(i) }, c.nombre + (c.unidad ? ' (' + c.unidad + ')' : ''))))));
   const cuerpo = h('tbody');
-  conDatos.slice(0, 3).forEach(f => cuerpo.append(h('tr', f.map(v => h('td', v || '—')))));
+  conDatos.slice(0, 3).forEach(f => cuerpo.append(h('tr', f.map((v, i) => h('td', { class: sep(i) }, v || '—')))));
   tabla.append(cuerpo);
   previa.append(tabla);
 
@@ -909,6 +947,7 @@ function tarjetaTabla(evento, refrescar) {
       menuEvento(evento, refrescar)
     ),
     h('h4.tarjeta__titulo', evento.datos.titulo || 'Tabla sin titulo'),
+    evento.datos.subtitulo ? h('p.tarjeta__subtitulo', evento.datos.subtitulo) : null,
     conDatos.length ? previa : h('p.pista', 'Tabla vacia — toca para llenarla'),
     conDatos.length > 3 ? h('p.pista', '+ ' + (conDatos.length - 3) + ' filas mas') : null
   );

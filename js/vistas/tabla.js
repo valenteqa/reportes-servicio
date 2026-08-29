@@ -115,7 +115,8 @@ export async function render(contenedor, refrescar, params) {
   const cabecera = h('header.cabecera',
     h('div.cabecera__fila',
       h('button.icono-btn', { type: 'button', 'aria-label': 'Volver', onclick: volver }, '←'),
-      h('div.cabecera__titulo', cTitulo),
+      h('div.cabecera__titulo', cTitulo,
+        evento.datos.subtitulo ? h('p', evento.datos.subtitulo) : null),
       h('button.icono-btn', {
         type: 'button', 'aria-label': 'Girar pantalla',
         onclick: async () => {
@@ -153,9 +154,10 @@ export async function render(contenedor, refrescar, params) {
 
     const tabla = h('table.rejilla');
 
+    const esSep = (i) => (evento.datos.separadores || []).includes(i);
     const encabezado = h('tr',
       cols.map((c, i) => h('th', {
-        class: c.tipo === 'numero' ? 'rejilla__th--num' : '',
+        class: (c.tipo === 'numero' ? 'rejilla__th--num' : '') + (esSep(i) ? ' sep-grupo' : ''),
         onclick: () => editarColumna(evento, i, repintar),
       },
         h('span.rejilla__nombre', c.nombre),
@@ -194,7 +196,7 @@ export async function render(contenedor, refrescar, params) {
               else entrada.blur();
             },
           });
-          return h('td', entrada);
+          return h('td', { class: esSep(iCol) ? 'sep-grupo' : '' }, entrada);
         }),
         h('td.rejilla__accion',
           h('button.icono-btn.icono-btn--mini.icono-btn--tenue', {

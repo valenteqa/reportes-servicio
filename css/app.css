@@ -556,8 +556,15 @@ button { font-family: inherit; font-size: inherit; }
 .tabla-mini { border-collapse: collapse; width: 100%; font-size: .8rem; }
 .tabla-mini th, .tabla-mini td {
   padding: .35rem .5rem; text-align: left;
-  border-bottom: 1px solid var(--borde); white-space: nowrap;
+  border: 1px solid var(--borde); white-space: nowrap;
 }
+.tarjeta__subtitulo { font-size: .8rem; color: var(--tinta-suave); margin: -.2rem 0 .35rem; }
+
+/* Separador de grupos de columnas (p. ej. cada bomba de la tabla VT). */
+.rejilla th.sep-grupo, .rejilla td.sep-grupo,
+.tabla-mini th.sep-grupo, .tabla-mini td.sep-grupo { border-left: 3px solid var(--borde-fuerte); }
+.previa__tabla th.sep-grupo, .previa__tabla td.sep-grupo { border-left: 3px solid #1f3864; }
+.previa__sub { font-style: italic; color: #444; }
 .tabla-mini th {
   background: var(--superficie-2); color: var(--tinta-suave);
   font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;

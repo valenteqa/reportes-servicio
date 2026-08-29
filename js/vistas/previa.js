@@ -34,14 +34,16 @@ export async function vistaPreviaReporte(servicioId) {
     if (ev.tipo === 'tabla') {
       const t = ev.datos;
       const filas = (t.filas || []).filter(f => f.some(c => String(c).trim() !== ''));
+      const sep = (i) => (t.separadores || []).includes(i) ? 'sep-grupo' : '';
       return [
         t.titulo ? h('p.previa__p', h('strong', t.titulo)) : null,
+        t.subtitulo ? h('p.previa__p.previa__sub', t.subtitulo) : null,
         h('div.previa__desborde', h('table.previa__tabla',
           // las columnas son objetos {nombre, unidad}: pasarlos directo a h()
           // los tragaba como atributos y los encabezados salian vacios
-          h('thead', h('tr', (t.columnas || []).map(c =>
-            h('th', typeof c === 'string' ? c : (c.nombre || '') + (c.unidad ? ' (' + c.unidad + ')' : ''))))),
-          h('tbody', filas.map(f => h('tr', f.map(c => h('td', String(c))))))
+          h('thead', h('tr', (t.columnas || []).map((c, i) =>
+            h('th', { class: sep(i) }, typeof c === 'string' ? c : (c.nombre || '') + (c.unidad ? ' (' + c.unidad + ')' : ''))))),
+          h('tbody', filas.map(f => h('tr', f.map((c, i) => h('td', { class: sep(i) }, String(c))))))
         )),
       ];
     }
