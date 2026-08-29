@@ -6,6 +6,7 @@ import * as media from '../media.js';
 import { APP_VERSION } from '../version.js';
 import { temaActual, alternarTema, zoomActual, aplicarZoom } from '../tema.js';
 import { esNativa, compartirArchivoNativo, guardarEnCarpetaNativa, nombreSeguro, guardarUltimoRespaldo, leerUltimoRespaldo, instalarActualizacionApk } from '../nativo.js';
+import { DEPTOS, ROLES, organizacion, organizacionGuardar, quienSoy, serYo, esAdmin } from '../organizacion.js';
 
 // Catalogo precargado: clientes y maquinas conocidos aunque el telefono aun
 // no tenga historial propio. El primero es el del reporte de referencia.
@@ -109,6 +110,8 @@ export async function hojaConfiguracion() {
       h('div.lista-acciones',
         h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('tecnico') },
           '👤  Nombre del tecnico'),
+        h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('usuarios') },
+          '👥  Usuarios y deptos'),
         h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('catalogo') },
           '🗂  Clientes y datos de maquina'),
         h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('tablas') },
@@ -123,6 +126,7 @@ export async function hojaConfiguracion() {
     );
   });
   if (accion === 'tecnico') await hojaTecnico();
+  if (accion === 'usuarios') await hojaUsuarios();
   if (accion === 'catalogo') await hojaCampoCatalogo();
   if (accion === 'tablas') await hojaTablasPredeterminadas();
   if (accion === 'zoom') await hojaZoom();
@@ -132,6 +136,50 @@ export async function hojaConfiguracion() {
 
 // Probador: el ensayo del logo (pantalla propia con animaciones y sonidos)
 // y cada cameo, por nombre. Para elegir favoritas y presumir el show.
+// Padron de la organizacion: quien es quien, su depto y su rol. Solo el
+// ADMINISTRADOR cambia roles y deptos; elegir "de quien es este telefono"
+// esta abierto (es la identificacion). Con Firebase esto tendra login real.
+async function hojaUsuarios() {
+  const org = await organizacion();
+  const yo = await quienSoy();
+  const soyAdmin = esAdmin(yo);
+
+  await hoja('👥  Usuarios y deptos', (cerrar) => {
+    const selYo = h('select.org-select',
+      h('option', { value: '' }, '— elegir —'),
+      ...org.usuarios.map(u => h('option', { value: u.id, selected: yo && yo.id === u.id }, u.nombre)));
+    selYo.onchange = async () => {
+      await serYo(selYo.value);
+      aviso('Guardado. Cierra y vuelve a abrir esta hoja para aplicar permisos.');
+    };
+
+    const filas = org.usuarios.map(u => {
+      const selDepto = h('select.org-select',
+        h('option', { value: '' }, 'Sin depto'),
+        ...DEPTOS.map(d => h('option', { value: d, selected: u.depto === d }, d)));
+      const selRol = h('select.org-select',
+        ...Object.keys(ROLES).map(r => h('option', { value: r, selected: u.rol === r }, ROLES[r])));
+      selDepto.onchange = async () => { u.depto = selDepto.value; await organizacionGuardar(org); };
+      selRol.onchange = async () => { u.rol = selRol.value; await organizacionGuardar(org); };
+      if (!soyAdmin) { selDepto.disabled = true; selRol.disabled = true; }
+      return h('div.org-fila',
+        h('span.org-nombre', u.nombre),
+        h('div.org-selects', selDepto, selRol));
+    });
+
+    return h('div',
+      h('label.campo',
+        h('span.campo__etiqueta', 'Este telefono es de'),
+        selYo),
+      h('p.pista', soyAdmin
+        ? 'Eres administrador: puedes asignar depto y rol a cada quien.'
+        : 'Solo el administrador puede cambiar deptos y roles.'),
+      h('div.org-lista', ...filas),
+      h('p.pista', 'Deptos: ' + DEPTOS.join(', ') + '. El lider de area puede modificar o eliminar actividades de su gente; los usuarios solo agregan y marcan.')
+    );
+  });
+}
+
 async function hojaProbador() {
   const cam = await import('../cameos.js');
   await hoja('🎬  Probador de animaciones', (cerrar) => h('div',

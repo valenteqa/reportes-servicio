@@ -677,6 +677,22 @@ button { font-family: inherit; font-size: inherit; }
 .candado-lista { margin-top: .6rem; }
 .candado-btn { width: 100%; margin-top: .9rem; }
 
+.diario-quien { font-size: .84rem; color: var(--tinta-suave); margin: 0 0 .7rem; }
+.dia-editar, .dia-borrar { flex: none; }
+
+/* Padron de usuarios (⚙ → Usuarios y deptos) */
+.org-lista { margin-top: .4rem; }
+.org-fila { padding: .55rem 0; border-bottom: 1px dashed var(--borde); }
+.org-fila:last-child { border-bottom: 0; }
+.org-nombre { display: block; font-weight: 600; margin-bottom: .3rem; }
+.org-selects { display: flex; gap: .5rem; }
+.org-select {
+  flex: 1; min-width: 0; padding: .4rem .5rem;
+  border: 1px solid var(--borde-fuerte); border-radius: var(--r-ch);
+  background: var(--superficie); color: var(--tinta); font: inherit; font-size: .86rem;
+}
+.org-select:disabled { opacity: .6; }
+
 .rudo-humo {
   position: absolute; right: -6%; top: -140%;
   width: 16%; aspect-ratio: 1; border-radius: 50%;

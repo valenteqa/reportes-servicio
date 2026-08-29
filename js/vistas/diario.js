@@ -7,8 +7,9 @@
 // (Fase organizacional pendiente: deptos, lider y ver a toda la organizacion;
 // requiere que los datos viajen entre telefonos.)
 
-import { h, aviso, vaciar, confirmar } from '../ui.js';
+import { h, aviso, vaciar, confirmar, hoja, campo } from '../ui.js';
 import * as db from '../db.js';
+import { quienSoy, puedeEditarActividades, AVISO_SOLO_LIDER } from '../organizacion.js';
 
 const DIAS_CORTOS = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'];
 const MESES_CORTOS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
@@ -47,7 +48,7 @@ function conteo(dia) {
 /* Piezas compartidas (lista de actividades con palomita)            */
 /* ---------------------------------------------------------------- */
 
-function filaActividad(dia, act, { editable, alCambiar }) {
+function filaActividad(dia, act, { editable, puedeEditar, alCambiar }) {
   const palomita = h('button.dia-check' + (act.hecha ? '.dia-check--si' : ''), {
     type: 'button', 'aria-label': act.hecha ? 'Completada' : 'Pendiente',
     onclick: async () => {
@@ -60,15 +61,36 @@ function filaActividad(dia, act, { editable, alCambiar }) {
     palomita,
     h('span.dia-texto' + (act.hecha ? '.dia-texto--hecha' : ''), act.texto));
   if (editable) {
-    fila.append(h('button.icono-btn.dia-borrar', {
-      type: 'button', 'aria-label': 'Eliminar actividad',
-      onclick: async () => {
-        if (!(await confirmar('¿Eliminar la actividad "' + act.texto + '"?'))) return;
-        dia.actividades = dia.actividades.filter(a => a !== act);
-        await db.diaGuardar(dia);
-        alCambiar();
-      },
-    }, '🗑'));
+    // Regla de Vale: cambiar o eliminar actividades es SOLO del lider (o
+    // admin); al usuario normal se le pide que lo solicite a su lider.
+    fila.append(
+      h('button.icono-btn.dia-editar', {
+        type: 'button', 'aria-label': 'Cambiar actividad',
+        onclick: async () => {
+          if (!puedeEditar) { aviso(AVISO_SOLO_LIDER); return; }
+          const nuevo = await hoja('Cambiar actividad', (cerrar) => {
+            const c = campo('Actividad', { value: act.texto, maxLength: 200 });
+            return h('div', c,
+              h('div.hoja__acciones',
+                h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+                h('button.btn.btn--primario', { type: 'button', onclick: () => cerrar(c.querySelector('input').value.trim()) }, 'Guardar')));
+          });
+          if (!nuevo) return;
+          act.texto = nuevo;
+          await db.diaGuardar(dia);
+          alCambiar();
+        },
+      }, '✎'),
+      h('button.icono-btn.dia-borrar', {
+        type: 'button', 'aria-label': 'Eliminar actividad',
+        onclick: async () => {
+          if (!puedeEditar) { aviso(AVISO_SOLO_LIDER); return; }
+          if (!(await confirmar('¿Eliminar la actividad "' + act.texto + '"?'))) return;
+          dia.actividades = dia.actividades.filter(a => a !== act);
+          await db.diaGuardar(dia);
+          alCambiar();
+        },
+      }, '🗑'));
   }
   return fila;
 }
@@ -154,6 +176,9 @@ export async function render(contenedor, refrescar) {
   let dia = await db.diaLeer(hoyClave);
   if (!dia) dia = { fecha: hoyClave, actividades: [], evaluado: false };
 
+  const yo = await quienSoy();
+  const puedeEditar = puedeEditarActividades(yo);
+
   const cabecera = h('header.cabecera',
     h('div.cabecera__fila',
       h('button.icono-btn', { type: 'button', 'aria-label': 'Volver', onclick: () => history.back() }, '←'),
@@ -168,6 +193,13 @@ export async function render(contenedor, refrescar) {
     const todos = (await db.diasTodos()).sort((a, b) => (a.fecha < b.fecha ? -1 : 1));
     vaciar(cont);
 
+    if (yo) {
+      cont.append(h('p.diario-quien', 'Tu: ' + yo.nombre + (yo.depto ? ' · ' + yo.depto : '')));
+    } else {
+      cont.append(h('p.pista.diario-quien',
+        'Este telefono aun no dice de quien es: eligelo en ⚙ Configuracion → Usuarios y deptos. Mientras, cuenta como usuario normal.'));
+    }
+
     /* ── HOY ── */
     const cHoy = conteo(dia);
     const cartaHoy = h('section.diario-carta');
@@ -181,7 +213,7 @@ export async function render(contenedor, refrescar) {
       for (const b of cartaHoy.querySelectorAll('.dia-check')) b.disabled = true;
     } else {
       if (dia.actividades.length) {
-        cartaHoy.append(...dia.actividades.map(a => filaActividad(dia, a, { editable: true, alCambiar: pintar })));
+        cartaHoy.append(...dia.actividades.map(a => filaActividad(dia, a, { editable: true, puedeEditar, alCambiar: pintar })));
         cartaHoy.append(barraAvance(dia));
       } else {
         cartaHoy.append(h('p.pista', 'Anota tus actividades de hoy para empezar. Las puedes ir marcando durante el dia.'));
