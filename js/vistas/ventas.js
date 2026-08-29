@@ -12,7 +12,7 @@
 
 import { h, aviso, vaciar, confirmar, hoja, campo, campoArea } from '../ui.js';
 import * as db from '../db.js';
-import { quienSoy, puedeCrearVentas, puedeAccionarVentas, puedeGestionarVentas, veTodasLasVentas, fechaSimulada } from '../organizacion.js';
+import { organizacion, quienSoy, puedeCrearVentas, puedeAccionarVentas, puedeGestionarVentas, veTodasLasVentas, fechaSimulada } from '../organizacion.js';
 import { clientesConocidos } from './servicios.js';
 
 const PRIORIDADES = [
@@ -148,16 +148,29 @@ function contactoVigente(v) {
   return v.contacto || '';
 }
 
-// Un ATRASO automatico por cada fecha de seguimiento vencida sin accion.
+// La FECHA COMPROMISO es POR ACCION (regla de Vale): la vigente de la
+// oportunidad es la de su ultima accion (los atrasos automaticos no
+// cuentan como accion). Ventas viejas caen a su fechaSeguimiento legada.
+function compromisoVigente(v) {
+  const hist = v.historial || [];
+  for (let k = hist.length - 1; k >= 0; k--) {
+    if (hist[k].tipo === 'estatus') return hist[k].compromiso || '';
+  }
+  return v.fechaSeguimiento || '';
+}
+
+// Un ATRASO automatico por cada fecha compromiso vencida sin accion nueva.
 async function registrarAtrasos(ventas) {
   const hoy = fechaClave();
   for (const v of ventas) {
-    if (v.cerrada || !v.fechaSeguimiento || v.fechaSeguimiento >= hoy) continue;
-    const ya = (v.historial || []).some(e => e.tipo === 'atraso' && e.porFecha === v.fechaSeguimiento);
+    if (v.cerrada) continue;
+    const comp = compromisoVigente(v);
+    if (!comp || comp >= hoy) continue;
+    const ya = (v.historial || []).some(e => e.tipo === 'atraso' && e.porFecha === comp);
     if (ya) continue;
     v.historial.push({
-      ts: db.marcaDeTiempo(), fecha: hoy, tipo: 'atraso', porFecha: v.fechaSeguimiento,
-      texto: 'ATRASO: seguimiento vencido el ' + fechaBonita(v.fechaSeguimiento),
+      ts: db.marcaDeTiempo(), fecha: hoy, tipo: 'atraso', porFecha: comp,
+      texto: 'ATRASO: fecha compromiso vencida el ' + fechaBonita(comp),
     });
     await db.ventaGuardar(v);
   }
@@ -259,14 +272,14 @@ function hojaNuevaOportunidad(clientes) {
         return;
       }
 
+      // La fecha compromiso NO es de la oportunidad: la trae cada accion
+      // (la primera se pide justo despues, obligatoria).
       const cTitulo = campo('Oportunidad', { maxLength: 160, placeholder: 'p. ej. Refacciones para H400' });
       const selPrio = h('select.org-select', ...PRIORIDADES.map(([v, n]) => h('option', { value: v }, n)));
-      const cFecha = campo('Fecha compromiso', { type: 'date', value: fechaClave() });
       poner(
         cabeza('La oportunidad'),
         cTitulo,
         h('label.campo', h('span.campo__etiqueta', 'Prioridad'), selPrio),
-        cFecha,
         h('div.hoja__acciones',
           h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
           h('button.btn.btn--primario', {
@@ -277,7 +290,6 @@ function hojaNuevaOportunidad(clientes) {
               cerrar({
                 cliente: sel.cliente, sede: sel.sede, titulo,
                 prioridad: selPrio.value,
-                fechaSeguimiento: cFecha.querySelector('input').value || '',
               });
             },
           }, 'Continuar'))
@@ -413,18 +425,24 @@ function hojaNuevaAccion(v, contactos, globales) {
 /* Edicion (SOLO lider de Ventas o admin: "poder cambiar todo")      */
 /* ---------------------------------------------------------------- */
 
-function hojaEditarOportunidad(v) {
+async function hojaEditarOportunidad(v) {
+  // El lider tambien puede REASIGNAR la oportunidad a otro vendedor.
+  const org = await organizacion();
+  const equipoVentas = org.usuarios.filter(u => u.depto === 'Ventas');
+
   return hoja('✎  Editar oportunidad', (cerrar) => {
     const cCliente = campo('Cliente', { maxLength: 80, value: v.cliente || '' });
     const cSede = campo('Sede', { maxLength: 80, value: v.sede || '' });
     const cTitulo = campo('Oportunidad', { maxLength: 160, value: v.titulo || '' });
     const selPrio = h('select.org-select',
       ...PRIORIDADES.map(([val, n]) => h('option', { value: val, selected: v.prioridad === val }, n)));
-    const cFecha = campo('Fecha compromiso', { type: 'date', value: v.fechaSeguimiento || '' });
+    const selVendedor = h('select.org-select',
+      h('option', { value: '' }, 'Sin vendedor'),
+      ...equipoVentas.map(u => h('option', { value: u.id, selected: v.duenoId === u.id }, u.nombre)));
     return h('div',
       cCliente, cSede, cTitulo,
       h('label.campo', h('span.campo__etiqueta', 'Prioridad'), selPrio),
-      cFecha,
+      h('label.campo', h('span.campo__etiqueta', 'Vendedor asignado'), selVendedor),
       h('div.hoja__acciones',
         h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
         h('button.btn.btn--primario', {
@@ -433,12 +451,14 @@ function hojaEditarOportunidad(v) {
             const cliente = cCliente.querySelector('input').value.trim();
             const titulo = cTitulo.querySelector('input').value.trim();
             if (!cliente || !titulo) { aviso('El cliente y la oportunidad no pueden quedar vacios.', 'error'); return; }
+            const dueno = equipoVentas.find(u => u.id === selVendedor.value);
             cerrar({
               cliente,
               sede: cSede.querySelector('input').value.trim(),
               titulo,
               prioridad: selPrio.value,
-              fechaSeguimiento: cFecha.querySelector('input').value || '',
+              duenoId: dueno ? dueno.id : '',
+              dueno: dueno ? dueno.nombre : '',
             });
           },
         }, 'Guardar')));
@@ -506,7 +526,7 @@ async function hojaDetalle(v, permisos, alCambiar) {
         h('p.venta-meta',
           h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()),
           ' · 📅 Creada: ' + fechaDeTs(v.creado) + (v.cerrada ? ' · CERRADA' : '')),
-        v.cerrada ? null : h('p.venta-meta', 'Fecha compromiso: ' + fechaBonita(v.fechaSeguimiento)),
+        v.cerrada || !compromisoVigente(v) ? null : h('p.venta-meta', 'Fecha compromiso: ' + fechaBonita(compromisoVigente(v)) + ' (de la ultima accion)'),
         contacto ? h('p.venta-meta', '👤 Contacto actual: ' + contacto) : null,
         h('p.venta-cal', 'CALIFICACION: ' + cal + '%  (' + (v.historial || []).length + ' estatus)'),
         permisos.gestionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
@@ -538,10 +558,6 @@ async function hojaDetalle(v, permisos, alCambiar) {
                     e.texto = datos.texto;
                     e.contacto = datos.contacto;
                     e.compromiso = datos.compromiso;
-                    // si es la accion mas reciente, su compromiso es el vigente
-                    if (datos.compromiso && v.historial[v.historial.length - 1] === e) {
-                      v.fechaSeguimiento = datos.compromiso;
-                    }
                     await db.ventaGuardar(v);
                     pinta();
                     alCambiar();
@@ -563,7 +579,6 @@ async function hojaDetalle(v, permisos, alCambiar) {
             const accion = await hojaNuevaAccion(v, await contactosDe(v.cliente, v.sede), await contactosGlobales());
             if (!accion) return;
             v.historial.push({ ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo: 'estatus', texto: accion.texto, contacto: accion.contacto || '', compromiso: accion.fecha || '' });
-            if (accion.fecha) v.fechaSeguimiento = accion.fecha;
             await db.ventaGuardar(v);
             pinta();
             alCambiar();
@@ -775,7 +790,6 @@ export async function render(contenedor, refrescar, params = {}) {
             anotaciones: [],
             historial: [{ ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo: 'estatus', texto: accion.texto, contacto: accion.contacto || '', compromiso: accion.fecha || '' }],
           };
-          if (accion.fecha) v.fechaSeguimiento = accion.fecha;
           await db.ventaGuardar(v);
           // cliente y sede nuevos → al catalogo global de toda la app
           try { await db.maquinaRecordar({ cliente: datos.cliente, planta: datos.sede }); } catch (e) { /* opcional */ }
@@ -809,8 +823,8 @@ export async function render(contenedor, refrescar, params = {}) {
     // cerradas al final.
     lista.sort((a, b) => {
       if (!!a.cerrada !== !!b.cerrada) return a.cerrada ? 1 : -1;
-      const fa = a.fechaSeguimiento || '9999';
-      const fb = b.fechaSeguimiento || '9999';
+      const fa = compromisoVigente(a) || '9999';
+      const fb = compromisoVigente(b) || '9999';
       if (fa !== fb) return fa < fb ? -1 : 1;
       return (ORDEN_PRIO[a.prioridad] || 1) - (ORDEN_PRIO[b.prioridad] || 1);
     });
@@ -832,7 +846,8 @@ export async function render(contenedor, refrescar, params = {}) {
 
     const hoy = fechaClave();
     const tarjeta = (v) => {
-      const vencida = !v.cerrada && v.fechaSeguimiento && v.fechaSeguimiento < hoy;
+      const comp = compromisoVigente(v);
+      const vencida = !v.cerrada && comp && comp < hoy;
       return h('button.venta-carta' + (v.cerrada ? '.venta-carta--cerrada' : ''), {
         type: 'button',
         onclick: () => hojaDetalle(v, permisos, pintar),
@@ -843,8 +858,8 @@ export async function render(contenedor, refrescar, params = {}) {
           h('span.venta-cal', calificacion(v) + '%')),
         h('p.venta-titulo', v.titulo),
         h('p.venta-meta', '📅 Creada: ' + fechaDeTs(v.creado),
-          v.cerrada ? ' · CERRADA' : h('span' + (vencida ? '.venta-vencida' : ''),
-            ' · ' + (vencida ? '⚠ vencida · ' : '') + 'Fecha compromiso: ' + fechaBonita(v.fechaSeguimiento))),
+          v.cerrada ? ' · CERRADA' : (comp ? h('span' + (vencida ? '.venta-vencida' : ''),
+            ' · ' + (vencida ? '⚠ vencida · ' : '') + 'Fecha compromiso: ' + fechaBonita(comp)) : '')),
         h('p.venta-meta',
           contactoVigente(v) ? '👤 ' + contactoVigente(v) + ' · ' : '',
           h('span.venta-estatus', estatusActual(v)))
