@@ -283,14 +283,15 @@ button { font-family: inherit; font-size: inherit; }
   position: fixed; bottom: 0; z-index: 89;
   height: min(36vh, 300px); width: auto;
   pointer-events: none;
-  transform: translateY(108%);
   transition: transform .3s ease-out;
   will-change: transform;
 }
-.cameo--der { right: 2px; --giroCameo: -7deg; transform-origin: bottom right; }
-.cameo--izq { left: 2px; --giroCameo: 7deg; transform-origin: bottom left; }
-/* Entra al aparecer y se mete JUSTO cuando su sonido termina. */
-.cameo--visible { transform: translateY(4%) rotate(var(--giroCameo)); }
+/* Entrada HORIZONTAL, pegado abajo: asoma desde su lado y regresa al mismo
+   lado JUSTO cuando su sonido termina. */
+.cameo--izq { left: 0; transform: translateX(-105%); transform-origin: bottom left; }
+.cameo--der { right: 0; transform: translateX(105%); transform-origin: bottom right; }
+.cameo--izq.cameo--visible { transform: translateX(0) rotate(7deg); }
+.cameo--der.cameo--visible { transform: translateX(0) rotate(-7deg); }
 
 /* Vibracion sostenida (dura lo que dure el sonido de "what the hell"). */
 @keyframes marcaVibra {
