@@ -22,6 +22,7 @@ try {
   }
   var zz = localStorage.getItem('zoomUI');
   if (zz === 'grande') zz = '150';
+  if (zz === null) zz = '110';   // predeterminado: 110% (elegir Normal lo respeta)
   if (zz === '110' || zz === '125' || zz === '150') {
     document.documentElement.dataset.zoomui = zz;
   }

@@ -51,8 +51,9 @@ export function zoomActual() {
   try {
     let z = localStorage.getItem(CLAVE_ZOOM);
     if (z === 'grande') z = '150';   // valor de la version anterior
+    if (z === null) return '110';    // predeterminado: 110% (sin eleccion guardada)
     return ZOOMS.includes(z) ? z : 'normal';
-  } catch (e) { return 'normal'; }
+  } catch (e) { return '110'; }
 }
 
 export function aplicarZoom(z) {
