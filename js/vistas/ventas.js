@@ -514,6 +514,17 @@ function hojaEditarAccion(e) {
   });
 }
 
+// Detalle COMPLETO de una accion (toque en su cuadro): solo lectura —
+// editar y eliminar siguen en los botoncitos ✎/🗑 del cuadro.
+function hojaDetalleAccion(e, esVigente, cerrada) {
+  return hoja('📄  Detalle de la accion', () => h('div',
+    esVigente && e.compromiso && !cerrada ? h('p.venta-accion-chip', chipEstadoCompromiso(e.compromiso)) : null,
+    h('p.venta-accion-texto', e.texto),
+    e.contacto ? h('p.venta-accion-dato', '👤 Contacto: ' + e.contacto) : null,
+    h('p.venta-accion-dato', '📅 Fecha de creacion: ' + fechaBonita(e.fecha)),
+    e.compromiso ? h('p.venta-accion-dato', '📅 Fecha compromiso: ' + fechaBonita(e.compromiso)) : null));
+}
+
 function hojaEditarAnotacion(n) {
   return hoja('✎  Editar anotacion', (cerrar) => {
     const cTexto = campoArea('Anotacion', { maxLength: 400 });
@@ -565,7 +576,14 @@ async function hojaDetalle(v, permisos, alCambiar) {
       // su propia seccion ACCION ACTUAL. Mas nueva primero, como siempre.
       const anteriores = acciones.slice(0, -1).reverse();
       const eventoEl = (e, esVigente) =>
-        h('div.venta-evento',
+        h('div.venta-evento', {
+          // Toque en el cuadro = ver el detalle completo; los botoncitos
+          // ✎/🗑 no lo disparan (su toque es de ellos).
+          onclick: (ev) => {
+            if (ev.target.closest('.venta-evento__tools')) return;
+            hojaDetalleAccion(e, esVigente, v.cerrada);
+          },
+        },
           // Semaforo SOLO en la accion vigente (la ACCION ACTUAL).
           esVigente && e.compromiso && !v.cerrada ? chipEstadoCompromiso(e.compromiso) : null,
           h('p.venta-evento__cuerpo', e.texto,
