@@ -9,17 +9,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, interactive-widget=resizes-content">
 <meta name="description" content="Bitacora de servicios de mantenimiento en planta: equipos, notas, tablas y fotos.">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#eef1f4">
+<meta name="theme-color" content="#045b6b">
 <script>
 // Aplicar el tema guardado antes del primer pintado, para que no destelle.
 // El claro es el predeterminado; oscuro solo si el usuario lo eligio.
 try {
   if (localStorage.getItem('tema') !== 'oscuro') {
     document.documentElement.dataset.tema = 'claro';
-  } else {
-    var m = document.querySelector('meta[name="theme-color"]');
-    if (m) m.content = '#07090d';
   }
+  // La barra de estado siempre va en el teal de la app (ya viene en el
+  // meta theme-color); el tema oscuro no la cambia.
   var zz = localStorage.getItem('zoomUI');
   if (zz === 'grande') zz = '150';
   if (zz === null) zz = '110';   // predeterminado: 110% (elegir Normal lo respeta)

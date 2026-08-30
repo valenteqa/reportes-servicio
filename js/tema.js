@@ -17,18 +17,19 @@ export function aplicarTema(tema) {
   if (tema === 'claro') raiz.dataset.tema = 'claro';
   else delete raiz.dataset.tema;
 
-  // Color de la barra de estado de Android
+  // Barra de estado en el AZUL de la app (#045b6b, el teal primario) en
+  // ambos temas — pedido de Vale; los iconos del sistema van claros
+  // siempre porque el fondo teal es oscuro.
+  const TEAL_BARRA = '#045b6b';
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = tema === 'claro' ? '#eef1f4' : '#07090d';
+  if (meta) meta.content = TEAL_BARRA;
 
-  // Barra de estado NATIVA (APK 1.11+): iconos del sistema (hora, señal,
-  // bateria) oscuros en tema claro y claros en oscuro. En navegador el
-  // plugin no existe y se omite.
+  // Barra de estado NATIVA (APK 1.11+). En navegador el plugin no existe.
   try {
     const SB = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.StatusBar;
     if (SB) {
-      SB.setStyle({ style: tema === 'claro' ? 'LIGHT' : 'DARK' }).catch(() => {});
-      if (SB.setBackgroundColor) SB.setBackgroundColor({ color: tema === 'claro' ? '#eef1f4' : '#07090d' }).catch(() => {});
+      SB.setStyle({ style: 'DARK' }).catch(() => {});   // fondo oscuro → iconos claros
+      if (SB.setBackgroundColor) SB.setBackgroundColor({ color: TEAL_BARRA }).catch(() => {});
     }
   } catch (e) { /* sin plugin */ }
 
