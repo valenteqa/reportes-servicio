@@ -184,10 +184,10 @@ function chipEstadoCompromiso(comp) {
   const dias = Math.round((new Date(comp + 'T12:00:00') - new Date(hoy + 'T12:00:00')) / 86400000);
   if (dias < 0) {
     const x = -dias;
-    return h('span.venta-estado-chip.venta-estado-chip--rojo', 'Vencida por ' + x + (x === 1 ? ' dia' : ' dias'));
+    return h('span.venta-estado-chip.venta-estado-chip--rojo', '⚠ Vencida por ' + x + (x === 1 ? ' dia' : ' dias'));
   }
-  if (dias < 3) return h('span.venta-estado-chip.venta-estado-chip--ambar', 'Cerca de vencer');
-  return h('span.venta-estado-chip.venta-estado-chip--verde', 'En tiempo');
+  if (dias < 3) return h('span.venta-estado-chip.venta-estado-chip--ambar', '⏳ Cerca de vencer');
+  return h('span.venta-estado-chip.venta-estado-chip--verde', '✓ En tiempo');
 }
 
 // Un ATRASO automatico por cada fecha compromiso vencida sin accion nueva.
@@ -917,27 +917,32 @@ export async function render(contenedor, refrescar, params = {}) {
       return;
     }
 
-    const hoy = fechaClave();
     const tarjeta = (v) => {
       const comp = compromisoVigente(v);
-      const vencida = !v.cerrada && comp && comp < hoy;
+      // La ACCION ACTUAL (misma regla que el detalle): ultima accion real.
+      const acciones = (v.historial || []).filter(e => e.tipo === 'estatus' && !esCreacionLegada(e));
+      const vigente = acciones[acciones.length - 1] || null;
+      const cal = calificacion(v);
       return h('button.venta-carta' + (v.cerrada ? '.venta-carta--cerrada' : ''), {
         type: 'button',
         onclick: () => hojaDetalle(v, permisos, pintar),
       },
-        h('div.venta-carta__fila',
-          PRIORIDAD_ACTIVA ? h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()) : null,
-          h('span.venta-cliente', v.titulo),
-          // Mismo circulo semaforo que el detalle.
-          h('span.venta-cal-solo.' + claseCal(calificacion(v)), calificacion(v) + '%')),
-        h('p.venta-titulo', v.cliente + (v.sede ? ' · ' + v.sede : '')),
-        // Sin fecha compromiso en la tarjeta: solo la alerta si ya vencio.
-        h('p.venta-meta', '📅 Creada: ' + fechaDeTs(v.creado),
-          v.cerrada ? ' · CERRADA' : (vencida ? h('span.venta-vencida', ' · ⚠ vencida') : '')),
-        h('p.venta-meta',
-          contactoVigente(v) ? '👤 ' + contactoVigente(v) + ' · ' : '',
-          h('span.venta-estatus', estatusActual(v)))
-      );
+        // Izquierda: titulo, accion actual y fecha+contacto.
+        // Derecha: circulo de calificacion con su chip de estatus debajo.
+        h('div.venta-carta__cols',
+          h('div.venta-carta__izq',
+            h('div.venta-carta__fila',
+              PRIORIDAD_ACTIVA ? h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()) : null,
+              h('span.venta-cliente', v.titulo)),
+            vigente
+              ? h('p.venta-carta__accion', vigente.texto)
+              : h('p.venta-carta__accion.venta-carta__accion--vacia', 'Sin acciones aun'),
+            h('p.venta-meta', '📅 Creada: ' + fechaDeTs(v.creado)
+              + (vigente && vigente.contacto ? ' · 👤 ' + vigente.contacto : '')
+              + (v.cerrada ? ' · CERRADA' : ''))),
+          h('div.venta-carta__der',
+            h('span.venta-cal-solo.' + claseCal(cal), cal + '%'),
+            !v.cerrada && comp ? chipEstadoCompromiso(comp) : null)));
     };
 
     if (!veTodas) {

@@ -730,6 +730,14 @@ button { font-family: inherit; font-size: inherit; }
 .venta-carta--cerrada { opacity: .55; }
 .venta-carta__fila { display: flex; align-items: center; gap: .5rem; margin-bottom: .3rem; }
 .venta-cliente { flex: 1; min-width: 0; font-weight: 700; letter-spacing: .02em; }
+/* Tarjeta en dos columnas: texto a la izquierda, semaforo a la derecha
+   (circulo arriba y chip de estatus debajo, centrados entre si). */
+.venta-carta__cols { display: flex; gap: .6rem; align-items: flex-start; }
+.venta-carta__izq { flex: 1; min-width: 0; }
+.venta-carta__der { flex: none; display: flex; flex-direction: column; align-items: center; gap: .3rem; }
+.venta-carta__der .venta-estado-chip { position: static; }
+.venta-carta__accion { margin: 0 0 .3rem; font-size: .9rem; overflow-wrap: break-word; }
+.venta-carta__accion--vacia { color: var(--tinta-tenue); font-style: italic; }
 .venta-prio {
   padding: .1rem .45rem; border-radius: 99px;
   font-size: .66rem; font-weight: 800; letter-spacing: .05em;
