@@ -739,17 +739,50 @@ button { font-family: inherit; font-size: inherit; }
 .venta-meta { margin: 0; font-size: .82rem; color: var(--tinta-suave); }
 .venta-vencida { color: var(--peligro, #c22a29); font-weight: 700; }
 .venta-estatus { color: var(--tinta-tenue); }
-.venta-h3 { font-size: .78rem; letter-spacing: .1em; color: var(--tinta-suave); margin: .8rem 0 .35rem; }
+.venta-h3 { font-size: .78rem; letter-spacing: .1em; color: var(--tinta-suave); margin: 1.2rem 0 .6rem; }
 .venta-historial { max-height: 40vh; overflow-y: auto; }
-.venta-evento { position: relative; display: block; padding: .5rem 0; border-bottom: 1px dashed var(--borde); font-size: .88rem; }
-.venta-evento__fechas {
-  display: flex; justify-content: space-between; align-items: baseline;
-  gap: .6rem; flex-wrap: wrap;
-  font-size: .72rem; color: var(--tinta-tenue); font-variant-numeric: tabular-nums;
+/* Detalle rediseñado: cabecera con aire y cada accion/anotacion como
+   TARJETA; los atrasos en tarjeta roja para que salten a la vista. */
+.venta-titulo--detalle { font-size: 1.15rem; margin: .1rem 0 .6rem; }
+.venta-resumen { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-bottom: .8rem; }
+.venta-cal-chip {
+  padding: .18rem .6rem; border-radius: 99px;
+  background: var(--primario-suave); color: var(--primario-tinta);
+  font-size: .8rem; font-weight: 800; font-variant-numeric: tabular-nums;
 }
-.venta-evento__cuerpo { margin: .2rem 0 0; }
-.venta-evento:has(.venta-evento__tools) .venta-evento__cuerpo { padding-right: 4.4rem; }
-.venta-evento .venta-evento__tools { position: absolute; right: 0; bottom: .45rem; }
+.venta-cerrada-chip {
+  padding: .18rem .6rem; border-radius: 99px;
+  background: var(--superficie-2); color: var(--tinta-suave);
+  border: 1px solid var(--borde); font-size: .74rem; font-weight: 800;
+}
+.venta-fechas-cab {
+  display: flex; justify-content: space-between; gap: .8rem; flex-wrap: wrap;
+  padding: .6rem .1rem; margin-bottom: .4rem;
+  border-top: 1px solid var(--borde); border-bottom: 1px solid var(--borde);
+}
+.ev-fecha { font-size: .86rem; color: var(--tinta-suave); font-variant-numeric: tabular-nums; }
+.ev-fecha small {
+  display: block; font-size: .62rem; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--tinta-tenue); margin-bottom: .1rem;
+}
+.ev-fecha--der { text-align: right; }
+.ev-fecha--vencida { color: var(--peligro, #c22a29); font-weight: 700; }
+.ev-fecha--vencida small { color: var(--peligro, #c22a29); }
+
+.ev-carta {
+  background: var(--superficie-2); border: 1px solid var(--borde);
+  border-radius: var(--r-md); padding: .7rem .8rem; margin-bottom: .65rem;
+  font-size: .9rem;
+}
+.ev-carta--atraso {
+  background: #d3302f12; border-color: #c22a2955;
+  border-left: 4px solid var(--peligro, #c22a29);
+}
+.ev-carta--atraso .ev-carta__texto { color: var(--peligro, #c22a29); font-weight: 700; }
+.ev-carta--nota { border-left: 4px solid #b8860b88; }
+.ev-carta__fechas { display: flex; justify-content: space-between; gap: .8rem; flex-wrap: wrap; margin-bottom: .45rem; }
+.ev-carta__texto { margin: 0; overflow-wrap: break-word; }
+.ev-carta__pie { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin-top: .5rem; }
 .venta-evento__fecha { flex: none; color: var(--tinta-tenue); font-variant-numeric: tabular-nums; }
 .venta-evento--atraso .venta-evento__texto { color: var(--peligro, #c22a29); font-weight: 600; }
 .venta-btn { width: 100%; margin-top: .7rem; }
