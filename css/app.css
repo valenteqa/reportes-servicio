@@ -770,8 +770,10 @@ button { font-family: inherit; font-size: inherit; }
   margin: 0 0 .4rem;
 }
 .venta-linea-cliente .venta-titulo, .venta-linea-cliente .venta-meta { margin: 0; }
-.venta-linea-cliente + .venta-h3 { margin-top: .4rem; }
-.venta-linea-cliente + .venta-btn-mini { margin-top: .4rem; }
+/* Respiro extra entre la linea del cliente y lo que sigue (ACCION
+   ACTUAL, o el boton EDITAR en la vista del lider). */
+.venta-linea-cliente + .venta-h3 { margin-top: .8rem; }
+.venta-linea-cliente + .venta-btn-mini { margin-top: .8rem; }
 .venta-btn-mini + .venta-h3 { margin-top: .4rem; }
 /* En hoja completa el cuerpo entero scrollea: el historial sin tope. */
 .venta-historial { overflow-wrap: break-word; }
