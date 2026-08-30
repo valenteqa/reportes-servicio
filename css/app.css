@@ -750,7 +750,8 @@ button { font-family: inherit; font-size: inherit; }
   -webkit-background-clip: text; background-clip: text;
   -webkit-text-fill-color: transparent;
 }
-.venta-historial { max-height: 40vh; overflow-y: auto; }
+/* En hoja completa el cuerpo entero scrollea: el historial sin tope. */
+.venta-historial { overflow-wrap: break-word; }
 .venta-evento { position: relative; display: block; padding: .5rem 0; border-bottom: 1px dashed var(--borde); font-size: .88rem; }
 .venta-evento__fechas {
   display: flex; justify-content: space-between; align-items: baseline;
@@ -1426,6 +1427,15 @@ html.sin-desborde-vuelo, html.sin-desborde-vuelo body { overflow: hidden !import
   box-shadow: var(--sombra-3);
   transform: translateY(100%);
   transition: transform .26s cubic-bezier(.32, .72, 0, 1);
+}
+/* Hoja a PANTALLA COMPLETA (altura: 'completa'): para contenido que se
+   quiere ver entero, p. ej. la oportunidad de venta. Respeta la barra de
+   estado (y la del Test Mode) via --sup. */
+.hoja--completa {
+  height: 100vh; height: 100dvh;
+  max-height: none;
+  border-radius: 0;
+  padding-top: calc(var(--sup) + .4rem);
 }
 .hoja--visible { transform: translateY(0); }
 

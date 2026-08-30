@@ -597,7 +597,8 @@ export function hoja(titulo, construir, { altura = 'auto' } = {}) {
     };
 
     const cuerpo = h('div.hoja__cuerpo');
-    const panel = h('div.hoja', { style: altura === 'alta' ? { height: '90vh' } : null },
+    const panel = h('div.hoja' + (altura === 'completa' ? '.hoja--completa' : ''),
+      { style: altura === 'alta' ? { height: '90vh' } : null },
       h('div.hoja__asa'),
       h('header.hoja__titulo',
         h('h2', titulo),

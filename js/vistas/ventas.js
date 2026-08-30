@@ -689,7 +689,7 @@ async function hojaDetalle(v, permisos, alCambiar) {
     };
     pinta();
     return cuerpo;
-  });
+  }, { altura: 'completa' });   // la oportunidad se ve a PANTALLA COMPLETA
 }
 
 /* ---------------------------------------------------------------- */
