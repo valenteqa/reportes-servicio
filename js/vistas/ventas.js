@@ -569,6 +569,9 @@ async function hojaDetalle(v, permisos, alCambiar) {
     const pinta = () => {
       const cal = calificacion(v);
       calEl.textContent = cal + '%';
+      // Circulo semaforo: >90 verde, 50-90 amarillo, <50 rojo.
+      calEl.classList.remove('venta-cal-solo--verde', 'venta-cal-solo--ambar', 'venta-cal-solo--rojo');
+      calEl.classList.add(cal > 90 ? 'venta-cal-solo--verde' : cal >= 50 ? 'venta-cal-solo--ambar' : 'venta-cal-solo--rojo');
       if (tituloCabEl) tituloCabEl.textContent = v.titulo;
       const acciones = (v.historial || []).filter(e => e.tipo === 'estatus' && !esCreacionLegada(e));
       const vigente = acciones[acciones.length - 1] || null;

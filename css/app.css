@@ -745,7 +745,20 @@ button { font-family: inherit; font-size: inherit; }
 .venta-h3 { font-size: .78rem; letter-spacing: .1em; color: var(--primario-vivo, var(--primario)); margin: .8rem 0 .35rem; }
 /* ACCION ACTUAL e HISTORIAL van centrados (pedido de Vale). */
 .venta-h3--centrado { text-align: center; }
-.venta-cal-solo { font-size: 1.15rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--primario-vivo, var(--primario)); flex: none; }
+/* Calificacion en CIRCULO con bisel (pedido de Vale): color por rango
+   — >90 verde, 50-90 amarillo, <50 rojo — numero negro en negritas.
+   Colores fijos (no tokens): el semaforo es el mismo en ambos temas. */
+.venta-cal-solo {
+  display: grid; place-items: center; flex: none;
+  width: 3rem; height: 3rem; border-radius: 50%;
+  font-size: .88rem; font-weight: 800; font-variant-numeric: tabular-nums;
+  color: #000;
+  border: 1px solid rgba(0, 0, 0, .35);
+  box-shadow: inset 0 2px 3px rgba(255, 255, 255, .6), inset 0 -2px 3px rgba(0, 0, 0, .3);
+}
+.venta-cal-solo--verde { background: #4fc262; }
+.venta-cal-solo--ambar { background: #f6c445; }
+.venta-cal-solo--rojo  { background: #ef5350; }
 /* Titulo de la oportunidad: MAYUSCULAS, un solo color plano — el teal
    de la barra de estado (--primario), igual que los subtitulos.
    Sin margenes: vive en la fila del header y cualquier margen vertical
