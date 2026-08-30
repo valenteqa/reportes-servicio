@@ -518,21 +518,15 @@ async function hojaDetalle(v, permisos, alCambiar) {
     const cuerpo = h('div');
     const pinta = () => {
       const cal = calificacion(v);
-      const comp = compromisoVigente(v);
-      const compVencida = !v.cerrada && comp && comp < fechaClave();
       // OJO: append(null) pinta el texto "null" (h() si filtra nulos);
       // aqui los condicionales entregan null, se filtran antes de anexar.
       const partes = [
-        h('p.venta-titulo.venta-titulo--detalle', v.titulo),
-        h('div.venta-resumen',
+        h('p.venta-titulo', v.titulo),
+        h('p.venta-meta',
           h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()),
-          h('span.venta-cal-chip', cal + '% · ' + (v.historial || []).length + ' estatus'),
-          v.cerrada ? h('span.venta-cerrada-chip', 'CERRADA') : null),
-        h('div.venta-fechas-cab',
-          h('span.ev-fecha', h('small', 'Creada'), fechaDeTs(v.creado)),
-          !v.cerrada && comp ? h('span.ev-fecha.ev-fecha--der' + (compVencida ? '.ev-fecha--vencida' : ''),
-            h('small', 'Fecha compromiso (ultima accion)'),
-            (compVencida ? '⚠ ' : '') + fechaBonita(comp)) : null),
+          ' · 📅 Creada: ' + fechaDeTs(v.creado) + (v.cerrada ? ' · CERRADA' : '')),
+        v.cerrada || !compromisoVigente(v) ? null : h('p.venta-meta', 'Fecha compromiso: ' + fechaBonita(compromisoVigente(v)) + ' (de la ultima accion)'),
+        h('p.venta-cal', 'CALIFICACION: ' + cal + '%  (' + (v.historial || []).length + ' estatus)'),
         permisos.gestionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
           type: 'button',
           onclick: async () => {
@@ -547,43 +541,39 @@ async function hojaDetalle(v, permisos, alCambiar) {
 
         h('h3.venta-h3', 'HISTORIAL DE ACCIONES'),
         h('div.venta-historial',
-          ...(v.historial || []).slice().reverse().map(e => {
-            const esAtraso = e.tipo === 'atraso';
-            const tools = permisos.gestionar ? h('span.venta-evento__tools',
-              h('button.icono-btn.org-mini', {
-                type: 'button', 'aria-label': 'Editar accion',
-                onclick: async () => {
-                  const datos = await hojaEditarAccion(e);
-                  if (!datos) return;
-                  e.texto = datos.texto;
-                  e.contacto = datos.contacto;
-                  e.compromiso = datos.compromiso;
-                  await db.ventaGuardar(v);
-                  pinta();
-                  alCambiar();
-                },
-              }, '✎'),
-              h('button.icono-btn.org-mini', {
-                type: 'button', 'aria-label': 'Eliminar accion',
-                onclick: async () => {
-                  if (!(await confirmar('¿Eliminar este estatus del historial? La calificacion se recalcula.'))) return;
-                  v.historial = v.historial.filter(x => x !== e);
-                  await db.ventaGuardar(v);
-                  pinta();
-                  alCambiar();
-                },
-              }, '🗑')) : null;
-            // Cada accion es una TARJETA con aire; los ATRASOS van en
-            // tarjeta ROJA con ⚠ para que salten a la vista.
-            return h('div.ev-carta' + (esAtraso ? '.ev-carta--atraso' : ''),
-              h('div.ev-carta__fechas',
-                h('span.ev-fecha', h('small', 'Fecha de creacion'), fechaBonita(e.fecha)),
-                e.compromiso ? h('span.ev-fecha.ev-fecha--der', h('small', 'Fecha compromiso'), fechaBonita(e.compromiso)) : null),
-              h('p.ev-carta__texto', (esAtraso ? '⚠ ' : '') + e.texto),
-              (e.contacto || tools) ? h('div.ev-carta__pie',
-                e.contacto ? h('span.venta-evento__contacto', '👤 ' + e.contacto) : h('span'),
-                tools) : null);
-          })),
+          ...(v.historial || []).slice().reverse().map(e =>
+            h('div.venta-evento' + (e.tipo === 'atraso' ? '.venta-evento--atraso' : ''),
+              // Fechas etiquetadas: creacion a la IZQUIERDA, compromiso a
+              // la DERECHA (pedido de Vale para que no se confundan).
+              h('div.venta-evento__fechas',
+                h('span', 'Fecha de creacion: ' + fechaBonita(e.fecha)),
+                e.compromiso ? h('span', 'Fecha compromiso: ' + fechaBonita(e.compromiso)) : null),
+              h('p.venta-evento__cuerpo', e.texto,
+                e.contacto ? h('span.venta-evento__contacto', '👤 ' + e.contacto) : null),
+              permisos.gestionar ? h('span.venta-evento__tools',
+                h('button.icono-btn.org-mini', {
+                  type: 'button', 'aria-label': 'Editar accion',
+                  onclick: async () => {
+                    const datos = await hojaEditarAccion(e);
+                    if (!datos) return;
+                    e.texto = datos.texto;
+                    e.contacto = datos.contacto;
+                    e.compromiso = datos.compromiso;
+                    await db.ventaGuardar(v);
+                    pinta();
+                    alCambiar();
+                  },
+                }, '✎'),
+                h('button.icono-btn.org-mini', {
+                  type: 'button', 'aria-label': 'Eliminar accion',
+                  onclick: async () => {
+                    if (!(await confirmar('¿Eliminar este estatus del historial? La calificacion se recalcula.'))) return;
+                    v.historial = v.historial.filter(x => x !== e);
+                    await db.ventaGuardar(v);
+                    pinta();
+                    alCambiar();
+                  },
+                }, '🗑')) : null))),
         permisos.accionar && !v.cerrada ? h('button.btn.btn--primario.venta-btn', {
           type: 'button',
           onclick: async () => {
@@ -602,33 +592,30 @@ async function hojaDetalle(v, permisos, alCambiar) {
         h('h3.venta-h3', '💡 ANOTACIONES'),
         (v.anotaciones || []).length
           ? h('div.venta-notas',
-            (v.anotaciones || []).slice().reverse().map(n => {
-              const tools = permisos.gestionar ? h('span.venta-evento__tools',
-                h('button.icono-btn.org-mini', {
-                  type: 'button', 'aria-label': 'Editar anotacion',
-                  onclick: async () => {
-                    const texto = await hojaEditarAnotacion(n);
-                    if (!texto) return;
-                    n.texto = texto;
-                    await db.ventaGuardar(v);
-                    pinta();
-                  },
-                }, '✎'),
-                h('button.icono-btn.org-mini', {
-                  type: 'button', 'aria-label': 'Eliminar anotacion',
-                  onclick: async () => {
-                    if (!(await confirmar('¿Eliminar esta anotacion?'))) return;
-                    v.anotaciones = v.anotaciones.filter(x => x !== n);
-                    await db.ventaGuardar(v);
-                    pinta();
-                  },
-                }, '🗑')) : null;
-              return h('div.ev-carta.ev-carta--nota',
-                h('div.ev-carta__fechas',
-                  h('span.ev-fecha', h('small', 'Fecha de creacion'), fechaBonita(n.fecha))),
-                h('p.ev-carta__texto.venta-nota__texto', n.texto),
-                tools ? h('div.ev-carta__pie', h('span'), tools) : null);
-            }))
+            (v.anotaciones || []).slice().reverse().map(n =>
+              h('div.venta-nota',
+                h('span.venta-evento__fecha', fechaBonita(n.fecha)),
+                h('span.venta-nota__texto', n.texto),
+                permisos.gestionar ? h('span.venta-evento__tools',
+                  h('button.icono-btn.org-mini', {
+                    type: 'button', 'aria-label': 'Editar anotacion',
+                    onclick: async () => {
+                      const texto = await hojaEditarAnotacion(n);
+                      if (!texto) return;
+                      n.texto = texto;
+                      await db.ventaGuardar(v);
+                      pinta();
+                    },
+                  }, '✎'),
+                  h('button.icono-btn.org-mini', {
+                    type: 'button', 'aria-label': 'Eliminar anotacion',
+                    onclick: async () => {
+                      if (!(await confirmar('¿Eliminar esta anotacion?'))) return;
+                      v.anotaciones = v.anotaciones.filter(x => x !== n);
+                      await db.ventaGuardar(v);
+                      pinta();
+                    },
+                  }, '🗑')) : null)))
           : h('p.pista', 'Datos importantes, tips, señas del cliente… (no afectan la calificacion)'),
         permisos.accionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
           type: 'button',
