@@ -354,12 +354,14 @@ function hojaNuevaAccion(v, contactos, globales) {
     function pintarEntradaContacto() {
       const entrada = h('input.campo__entrada', { type: 'text', placeholder: 'Contacto (a quien viste o veras)' });
       poner(
-        cabeza('Contacto'),
+        cabeza('Contacto (opcional)'),
         entrada,
+        h('p.pista', 'El contacto es opcional: puedes Continuar sin escribir nada, u Omitir.'),
         h('div.hoja__acciones',
           (contactos.length || globales.length)
             ? h('button.btn.btn--fantasma', { type: 'button', onclick: () => pintarPaso() }, 'Ver opciones')
-            : h('button.btn.btn--fantasma', { type: 'button', onclick: () => { sel.contacto = ''; avanzar(); } }, 'Omitir'),
+            : h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+          h('button.btn.btn--fantasma', { type: 'button', onclick: () => { sel.contacto = ''; avanzar(); } }, 'Omitir'),
           h('button.btn.btn--primario', {
             type: 'button',
             onclick: () => { sel.contacto = entrada.value.trim(); avanzar(); }
@@ -382,7 +384,7 @@ function hojaNuevaAccion(v, contactos, globales) {
             onclick: () => { sel.contacto = o; avanzar(); }
           }, o));
         poner(
-          cabeza(modoGlobal ? 'Contacto (global)' : 'Contacto'),
+          cabeza(modoGlobal ? 'Contacto global (opcional)' : 'Contacto (opcional)'),
           h('button.asistente__nuevo', { type: 'button', onclick: () => pintarEntradaContacto() },
             '＋  Agregar contacto'),
           rejilla.length ? h('div.asistente__rejilla', rejilla)
