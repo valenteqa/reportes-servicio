@@ -744,14 +744,14 @@ button { font-family: inherit; font-size: inherit; }
 .venta-estatus { color: var(--tinta-tenue); }
 .venta-h3 { font-size: .78rem; letter-spacing: .1em; color: var(--tinta-suave); margin: .8rem 0 .35rem; }
 .venta-cal-solo { font-size: 1.15rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--primario-vivo, var(--primario)); flex: none; }
-/* Titulo de la oportunidad: MAYUSCULAS con efecto degradado. */
+/* Titulo de la oportunidad: MAYUSCULAS, un solo color plano (mismo tono
+   que los subtitulos ACCION ACTUAL / HISTORIAL; el degradado se quito a
+   peticion de Vale). */
 .venta-titulo--detalle {
   font-size: 1.08rem; font-weight: 800;
   text-transform: uppercase; letter-spacing: .045em;
   margin: .1rem 0 .55rem;
-  background: linear-gradient(100deg, var(--primario-vivo, var(--primario)), var(--tinta) 75%);
-  -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--tinta-suave);
 }
 /* En hoja completa el cuerpo entero scrollea: el historial sin tope. */
 .venta-historial { overflow-wrap: break-word; }
