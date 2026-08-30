@@ -801,7 +801,11 @@ button { font-family: inherit; font-size: inherit; }
    dejarle su espacio (via la variable --sup, que ya usan las cabeceras). */
 html.modo-test { --sup: calc(env(safe-area-inset-top, 0px) + 2.6rem); }
 .barra-test {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 58;
+  /* z 99: por ENCIMA de las pantallas completas (hoja--completa z60,
+     candado z95) — le reservan su espacio via --sup y taparla dejaba un
+     hueco fantasma y escondia el boton SALIR — y por debajo de la franja
+     teal (z100), que pinta la zona de la barra de estado. */
+  position: fixed; top: 0; left: 0; right: 0; z-index: 99;
   height: calc(env(safe-area-inset-top, 0px) + 2.6rem);
   padding: calc(env(safe-area-inset-top, 0px) + .35rem) .5rem .35rem;
   display: flex; align-items: center; gap: .45rem;
@@ -2050,7 +2054,8 @@ p.titulo-tabla--ver {
 .previa__barra {
   display: flex; align-items: center; gap: .6rem;
   padding: .5rem .75rem;
-  padding-top: calc(.5rem + env(safe-area-inset-top));
+  /* var(--sup), no env crudo: asi tambien respeta la barra del Test Mode. */
+  padding-top: calc(.5rem + var(--sup));
   background: #101215; color: #fff;
   flex: 0 0 auto;
 }

@@ -553,46 +553,6 @@ async function hojaDetalle(v, permisos, alCambiar) {
     if (tituloCabEl) tituloCabEl.classList.add('venta-titulo--detalle');
   });
 
-  // ─── DIAGNOSTICO TEMPORAL (v4.89): recuadro amarillo con las medidas
-  // reales de la pantalla para cazar el hueco sobre el titulo. No recibe
-  // toques, se borra solo al minuto y SE QUITA en la siguiente version.
-  setTimeout(async () => {
-    try {
-      const hojaEl = [...document.querySelectorAll('.hoja--completa')].pop();
-      if (!hojaEl) return;
-      const rf = hojaEl.parentElement.getBoundingClientRect();
-      const rh = hojaEl.getBoundingClientRect();
-      const h2El = hojaEl.querySelector('.hoja__titulo h2');
-      const rt = h2El ? h2El.getBoundingClientRect() : null;
-      let regla = '?';
-      for (const hj of document.styleSheets) {
-        try {
-          for (const r of hj.cssRules) {
-            if (r.selectorText === '.hoja--completa' && r.style.height) regla = r.style.height;
-          }
-        } catch (e) {}
-      }
-      let ver = '?';
-      try { ver = (await import('../version.js')).APP_VERSION; } catch (e) {}
-      const caja = document.createElement('div');
-      caja.style.cssText = 'position:fixed;left:8px;right:8px;top:45%;z-index:400;' +
-        'background:#fff3c4;color:#332b00;border:2px solid #d4a900;border-radius:8px;' +
-        'padding:8px 10px;font:12px/1.5 monospace;pointer-events:none;white-space:pre-wrap;';
-      caja.textContent = [
-        'DIAG v' + ver + ' · zoom ' + (document.documentElement.dataset.zoomui || 'normal') + ' · dpr ' + devicePixelRatio,
-        'ventana ' + innerWidth + 'x' + innerHeight,
-        'franja(env) ' + getComputedStyle(document.body, '::before').height +
-          ' · --sup ' + getComputedStyle(document.documentElement).getPropertyValue('--sup').trim(),
-        'regla altura hoja: ' + regla,
-        'fondo top ' + Math.round(rf.top) + ' alto ' + Math.round(rf.height),
-        'hoja top ' + Math.round(rh.top) + ' alto ' + Math.round(rh.height) + ' padTop ' + getComputedStyle(hojaEl).paddingTop,
-        'titulo top ' + (rt ? Math.round(rt.top) : '?'),
-      ].join('\n');
-      document.body.appendChild(caja);
-      setTimeout(() => caja.remove(), 60000);
-    } catch (e) {}
-  }, 800);
-
   await hoja(v.titulo, (cerrar) => {
     const cuerpo = h('div');
     const pinta = () => {
