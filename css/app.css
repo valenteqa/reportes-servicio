@@ -740,9 +740,16 @@ button { font-family: inherit; font-size: inherit; }
 .venta-vencida { color: var(--peligro, #c22a29); font-weight: 700; }
 .venta-estatus { color: var(--tinta-tenue); }
 .venta-h3 { font-size: .78rem; letter-spacing: .1em; color: var(--tinta-suave); margin: .8rem 0 .35rem; }
-.venta-det-cab { display: flex; align-items: flex-start; gap: .6rem; }
-.venta-det-cab .venta-titulo { flex: 1; min-width: 0; }
-.venta-cal-solo { font-size: 1.3rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--primario-tinta); }
+.venta-cal-solo { font-size: 1.15rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--primario-tinta); flex: none; }
+/* Titulo de la oportunidad: MAYUSCULAS con efecto degradado. */
+.venta-titulo--detalle {
+  font-size: 1.08rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: .045em;
+  margin: .1rem 0 .55rem;
+  background: linear-gradient(100deg, var(--primario-vivo, var(--primario)), var(--tinta) 75%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
 .venta-historial { max-height: 40vh; overflow-y: auto; }
 .venta-evento { position: relative; display: block; padding: .5rem 0; border-bottom: 1px dashed var(--borde); font-size: .88rem; }
 .venta-evento__fechas {
@@ -750,7 +757,7 @@ button { font-family: inherit; font-size: inherit; }
   gap: .6rem; flex-wrap: wrap;
   font-size: .72rem; color: var(--tinta-tenue); font-variant-numeric: tabular-nums;
 }
-.venta-evento__cuerpo { margin: .2rem 0 0; }
+.venta-evento__cuerpo { margin: 0 0 .25rem; }
 .venta-evento:has(.venta-evento__tools) .venta-evento__cuerpo { padding-right: 4.4rem; }
 .venta-evento .venta-evento__tools { position: absolute; right: 0; bottom: .45rem; }
 .venta-evento__fecha { flex: none; color: var(--tinta-tenue); font-variant-numeric: tabular-nums; }

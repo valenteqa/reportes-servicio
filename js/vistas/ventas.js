@@ -520,17 +520,24 @@ function hojaEditarAnotacion(n) {
 /* ---------------------------------------------------------------- */
 
 async function hojaDetalle(v, permisos, alCambiar) {
+  // La calificacion (solo el %) vive EN LA CABECERA de la hoja, junto a la
+  // ✕. El titulo lo construye hoja(), asi que el chip se inserta tras el
+  // montaje (microtask) y pinta() lo mantiene al dia.
+  const calEl = h('span.venta-cal-solo');
+  queueMicrotask(() => {
+    const cab = [...document.querySelectorAll('.hoja .hoja__titulo')].pop();
+    if (cab) cab.insertBefore(calEl, cab.querySelector('.icono-btn'));
+  });
+
   await hoja(v.cliente + (v.sede ? ' · ' + v.sede : ''), (cerrar) => {
     const cuerpo = h('div');
     const pinta = () => {
       const cal = calificacion(v);
+      calEl.textContent = cal + '%';
       // OJO: append(null) pinta el texto "null" (h() si filtra nulos);
       // aqui los condicionales entregan null, se filtran antes de anexar.
       const partes = [
-        // La calificacion vive arriba a la DERECHA, solo el porcentaje.
-        h('div.venta-det-cab',
-          h('p.venta-titulo', v.titulo),
-          h('span.venta-cal-solo', cal + '%')),
+        h('p.venta-titulo.venta-titulo--detalle', v.titulo),
         h('p.venta-meta',
           h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()),
           ' · 📅 Creada: ' + fechaDeTs(v.creado) + (v.cerrada ? ' · CERRADA' : '')),
@@ -553,13 +560,13 @@ async function hojaDetalle(v, permisos, alCambiar) {
         h('div.venta-historial',
           ...(v.historial || []).filter(e => e.tipo === 'estatus' && !esCreacionLegada(e)).slice().reverse().map(e =>
             h('div.venta-evento' + (e.tipo === 'atraso' ? '.venta-evento--atraso' : ''),
-              // Fechas etiquetadas: creacion a la IZQUIERDA, compromiso a
-              // la DERECHA (pedido de Vale para que no se confundan).
+              // El TITULO de la accion va ARRIBA; abajo sus fechas
+              // etiquetadas (creacion izq, compromiso der).
+              h('p.venta-evento__cuerpo', e.texto,
+                e.contacto ? h('span.venta-evento__contacto', '👤 ' + e.contacto) : null),
               h('div.venta-evento__fechas',
                 h('span', 'Fecha de creacion: ' + fechaBonita(e.fecha)),
                 e.compromiso ? h('span', 'Fecha compromiso: ' + fechaBonita(e.compromiso)) : null),
-              h('p.venta-evento__cuerpo', e.texto,
-                e.contacto ? h('span.venta-evento__contacto', '👤 ' + e.contacto) : null),
               permisos.gestionar ? h('span.venta-evento__tools',
                 h('button.icono-btn.org-mini', {
                   type: 'button', 'aria-label': 'Editar accion',
