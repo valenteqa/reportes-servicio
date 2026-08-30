@@ -619,11 +619,11 @@ async function hojaDetalle(v, permisos, alCambiar) {
         // Solo ACCIONES: ni los atrasos (su presentacion esta por definirse
         // con Vale) ni el "Oportunidad creada" legado se listan aqui —
         // ambos siguen contando para la calificacion segun sus reglas.
-        h('h3.venta-h3', 'ACCION ACTUAL'),
+        h('h3.venta-h3.venta-h3--centrado', 'ACCION ACTUAL'),
         vigente
           ? h('div.venta-historial', eventoEl(vigente, true))
           : h('p.pista', 'Aun no hay acciones. Agrega la primera.'),
-        anteriores.length ? h('h3.venta-h3', 'HISTORIAL DE ACCIONES') : null,
+        anteriores.length ? h('h3.venta-h3.venta-h3--centrado', 'HISTORIAL DE ACCIONES') : null,
         anteriores.length ? h('div.venta-historial', ...anteriores.map(e => eventoEl(e, false))) : null,
         permisos.accionar && !v.cerrada ? h('button.btn.btn--primario.venta-btn', {
           type: 'button',
