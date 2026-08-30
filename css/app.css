@@ -1443,10 +1443,14 @@ html.sin-desborde-vuelo, html.sin-desborde-vuelo body { overflow: hidden !import
 /* Franja TEAL bajo la barra de estado: Android 15 (edge-to-edge) ya no
    deja pintarla desde el plugin, asi que la pinta la app. Usa el inset
    crudo (no --sup, que el Test Mode infla) y va sobre todo lo demas en
-   esa zona; los iconos del sistema van claros (StatusBar style DARK). */
+   esa zona; los iconos del sistema van claros (StatusBar style DARK).
+   En telefonos con camara perforada el inset es casi el doble de alto
+   que las letras del reloj (que quedan centradas en el): la franja
+   termina justo bajo las letras (mitad del inset + 12px), y el min()
+   la deja completa en barras delgadas donde no sobra nada. */
 body::before {
   content: ''; position: fixed; top: 0; left: 0; right: 0;
-  height: env(safe-area-inset-top, 0px);
+  height: min(env(safe-area-inset-top, 0px), calc(env(safe-area-inset-top, 0px) / 2 + 12px));
   background: #045b6b;
   z-index: 100; pointer-events: none;
 }
