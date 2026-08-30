@@ -1439,6 +1439,17 @@ html.sin-desborde-vuelo, html.sin-desborde-vuelo body { overflow: hidden !import
 }
 /* En pantalla completa no hay "asa" que jalar: el contenido va arriba. */
 .hoja--completa .hoja__asa { display: none; }
+
+/* Franja TEAL bajo la barra de estado: Android 15 (edge-to-edge) ya no
+   deja pintarla desde el plugin, asi que la pinta la app. Usa el inset
+   crudo (no --sup, que el Test Mode infla) y va sobre todo lo demas en
+   esa zona; los iconos del sistema van claros (StatusBar style DARK). */
+body::before {
+  content: ''; position: fixed; top: 0; left: 0; right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background: #045b6b;
+  z-index: 100; pointer-events: none;
+}
 /* El zoom de interfaz escala los dvh: compensar para no desbordar. */
 :root[data-zoomui="110"] .hoja--completa { height: calc(100vh / 1.1); height: calc(100dvh / 1.1); }
 :root[data-zoomui="125"] .hoja--completa { height: calc(100vh / 1.25); height: calc(100dvh / 1.25); }
