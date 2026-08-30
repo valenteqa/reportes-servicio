@@ -217,6 +217,7 @@ function hojaNuevaOportunidad(clientes) {
       pintarPaso();
     };
 
+    // CALCADO del pintarEntrada del asistente de Servicio (consistencia).
     function pintarEntrada(titulo, placeholder, opciones, alContinuar, omitible) {
       const entrada = h('input.campo__entrada', { type: 'text', placeholder });
       poner(
@@ -225,9 +226,7 @@ function hojaNuevaOportunidad(clientes) {
         h('div.hoja__acciones',
           opciones.length
             ? h('button.btn.btn--fantasma', { type: 'button', onclick: () => pintarPaso() }, 'Ver opciones')
-            : (omitible
-              ? h('button.btn.btn--fantasma', { type: 'button', onclick: () => alContinuar('') }, 'Omitir')
-              : h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar')),
+            : h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
           h('button.btn.btn--primario', {
             type: 'button',
             onclick: () => {
@@ -251,9 +250,7 @@ function hojaNuevaOportunidad(clientes) {
             onclick: () => pintarEntrada('Cliente', 'Cliente', clientes, (v) => { if (v) elegirCliente(v); }, false)
           }, '＋  Agregar cliente'),
           h('div.asistente__rejilla',
-            clientes.map(o => h('button.asistente__op', { type: 'button', onclick: () => elegirCliente(o) }, o))),
-          h('div.hoja__acciones',
-            h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'))
+            clientes.map(o => h('button.asistente__op', { type: 'button', onclick: () => elegirCliente(o) }, o)))
         );
         return;
       }
@@ -271,9 +268,10 @@ function hojaNuevaOportunidad(clientes) {
           h('div.asistente__rejilla',
             h('button.asistente__op', { type: 'button', onclick: () => continuarSede('N/A') }, 'N/A'),
             sedes.map(o => h('button.asistente__op', { type: 'button', onclick: () => continuarSede(o) }, o))),
-          h('div.hoja__acciones',
-            h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
-            h('button.btn.btn--fantasma', { type: 'button', onclick: () => continuarSede('') }, 'Omitir'))
+          h('button.asistente__omitir', {
+            type: 'button',
+            onclick: () => continuarSede('')
+          }, 'Omitir este paso →')
         );
         return;
       }
@@ -362,12 +360,11 @@ function hojaNuevaAccion(v, contactos, globales) {
       poner(
         cabeza('Contacto (opcional)'),
         entrada,
-        h('p.pista', 'El contacto es opcional: puedes Continuar sin escribir nada, u Omitir.'),
+        h('p.pista', 'El contacto es opcional: puedes Continuar sin escribir nada.'),
         h('div.hoja__acciones',
           (contactos.length || globales.length)
             ? h('button.btn.btn--fantasma', { type: 'button', onclick: () => pintarPaso() }, 'Ver opciones')
             : h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
-          h('button.btn.btn--fantasma', { type: 'button', onclick: () => { sel.contacto = ''; avanzar(); } }, 'Omitir'),
           h('button.btn.btn--primario', {
             type: 'button',
             onclick: () => { sel.contacto = entrada.value.trim(); avanzar(); }
@@ -399,9 +396,10 @@ function hojaNuevaAccion(v, contactos, globales) {
             type: 'button',
             onclick: () => { modoGlobal = !modoGlobal; pintarPaso(); },
           }, modoGlobal ? '👤  VER CONTACTOS DE ESTE CLIENTE' : '🌐  VER LISTA DE CONTACTOS GLOBAL') : null,
-          h('div.hoja__acciones',
-            h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
-            h('button.btn.btn--fantasma', { type: 'button', onclick: () => { sel.contacto = ''; avanzar(); } }, 'Omitir'))
+          h('button.asistente__omitir', {
+            type: 'button',
+            onclick: () => { sel.contacto = ''; avanzar(); }
+          }, 'Omitir este paso →')
         );
         return;
       }
