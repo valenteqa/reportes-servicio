@@ -173,6 +173,12 @@ function compromisoVigente(v) {
 // Semaforo de la accion vigente segun su fecha compromiso: "En tiempo"
 // (verde), "Cerca de vencer" (ambar, a menos de 3 dias) o "Vencida por X
 // dias" (rojo).
+// Clase del circulo semaforo de la calificacion (detalle y tablero):
+// >90 verde, 50-90 amarillo, <50 rojo.
+function claseCal(cal) {
+  return cal > 90 ? 'venta-cal-solo--verde' : cal >= 50 ? 'venta-cal-solo--ambar' : 'venta-cal-solo--rojo';
+}
+
 function chipEstadoCompromiso(comp) {
   const hoy = fechaClave();
   const dias = Math.round((new Date(comp + 'T12:00:00') - new Date(hoy + 'T12:00:00')) / 86400000);
@@ -569,9 +575,8 @@ async function hojaDetalle(v, permisos, alCambiar) {
     const pinta = () => {
       const cal = calificacion(v);
       calEl.textContent = cal + '%';
-      // Circulo semaforo: >90 verde, 50-90 amarillo, <50 rojo.
       calEl.classList.remove('venta-cal-solo--verde', 'venta-cal-solo--ambar', 'venta-cal-solo--rojo');
-      calEl.classList.add(cal > 90 ? 'venta-cal-solo--verde' : cal >= 50 ? 'venta-cal-solo--ambar' : 'venta-cal-solo--rojo');
+      calEl.classList.add(claseCal(cal));
       if (tituloCabEl) tituloCabEl.textContent = v.titulo;
       const acciones = (v.historial || []).filter(e => e.tipo === 'estatus' && !esCreacionLegada(e));
       const vigente = acciones[acciones.length - 1] || null;
@@ -923,11 +928,12 @@ export async function render(contenedor, refrescar, params = {}) {
         h('div.venta-carta__fila',
           PRIORIDAD_ACTIVA ? h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()) : null,
           h('span.venta-cliente', v.titulo),
-          h('span.venta-cal', calificacion(v) + '%')),
+          // Mismo circulo semaforo que el detalle.
+          h('span.venta-cal-solo.' + claseCal(calificacion(v)), calificacion(v) + '%')),
         h('p.venta-titulo', v.cliente + (v.sede ? ' · ' + v.sede : '')),
+        // Sin fecha compromiso en la tarjeta: solo la alerta si ya vencio.
         h('p.venta-meta', '📅 Creada: ' + fechaDeTs(v.creado),
-          v.cerrada ? ' · CERRADA' : (comp ? h('span' + (vencida ? '.venta-vencida' : ''),
-            ' · ' + (vencida ? '⚠ vencida · ' : '') + 'Fecha compromiso: ' + fechaBonita(comp)) : '')),
+          v.cerrada ? ' · CERRADA' : (vencida ? h('span.venta-vencida', ' · ⚠ vencida') : '')),
         h('p.venta-meta',
           contactoVigente(v) ? '👤 ' + contactoVigente(v) + ' · ' : '',
           h('span.venta-estatus', estatusActual(v)))
