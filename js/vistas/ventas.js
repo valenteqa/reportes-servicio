@@ -561,6 +561,42 @@ async function hojaDetalle(v, permisos, alCambiar) {
       if (tituloCabEl) tituloCabEl.textContent = v.titulo;
       const acciones = (v.historial || []).filter(e => e.tipo === 'estatus' && !esCreacionLegada(e));
       const vigente = acciones[acciones.length - 1] || null;
+      // Las anteriores van aparte, bajo HISTORIAL; la vigente encabeza
+      // su propia seccion ACCION ACTUAL. Mas nueva primero, como siempre.
+      const anteriores = acciones.slice(0, -1).reverse();
+      const eventoEl = (e, esVigente) =>
+        h('div.venta-evento',
+          // Semaforo SOLO en la accion vigente (la ACCION ACTUAL).
+          esVigente && e.compromiso && !v.cerrada ? chipEstadoCompromiso(e.compromiso) : null,
+          h('p.venta-evento__cuerpo', e.texto,
+            e.contacto ? h('span.venta-evento__contacto', '👤 ' + e.contacto) : null),
+          h('div.venta-evento__fechas',
+            h('span', 'Fecha de creacion: ' + fechaBonita(e.fecha)),
+            e.compromiso ? h('span', 'Fecha compromiso: ' + fechaBonita(e.compromiso)) : null),
+          permisos.gestionar ? h('span.venta-evento__tools',
+            h('button.icono-btn.org-mini', {
+              type: 'button', 'aria-label': 'Editar accion',
+              onclick: async () => {
+                const datos = await hojaEditarAccion(e);
+                if (!datos) return;
+                e.texto = datos.texto;
+                e.contacto = datos.contacto;
+                e.compromiso = datos.compromiso;
+                await db.ventaGuardar(v);
+                pinta();
+                alCambiar();
+              },
+            }, '✎'),
+            h('button.icono-btn.org-mini', {
+              type: 'button', 'aria-label': 'Eliminar accion',
+              onclick: async () => {
+                if (!(await confirmar('¿Eliminar este estatus del historial? La calificacion se recalcula.'))) return;
+                v.historial = v.historial.filter(x => x !== e);
+                await db.ventaGuardar(v);
+                pinta();
+                alCambiar();
+              },
+            }, '🗑')) : null);
       // OJO: append(null) pinta el texto "null" (h() si filtra nulos);
       // aqui los condicionales entregan null, se filtran antes de anexar.
       const partes = [
@@ -580,44 +616,15 @@ async function hojaDetalle(v, permisos, alCambiar) {
           },
         }, '✎  EDITAR OPORTUNIDAD') : null,
 
-        h('h3.venta-h3', 'HISTORIAL DE ACCIONES'),
         // Solo ACCIONES: ni los atrasos (su presentacion esta por definirse
         // con Vale) ni el "Oportunidad creada" legado se listan aqui —
         // ambos siguen contando para la calificacion segun sus reglas.
-        h('div.venta-historial',
-          ...acciones.slice().reverse().map(e =>
-            h('div.venta-evento',
-              // Semaforo SOLO en la accion vigente (la mas reciente).
-              e === vigente && e.compromiso && !v.cerrada ? chipEstadoCompromiso(e.compromiso) : null,
-              h('p.venta-evento__cuerpo', e.texto,
-                e.contacto ? h('span.venta-evento__contacto', '👤 ' + e.contacto) : null),
-              h('div.venta-evento__fechas',
-                h('span', 'Fecha de creacion: ' + fechaBonita(e.fecha)),
-                e.compromiso ? h('span', 'Fecha compromiso: ' + fechaBonita(e.compromiso)) : null),
-              permisos.gestionar ? h('span.venta-evento__tools',
-                h('button.icono-btn.org-mini', {
-                  type: 'button', 'aria-label': 'Editar accion',
-                  onclick: async () => {
-                    const datos = await hojaEditarAccion(e);
-                    if (!datos) return;
-                    e.texto = datos.texto;
-                    e.contacto = datos.contacto;
-                    e.compromiso = datos.compromiso;
-                    await db.ventaGuardar(v);
-                    pinta();
-                    alCambiar();
-                  },
-                }, '✎'),
-                h('button.icono-btn.org-mini', {
-                  type: 'button', 'aria-label': 'Eliminar accion',
-                  onclick: async () => {
-                    if (!(await confirmar('¿Eliminar este estatus del historial? La calificacion se recalcula.'))) return;
-                    v.historial = v.historial.filter(x => x !== e);
-                    await db.ventaGuardar(v);
-                    pinta();
-                    alCambiar();
-                  },
-                }, '🗑')) : null))),
+        h('h3.venta-h3', 'ACCION ACTUAL'),
+        vigente
+          ? h('div.venta-historial', eventoEl(vigente, true))
+          : h('p.pista', 'Aun no hay acciones. Agrega la primera.'),
+        anteriores.length ? h('h3.venta-h3', 'HISTORIAL DE ACCIONES') : null,
+        anteriores.length ? h('div.venta-historial', ...anteriores.map(e => eventoEl(e, false))) : null,
         permisos.accionar && !v.cerrada ? h('button.btn.btn--primario.venta-btn', {
           type: 'button',
           onclick: async () => {
