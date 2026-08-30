@@ -539,26 +539,32 @@ function hojaEditarAnotacion(n) {
 /* ---------------------------------------------------------------- */
 
 async function hojaDetalle(v, permisos, alCambiar) {
-  // La calificacion (solo el %) vive EN LA CABECERA de la hoja, junto a la
-  // ✕. El titulo lo construye hoja(), asi que el chip se inserta tras el
-  // montaje (microtask) y pinta() lo mantiene al dia.
+  // En la CABECERA de la hoja van el TITULO de la oportunidad (con su
+  // efecto) y la calificacion (solo el %) junto a la ✕. El header lo
+  // construye hoja(), asi que se ajusta tras el montaje (microtask) y
+  // pinta() lo mantiene al dia (p. ej. si el lider edita el titulo).
   const calEl = h('span.venta-cal-solo');
+  let tituloCabEl = null;
   queueMicrotask(() => {
     const cab = [...document.querySelectorAll('.hoja .hoja__titulo')].pop();
-    if (cab) cab.insertBefore(calEl, cab.querySelector('.icono-btn'));
+    if (!cab) return;
+    cab.insertBefore(calEl, cab.querySelector('.icono-btn'));
+    tituloCabEl = cab.querySelector('h2');
+    if (tituloCabEl) tituloCabEl.classList.add('venta-titulo--detalle');
   });
 
-  await hoja(v.cliente + (v.sede ? ' · ' + v.sede : ''), (cerrar) => {
+  await hoja(v.titulo, (cerrar) => {
     const cuerpo = h('div');
     const pinta = () => {
       const cal = calificacion(v);
       calEl.textContent = cal + '%';
+      if (tituloCabEl) tituloCabEl.textContent = v.titulo;
       const acciones = (v.historial || []).filter(e => e.tipo === 'estatus' && !esCreacionLegada(e));
       const vigente = acciones[acciones.length - 1] || null;
       // OJO: append(null) pinta el texto "null" (h() si filtra nulos);
       // aqui los condicionales entregan null, se filtran antes de anexar.
       const partes = [
-        h('p.venta-titulo.venta-titulo--detalle', v.titulo),
+        h('p.venta-titulo', v.cliente + (v.sede ? ' · ' + v.sede : '')),
         h('p.venta-meta',
           PRIORIDAD_ACTIVA ? h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()) : null,
           (PRIORIDAD_ACTIVA ? ' · ' : '') + '📅 Creada: ' + fechaDeTs(v.creado) + (v.cerrada ? ' · CERRADA' : '')),
@@ -886,9 +892,9 @@ export async function render(contenedor, refrescar, params = {}) {
       },
         h('div.venta-carta__fila',
           PRIORIDAD_ACTIVA ? h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()) : null,
-          h('span.venta-cliente', v.cliente + (v.sede ? ' · ' + v.sede : '')),
+          h('span.venta-cliente', v.titulo),
           h('span.venta-cal', calificacion(v) + '%')),
-        h('p.venta-titulo', v.titulo),
+        h('p.venta-titulo', v.cliente + (v.sede ? ' · ' + v.sede : '')),
         h('p.venta-meta', '📅 Creada: ' + fechaDeTs(v.creado),
           v.cerrada ? ' · CERRADA' : (comp ? h('span' + (vencida ? '.venta-vencida' : ''),
             ' · ' + (vencida ? '⚠ vencida · ' : '') + 'Fecha compromiso: ' + fechaBonita(comp)) : '')),
