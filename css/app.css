@@ -1435,7 +1435,11 @@ html.sin-desborde-vuelo, html.sin-desborde-vuelo body { overflow: hidden !import
    quiere ver entero, p. ej. la oportunidad de venta. Respeta la barra de
    estado (y la del Test Mode) via --sup. */
 .hoja--completa {
-  height: 100vh; height: 100dvh;
+  /* 100% del fondo (inset 0 = la pantalla entera): exacto con cualquier
+     zoom de interfaz y version del motor. Los dvh dentro de un zoom
+     cambiaron de significado entre versiones del WebView y la hoja
+     quedaba corta, dejando un hueco arriba del titulo. */
+  height: 100%;
   max-height: none;
   border-radius: 0;
   padding-top: calc(var(--sup) + .4rem);
@@ -1456,11 +1460,6 @@ body::before {
   height: env(safe-area-inset-top, 0px);
   background: #045b6b;
   z-index: 100; pointer-events: none;
-}
-/* El zoom de interfaz escala los dvh: compensar para no desbordar. */
-:root[data-zoomui="110"] .hoja--completa { height: calc(100vh / 1.1); height: calc(100dvh / 1.1); }
-:root[data-zoomui="125"] .hoja--completa { height: calc(100vh / 1.25); height: calc(100dvh / 1.25); }
-:root[data-zoomui="150"] .hoja--completa { height: calc(100vh / 1.5); height: calc(100dvh / 1.5);
 }
 .hoja--visible { transform: translateY(0); }
 
