@@ -745,7 +745,7 @@ button { font-family: inherit; font-size: inherit; }
 .venta-h3 { font-size: .78rem; letter-spacing: .1em; color: var(--primario-vivo, var(--primario)); margin: .8rem 0 .35rem; }
 /* ACCION ACTUAL e HISTORIAL van centrados (pedido de Vale). */
 .venta-h3--centrado { text-align: center; }
-/* Calificacion en CIRCULO con bisel (pedido de Vale): color por rango
+/* Calificacion en CIRCULO plano (pedido de Vale): color por rango
    — >90 verde, 50-90 amarillo, <50 rojo — numero negro en negritas.
    Colores fijos (no tokens): el semaforo es el mismo en ambos temas. */
 .venta-cal-solo {
@@ -753,11 +753,6 @@ button { font-family: inherit; font-size: inherit; }
   width: 3rem; height: 3rem; border-radius: 50%;
   font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums;
   color: #000;
-  /* Halo blanco alrededor del numero (borde de la fuente): sombras en
-     las 8 direcciones — mas nitido que text-stroke, que adelgaza. */
-  text-shadow:
-    -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff,
-    -1px 0 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, 0 1px 0 #fff;
   border: 1px solid rgba(0, 0, 0, .35);
 }
 .venta-cal-solo--verde { background: #4fc262; }
