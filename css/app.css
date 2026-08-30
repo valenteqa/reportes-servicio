@@ -742,7 +742,7 @@ button { font-family: inherit; font-size: inherit; }
 .venta-meta { margin: 0; font-size: .82rem; color: var(--tinta-suave); }
 .venta-vencida { color: var(--peligro, #c22a29); font-weight: 700; }
 .venta-estatus { color: var(--tinta-tenue); }
-.venta-h3 { font-size: .78rem; letter-spacing: .1em; color: var(--primario); margin: .8rem 0 .35rem; }
+.venta-h3 { font-size: .78rem; letter-spacing: .1em; color: var(--primario-vivo, var(--primario)); margin: .8rem 0 .35rem; }
 /* ACCION ACTUAL e HISTORIAL van centrados (pedido de Vale). */
 .venta-h3--centrado { text-align: center; }
 .venta-cal-solo { font-size: 1.15rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--primario-vivo, var(--primario)); flex: none; }
@@ -754,18 +754,18 @@ button { font-family: inherit; font-size: inherit; }
   font-size: 1.08rem; font-weight: 800;
   text-transform: uppercase; letter-spacing: .045em;
   margin: 0;
-  color: var(--primario);
+  color: var(--primario-vivo, var(--primario));
 }
 /* Ritmo vertical PAREJO en el detalle (pedido de Vale): .55rem entre
    titulo → cliente → fecha de creacion → ACCION ACTUAL. La fila del
    header es alta (la ✕ manda): su margen va corto para que el hueco
    VISTO desde el texto del titulo empareje con los demas. El boton
    EDITAR (cuando hay permisos) entra al mismo ritmo. */
-.hoja__titulo:has(.venta-titulo--detalle) { margin-bottom: .25rem; }
-.hoja .venta-titulo { margin: 0 0 .55rem; }
-.venta-meta + .venta-h3 { margin-top: .55rem; }
-.venta-meta + .venta-btn-mini { margin-top: .55rem; }
-.venta-btn-mini + .venta-h3 { margin-top: .55rem; }
+.hoja__titulo:has(.venta-titulo--detalle) { margin-bottom: .1rem; }
+.hoja .venta-titulo { margin: 0 0 .4rem; }
+.venta-meta + .venta-h3 { margin-top: .4rem; }
+.venta-meta + .venta-btn-mini { margin-top: .4rem; }
+.venta-btn-mini + .venta-h3 { margin-top: .4rem; }
 /* En hoja completa el cuerpo entero scrollea: el historial sin tope. */
 .venta-historial { overflow-wrap: break-word; }
 .venta-evento { position: relative; display: block; padding: .5rem 0; border-bottom: 1px dashed var(--borde); font-size: .88rem; }
