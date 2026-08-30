@@ -1437,6 +1437,11 @@ html.sin-desborde-vuelo, html.sin-desborde-vuelo body { overflow: hidden !import
   border-radius: 0;
   padding-top: calc(var(--sup) + .4rem);
 }
+/* El zoom de interfaz escala los dvh: compensar para no desbordar. */
+:root[data-zoomui="110"] .hoja--completa { height: calc(100vh / 1.1); height: calc(100dvh / 1.1); }
+:root[data-zoomui="125"] .hoja--completa { height: calc(100vh / 1.25); height: calc(100dvh / 1.25); }
+:root[data-zoomui="150"] .hoja--completa { height: calc(100vh / 1.5); height: calc(100dvh / 1.5);
+}
 .hoja--visible { transform: translateY(0); }
 
 .hoja__asa {
