@@ -22,6 +22,11 @@ const PRIORIDADES = [
 ];
 const ORDEN_PRIO = { alta: 0, media: 1, baja: 2 };
 
+// Prioridad DESHABILITADA a peticion de Vale (30 ago 2026): "si lo
+// ocupamos luego lo volvemos a poner". Para revivirla completa (chips,
+// selector del alta y del editar), poner esto en true.
+const PRIORIDAD_ACTIVA = false;
+
 function fechaClave(d) {
   if (!d) {
     const simulada = fechaSimulada();   // modo prueba: la app vive ahi
@@ -297,7 +302,7 @@ function hojaNuevaOportunidad(clientes) {
       poner(
         cabeza('La oportunidad'),
         cTitulo,
-        h('label.campo', h('span.campo__etiqueta', 'Prioridad'), selPrio),
+        PRIORIDAD_ACTIVA ? h('label.campo', h('span.campo__etiqueta', 'Prioridad'), selPrio) : null,
         h('div.hoja__acciones',
           h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
           h('button.btn.btn--primario', {
@@ -307,7 +312,7 @@ function hojaNuevaOportunidad(clientes) {
               if (!titulo) { aviso('Describe la oportunidad.', 'error'); return; }
               cerrar({
                 cliente: sel.cliente, sede: sel.sede, titulo,
-                prioridad: selPrio.value,
+                prioridad: PRIORIDAD_ACTIVA ? selPrio.value : 'media',
               });
             },
           }, 'Crear'))
@@ -461,7 +466,7 @@ async function hojaEditarOportunidad(v) {
       ...equipoVentas.map(u => h('option', { value: u.id, selected: v.duenoId === u.id }, u.nombre)));
     return h('div',
       cCliente, cSede, cTitulo,
-      h('label.campo', h('span.campo__etiqueta', 'Prioridad'), selPrio),
+      PRIORIDAD_ACTIVA ? h('label.campo', h('span.campo__etiqueta', 'Prioridad'), selPrio) : null,
       h('label.campo', h('span.campo__etiqueta', 'Vendedor asignado'), selVendedor),
       h('div.hoja__acciones',
         h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
@@ -476,7 +481,7 @@ async function hojaEditarOportunidad(v) {
               cliente,
               sede: cSede.querySelector('input').value.trim(),
               titulo,
-              prioridad: selPrio.value,
+              prioridad: PRIORIDAD_ACTIVA ? selPrio.value : v.prioridad,
               duenoId: dueno ? dueno.id : '',
               dueno: dueno ? dueno.nombre : '',
             });
@@ -555,8 +560,8 @@ async function hojaDetalle(v, permisos, alCambiar) {
       const partes = [
         h('p.venta-titulo.venta-titulo--detalle', v.titulo),
         h('p.venta-meta',
-          h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()),
-          ' · 📅 Creada: ' + fechaDeTs(v.creado) + (v.cerrada ? ' · CERRADA' : '')),
+          PRIORIDAD_ACTIVA ? h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()) : null,
+          (PRIORIDAD_ACTIVA ? ' · ' : '') + '📅 Creada: ' + fechaDeTs(v.creado) + (v.cerrada ? ' · CERRADA' : '')),
         permisos.gestionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
           type: 'button',
           onclick: async () => {
@@ -880,7 +885,7 @@ export async function render(contenedor, refrescar, params = {}) {
         onclick: () => hojaDetalle(v, permisos, pintar),
       },
         h('div.venta-carta__fila',
-          h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()),
+          PRIORIDAD_ACTIVA ? h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()) : null,
           h('span.venta-cliente', v.cliente + (v.sede ? ' · ' + v.sede : '')),
           h('span.venta-cal', calificacion(v) + '%')),
         h('p.venta-titulo', v.titulo),
