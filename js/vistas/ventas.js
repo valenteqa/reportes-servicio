@@ -600,10 +600,12 @@ async function hojaDetalle(v, permisos, alCambiar) {
       // OJO: append(null) pinta el texto "null" (h() si filtra nulos);
       // aqui los condicionales entregan null, se filtran antes de anexar.
       const partes = [
-        h('p.venta-titulo', v.cliente + (v.sede ? ' · ' + v.sede : '')),
-        h('p.venta-meta',
-          PRIORIDAD_ACTIVA ? h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()) : null,
-          (PRIORIDAD_ACTIVA ? ' · ' : '') + '📅 Creada: ' + fechaDeTs(v.creado) + (v.cerrada ? ' · CERRADA' : '')),
+        // Cliente (izq) y fecha de creacion (der) en la MISMA fila.
+        h('div.venta-linea-cliente',
+          h('p.venta-titulo', v.cliente + (v.sede ? ' · ' + v.sede : '')),
+          h('p.venta-meta',
+            PRIORIDAD_ACTIVA ? h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()) : null,
+            (PRIORIDAD_ACTIVA ? ' · ' : '') + '📅 Creada: ' + fechaDeTs(v.creado) + (v.cerrada ? ' · CERRADA' : ''))),
         permisos.gestionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
           type: 'button',
           onclick: async () => {

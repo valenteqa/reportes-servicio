@@ -762,9 +762,16 @@ button { font-family: inherit; font-size: inherit; }
    VISTO desde el texto del titulo empareje con los demas. El boton
    EDITAR (cuando hay permisos) entra al mismo ritmo. */
 .hoja__titulo:has(.venta-titulo--detalle) { margin-bottom: .1rem; }
-.hoja .venta-titulo { margin: 0 0 .4rem; }
-.venta-meta + .venta-h3 { margin-top: .4rem; }
-.venta-meta + .venta-btn-mini { margin-top: .4rem; }
+/* Cliente (izq) y fecha de creacion (der) en UNA fila, alineados por la
+   base del texto; si no caben, la fecha baja de renglon. */
+.venta-linea-cliente {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: .25rem .6rem; flex-wrap: wrap;
+  margin: 0 0 .4rem;
+}
+.venta-linea-cliente .venta-titulo, .venta-linea-cliente .venta-meta { margin: 0; }
+.venta-linea-cliente + .venta-h3 { margin-top: .4rem; }
+.venta-linea-cliente + .venta-btn-mini { margin-top: .4rem; }
 .venta-btn-mini + .venta-h3 { margin-top: .4rem; }
 /* En hoja completa el cuerpo entero scrollea: el historial sin tope. */
 .venta-historial { overflow-wrap: break-word; }
