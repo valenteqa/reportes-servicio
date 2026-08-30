@@ -128,13 +128,19 @@ async function contactosGlobales() {
 /* Calculo                                                           */
 /* ---------------------------------------------------------------- */
 
+// El registro "Oportunidad creada" de ventas viejas NO cuenta como accion
+// (regla de Vale): ni en la calificacion ni en las listas.
+function esCreacionLegada(e) {
+  return e.tipo === 'estatus' && e.texto === 'Oportunidad creada';
+}
+
 function calificacion(v) {
-  const n = (v.historial || []).length || 1;
+  const n = (v.historial || []).filter(e => !esCreacionLegada(e)).length || 1;
   return Math.round(100 / n);
 }
 
 function estatusActual(v) {
-  const hist = v.historial || [];
+  const hist = (v.historial || []).filter(e => !esCreacionLegada(e));
   return hist.length ? hist[hist.length - 1].texto : '';
 }
 
@@ -523,12 +529,13 @@ async function hojaDetalle(v, permisos, alCambiar) {
       // OJO: append(null) pinta el texto "null" (h() si filtra nulos);
       // aqui los condicionales entregan null, se filtran antes de anexar.
       const partes = [
-        h('p.venta-titulo', v.titulo),
+        // La calificacion vive arriba a la DERECHA, solo el porcentaje.
+        h('div.venta-det-cab',
+          h('p.venta-titulo', v.titulo),
+          h('span.venta-cal-solo', cal + '%')),
         h('p.venta-meta',
           h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()),
           ' · 📅 Creada: ' + fechaDeTs(v.creado) + (v.cerrada ? ' · CERRADA' : '')),
-        v.cerrada || !compromisoVigente(v) ? null : h('p.venta-meta', 'Fecha compromiso: ' + fechaBonita(compromisoVigente(v)) + ' (de la ultima accion)'),
-        h('p.venta-cal', 'CALIFICACION: ' + cal + '%  (' + (v.historial || []).length + ' estatus)'),
         permisos.gestionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
           type: 'button',
           onclick: async () => {
@@ -542,8 +549,11 @@ async function hojaDetalle(v, permisos, alCambiar) {
         }, '✎  EDITAR OPORTUNIDAD') : null,
 
         h('h3.venta-h3', 'HISTORIAL DE ACCIONES'),
+        // Solo ACCIONES: ni los atrasos (su presentacion esta por definirse
+        // con Vale) ni el "Oportunidad creada" legado se listan aqui —
+        // ambos siguen contando para la calificacion segun sus reglas.
         h('div.venta-historial',
-          ...(v.historial || []).slice().reverse().map(e =>
+          ...(v.historial || []).filter(e => e.tipo === 'estatus' && !esCreacionLegada(e)).slice().reverse().map(e =>
             h('div.venta-evento' + (e.tipo === 'atraso' ? '.venta-evento--atraso' : ''),
               // Fechas etiquetadas: creacion a la IZQUIERDA, compromiso a
               // la DERECHA (pedido de Vale para que no se confundan).

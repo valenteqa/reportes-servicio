@@ -740,6 +740,9 @@ button { font-family: inherit; font-size: inherit; }
 .venta-vencida { color: var(--peligro, #c22a29); font-weight: 700; }
 .venta-estatus { color: var(--tinta-tenue); }
 .venta-h3 { font-size: .78rem; letter-spacing: .1em; color: var(--tinta-suave); margin: .8rem 0 .35rem; }
+.venta-det-cab { display: flex; align-items: flex-start; gap: .6rem; }
+.venta-det-cab .venta-titulo { flex: 1; min-width: 0; }
+.venta-cal-solo { font-size: 1.3rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--primario-tinta); }
 .venta-historial { max-height: 40vh; overflow-y: auto; }
 .venta-evento { position: relative; display: block; padding: .5rem 0; border-bottom: 1px dashed var(--borde); font-size: .88rem; }
 .venta-evento__fechas {
