@@ -758,6 +758,16 @@ button { font-family: inherit; font-size: inherit; }
   font-size: .72rem; color: var(--tinta-tenue); font-variant-numeric: tabular-nums;
 }
 .venta-evento__cuerpo { margin: 0 0 .25rem; }
+/* Semaforo de la accion vigente (arriba a la derecha del renglon). */
+.venta-estado-chip {
+  position: absolute; top: .5rem; right: 0;
+  padding: .14rem .55rem; border-radius: 99px;
+  font-size: .7rem; font-weight: 800; letter-spacing: .03em; white-space: nowrap;
+}
+.venta-estado-chip--verde { background: #2e7d3222; color: #2e7d32; border: 1px solid #2e7d3255; }
+.venta-estado-chip--ambar { background: #b8860b22; color: #a3760a; border: 1px solid #a3760a55; }
+.venta-estado-chip--rojo  { background: #d3302f22; color: #c22a29; border: 1px solid #c22a2955; }
+.venta-evento:has(.venta-estado-chip) .venta-evento__cuerpo { padding-right: 9rem; }
 .venta-evento:has(.venta-evento__tools) .venta-evento__cuerpo { padding-right: 4.4rem; }
 .venta-evento .venta-evento__tools { position: absolute; right: 0; bottom: .45rem; }
 .venta-evento__fecha { flex: none; color: var(--tinta-tenue); font-variant-numeric: tabular-nums; }

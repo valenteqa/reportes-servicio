@@ -165,6 +165,20 @@ function compromisoVigente(v) {
   return v.fechaSeguimiento || '';
 }
 
+// Semaforo de la accion vigente segun su fecha compromiso: "En tiempo"
+// (verde), "Cerca de vencer" (ambar, a menos de 3 dias) o "Vencida por X
+// dias" (rojo).
+function chipEstadoCompromiso(comp) {
+  const hoy = fechaClave();
+  const dias = Math.round((new Date(comp + 'T12:00:00') - new Date(hoy + 'T12:00:00')) / 86400000);
+  if (dias < 0) {
+    const x = -dias;
+    return h('span.venta-estado-chip.venta-estado-chip--rojo', 'Vencida por ' + x + (x === 1 ? ' dia' : ' dias'));
+  }
+  if (dias < 3) return h('span.venta-estado-chip.venta-estado-chip--ambar', 'Cerca de vencer');
+  return h('span.venta-estado-chip.venta-estado-chip--verde', 'En tiempo');
+}
+
 // Un ATRASO automatico por cada fecha compromiso vencida sin accion nueva.
 async function registrarAtrasos(ventas) {
   const hoy = fechaClave();
@@ -534,6 +548,8 @@ async function hojaDetalle(v, permisos, alCambiar) {
     const pinta = () => {
       const cal = calificacion(v);
       calEl.textContent = cal + '%';
+      const acciones = (v.historial || []).filter(e => e.tipo === 'estatus' && !esCreacionLegada(e));
+      const vigente = acciones[acciones.length - 1] || null;
       // OJO: append(null) pinta el texto "null" (h() si filtra nulos);
       // aqui los condicionales entregan null, se filtran antes de anexar.
       const partes = [
@@ -558,10 +574,10 @@ async function hojaDetalle(v, permisos, alCambiar) {
         // con Vale) ni el "Oportunidad creada" legado se listan aqui —
         // ambos siguen contando para la calificacion segun sus reglas.
         h('div.venta-historial',
-          ...(v.historial || []).filter(e => e.tipo === 'estatus' && !esCreacionLegada(e)).slice().reverse().map(e =>
-            h('div.venta-evento' + (e.tipo === 'atraso' ? '.venta-evento--atraso' : ''),
-              // El TITULO de la accion va ARRIBA; abajo sus fechas
-              // etiquetadas (creacion izq, compromiso der).
+          ...acciones.slice().reverse().map(e =>
+            h('div.venta-evento',
+              // Semaforo SOLO en la accion vigente (la mas reciente).
+              e === vigente && e.compromiso && !v.cerrada ? chipEstadoCompromiso(e.compromiso) : null,
               h('p.venta-evento__cuerpo', e.texto,
                 e.contacto ? h('span.venta-evento__contacto', '👤 ' + e.contacto) : null),
               h('div.venta-evento__fechas',
