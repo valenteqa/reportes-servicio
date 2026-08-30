@@ -296,7 +296,7 @@ function hojaNuevaOportunidad(clientes) {
                 prioridad: selPrio.value,
               });
             },
-          }, 'Continuar'))
+          }, 'Crear'))
       );
       setTimeout(() => { const e = cTitulo.querySelector('input'); if (e) e.focus(); }, 80);
     }
@@ -787,25 +787,18 @@ export async function render(contenedor, refrescar, params = {}) {
         onclick: async () => {
           const datos = await hojaNuevaOportunidad(await clientesGlobales());
           if (!datos) return;
-          // La PRIMERA ACCION es OBLIGATORIA: sin ella no se guarda nada.
-          const previa = { cliente: datos.cliente, sede: datos.sede, titulo: datos.titulo };
-          const accion = await hojaNuevaAccion(previa,
-            await contactosDe(datos.cliente, datos.sede), await contactosGlobales());
-          if (!accion) {
-            aviso('Sin una primera accion no se guarda la oportunidad.', 'error');
-            return;
-          }
+          // Se guarda de inmediato (sin forzar la primera accion) y la
+          // oportunidad queda ABIERTA con su boton ✚ para agregarla.
           const v = {
             id: db.nuevoId(), ...datos, cerrada: false, creado: db.marcaDeTiempo(),
             duenoId: yo ? yo.id : '', dueno: yo ? yo.nombre : '',
             anotaciones: [],
-            historial: [{ ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo: 'estatus', texto: accion.texto, contacto: accion.contacto || '', compromiso: accion.fecha || '' }],
+            historial: [],
           };
           await db.ventaGuardar(v);
           // cliente y sede nuevos → al catalogo global de toda la app
           try { await db.maquinaRecordar({ cliente: datos.cliente, planta: datos.sede }); } catch (e) { /* opcional */ }
           await pintar();
-          // directo al menu de acciones y anotaciones de la recien creada
           hojaDetalle(v, permisos, pintar);
         },
       }, '✚  NUEVA') : null));
