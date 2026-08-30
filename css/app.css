@@ -740,7 +740,7 @@ button { font-family: inherit; font-size: inherit; }
 .venta-vencida { color: var(--peligro, #c22a29); font-weight: 700; }
 .venta-estatus { color: var(--tinta-tenue); }
 .venta-h3 { font-size: .78rem; letter-spacing: .1em; color: var(--tinta-suave); margin: .8rem 0 .35rem; }
-.venta-cal-solo { font-size: 1.15rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--primario-tinta); flex: none; }
+.venta-cal-solo { font-size: 1.15rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--primario-vivo, var(--primario)); flex: none; }
 /* Titulo de la oportunidad: MAYUSCULAS con efecto degradado. */
 .venta-titulo--detalle {
   font-size: 1.08rem; font-weight: 800;
