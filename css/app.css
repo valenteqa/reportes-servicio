@@ -665,7 +665,10 @@ button { font-family: inherit; font-size: inherit; }
   background: var(--fondo);
   overflow-y: auto;
   display: flex; align-items: flex-start; justify-content: center;
-  padding: 1.4rem 1.1rem 2rem;
+  /* --sup: que la tarjeta arranque debajo de la barra de estado (la
+     franja teal se pinta encima y cortaba el icono) y de la barra del
+     Test Mode cuando esta activa. */
+  padding: calc(var(--sup) + 1.4rem) 1.1rem 2rem;
 }
 .candado-tarjeta {
   width: 100%; max-width: 480px;
