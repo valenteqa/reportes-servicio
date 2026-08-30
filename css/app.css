@@ -768,7 +768,17 @@ button { font-family: inherit; font-size: inherit; }
 .venta-btn-mini + .venta-h3 { margin-top: .4rem; }
 /* En hoja completa el cuerpo entero scrollea: el historial sin tope. */
 .venta-historial { overflow-wrap: break-word; }
-.venta-evento { position: relative; display: block; padding: .5rem 0; border-bottom: 1px dashed var(--borde); font-size: .88rem; }
+/* Cada accion en su CUADRO: blanco con borde negro (pedido de Vale).
+   Los tokens invierten bien en oscuro (superficie oscura, borde claro). */
+.venta-evento {
+  position: relative; display: block;
+  padding: .5rem .6rem;
+  background: var(--superficie);
+  border: 1px solid var(--tinta);
+  border-radius: var(--r-ch);
+  font-size: .88rem;
+}
+.venta-evento + .venta-evento { margin-top: .45rem; }
 .venta-evento__fechas {
   display: flex; justify-content: space-between; align-items: baseline;
   gap: .6rem; flex-wrap: wrap;
@@ -777,7 +787,7 @@ button { font-family: inherit; font-size: inherit; }
 .venta-evento__cuerpo { margin: 0 0 .25rem; }
 /* Semaforo de la accion vigente (arriba a la derecha del renglon). */
 .venta-estado-chip {
-  position: absolute; top: .5rem; right: 0;
+  position: absolute; top: .5rem; right: .6rem;
   padding: .14rem .55rem; border-radius: 99px;
   font-size: .7rem; font-weight: 800; letter-spacing: .03em; white-space: nowrap;
 }
@@ -786,7 +796,7 @@ button { font-family: inherit; font-size: inherit; }
 .venta-estado-chip--rojo  { background: #d3302f22; color: #c22a29; border: 1px solid #c22a2955; }
 .venta-evento:has(.venta-estado-chip) .venta-evento__cuerpo { padding-right: 9rem; }
 .venta-evento:has(.venta-evento__tools) .venta-evento__cuerpo { padding-right: 4.4rem; }
-.venta-evento .venta-evento__tools { position: absolute; right: 0; bottom: .45rem; }
+.venta-evento .venta-evento__tools { position: absolute; right: .5rem; bottom: .45rem; }
 .venta-evento__fecha { flex: none; color: var(--tinta-tenue); font-variant-numeric: tabular-nums; }
 .venta-evento--atraso .venta-evento__cuerpo { color: var(--peligro, #c22a29); font-weight: 600; }
 .venta-btn { width: 100%; margin-top: .7rem; }
