@@ -15,17 +15,67 @@ import * as db from '../db.js';
 import { organizacion, quienSoy, puedeCrearVentas, puedeAccionarVentas, puedeGestionarVentas, veTodasLasVentas, fechaSimulada } from '../organizacion.js';
 import { clientesConocidos } from './servicios.js';
 
-const PRIORIDADES = [
-  ['alta',  'ALTA'],
-  ['media', 'MEDIA'],
-  ['baja',  'BAJA'],
-];
-const ORDEN_PRIO = { alta: 0, media: 1, baja: 2 };
+// PRIORIDADES tipo A1/A2/B1/C3 (regla de Vale, 31 ago 2026): a cada
+// oportunidad se le elige la LETRA (A, B o C) y el NUMERO se asigna
+// solo — el siguiente libre en la fila de ese vendedor; el orden se
+// cambia ARRASTRANDO en la hoja de prioridades (desde editar).
+// Los valores viejos (alta/media/baja) simplemente no pasan el patron
+// y se muestran como "sin prioridad".
+const RE_PRIORIDAD = /^[ABC][1-9]\d*$/;
+function prioridadValida(p) { return typeof p === 'string' && RE_PRIORIDAD.test(p); }
 
-// Prioridad DESHABILITADA a peticion de Vale (30 ago 2026): "si lo
-// ocupamos luego lo volvemos a poner". Para revivirla completa (chips,
-// selector del alta y del editar), poner esto en true.
-const PRIORIDAD_ACTIVA = false;
+// Clave ordenable: A antes que B/C, numero con ceros; sin prioridad al final.
+function clavePrio(v) {
+  return prioridadValida(v.prioridad) ? v.prioridad[0] + v.prioridad.slice(1).padStart(4, '0') : 'Z9999';
+}
+
+// La FILA de una letra para un vendedor: abiertas, por numero.
+function filaDePrioridad(ventas, duenoId, letra) {
+  return ventas
+    .filter(v => !v.cerrada && (v.duenoId || '') === (duenoId || '') &&
+      prioridadValida(v.prioridad) && v.prioridad[0] === letra)
+    .sort((a, b) => parseInt(a.prioridad.slice(1), 10) - parseInt(b.prioridad.slice(1), 10));
+}
+
+// Renumera 1..n la fila (saltando la venta con id saltarId) y guarda
+// solo las que cambiaron.
+async function compactarFila(ventas, duenoId, letra, saltarId) {
+  const fila = filaDePrioridad(ventas, duenoId, letra).filter(v => v.id !== saltarId);
+  for (let k = 0; k < fila.length; k++) {
+    const nueva = letra + (k + 1);
+    if (fila[k].prioridad !== nueva) { fila[k].prioridad = nueva; await db.ventaGuardar(fila[k]); }
+  }
+}
+
+// Cambia la LETRA de una oportunidad ('' = sin prioridad): libera y
+// compacta la fila que deja, y toma el siguiente numero libre de la nueva.
+async function asignarPrioridad(v, letra) {
+  const letraVieja = prioridadValida(v.prioridad) ? v.prioridad[0] : '';
+  if (letraVieja === letra) return;
+  const todas = await db.ventasTodas();
+  if (letraVieja) await compactarFila(todas, v.duenoId, letraVieja, v.id);
+  v.prioridad = letra
+    ? letra + (filaDePrioridad(todas, v.duenoId, letra).filter(x => x.id !== v.id).length + 1)
+    : '';
+  await db.ventaGuardar(v);
+}
+
+// Botonera A/B/C (toque para elegir, retocar para quitar).
+function botoneraPrioridad(inicial, alCambiar) {
+  let elegida = inicial || '';
+  const botones = ['A', 'B', 'C'].map(l => h('button.venta-prio-op', {
+    type: 'button',
+    onclick: () => {
+      elegida = elegida === l ? '' : l;
+      botones.forEach(b => b.classList.toggle('venta-prio-op--activa', b.textContent === elegida));
+      if (alCambiar) alCambiar(elegida);
+    },
+  }, l));
+  botones.forEach(b => b.classList.toggle('venta-prio-op--activa', b.textContent === elegida));
+  const el = h('div.venta-prio-fila', ...botones);
+  el.valorPrio = () => elegida;
+  return el;
+}
 
 function fechaClave(d) {
   if (!d) {
@@ -304,11 +354,11 @@ function hojaNuevaOportunidad(clientes) {
       // La fecha compromiso NO es de la oportunidad: la trae cada accion
       // (la primera se pide justo despues, obligatoria).
       const cTitulo = campo('Oportunidad', { maxLength: 160, placeholder: 'p. ej. Refacciones para H400' });
-      const selPrio = h('select.org-select', ...PRIORIDADES.map(([v, n]) => h('option', { value: v }, n)));
+      const botonesPrio = botoneraPrioridad('');
       poner(
         cabeza('La oportunidad'),
         cTitulo,
-        PRIORIDAD_ACTIVA ? h('label.campo', h('span.campo__etiqueta', 'Prioridad'), selPrio) : null,
+        h('label.campo', h('span.campo__etiqueta', 'Prioridad (opcional)'), botonesPrio),
         h('div.hoja__acciones',
           h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
           h('button.btn.btn--primario', {
@@ -318,7 +368,7 @@ function hojaNuevaOportunidad(clientes) {
               if (!titulo) { aviso('Describe la oportunidad.', 'error'); return; }
               cerrar({
                 cliente: sel.cliente, sede: sel.sede, titulo,
-                prioridad: PRIORIDAD_ACTIVA ? selPrio.value : 'media',
+                prioridadLetra: botonesPrio.valorPrio(),
               });
             },
           }, 'Crear'))
@@ -465,14 +515,19 @@ async function hojaEditarOportunidad(v) {
     const cCliente = campo('Cliente', { maxLength: 80, value: v.cliente || '' });
     const cSede = campo('Sede', { maxLength: 80, value: v.sede || '' });
     const cTitulo = campo('Oportunidad', { maxLength: 160, value: v.titulo || '' });
-    const selPrio = h('select.org-select',
-      ...PRIORIDADES.map(([val, n]) => h('option', { value: val, selected: v.prioridad === val }, n)));
+    const letraActual = prioridadValida(v.prioridad) ? v.prioridad[0] : '';
+    const botonesPrio = botoneraPrioridad(letraActual);
     const selVendedor = h('select.org-select',
       h('option', { value: '' }, 'Sin vendedor'),
       ...equipoVentas.map(u => h('option', { value: u.id, selected: v.duenoId === u.id }, u.nombre)));
     return h('div',
       cCliente, cSede, cTitulo,
-      PRIORIDAD_ACTIVA ? h('label.campo', h('span.campo__etiqueta', 'Prioridad'), selPrio) : null,
+      h('label.campo', h('span.campo__etiqueta', 'Prioridad' + (prioridadValida(v.prioridad) ? ' (actual: ' + v.prioridad + ')' : '')), botonesPrio),
+      // El orden dentro de la letra se cambia ARRASTRANDO en su hoja.
+      letraActual ? h('button.btn.btn--fantasma.venta-btn-mini', {
+        type: 'button',
+        onclick: () => hojaPrioridades(letraActual, v.duenoId, v.dueno),
+      }, '⇅  ORDENAR PRIORIDADES ' + letraActual) : null,
       h('label.campo', h('span.campo__etiqueta', 'Vendedor asignado'), selVendedor),
       h('div.hoja__acciones',
         h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
@@ -487,12 +542,89 @@ async function hojaEditarOportunidad(v) {
               cliente,
               sede: cSede.querySelector('input').value.trim(),
               titulo,
-              prioridad: PRIORIDAD_ACTIVA ? selPrio.value : v.prioridad,
+              prioridadLetra: botonesPrio.valorPrio(),
               duenoId: dueno ? dueno.id : '',
               dueno: dueno ? dueno.nombre : '',
             });
           },
         }, 'Guardar')));
+  });
+}
+
+// Hoja de PRIORIDADES de una letra: la fila del vendedor en orden;
+// se mantiene presionada una fila y se ARRASTRA para reordenar (los
+// numeros se reasignan 1..n al soltar).
+function hojaPrioridades(letra, duenoId, nombreDueno) {
+  return hoja('⇅  Prioridades ' + letra + (nombreDueno ? ' · ' + nombreDueno : ''), (cerrar) => {
+    const listaEl = h('div.prio-lista');
+    let fila = [];
+
+    const pinta = async () => {
+      fila = filaDePrioridad(await db.ventasTodas(), duenoId, letra);
+      if (!fila.length) {
+        listaEl.replaceChildren(h('p.pista', 'No hay oportunidades abiertas con prioridad ' + letra + '.'));
+        return;
+      }
+      listaEl.replaceChildren(...fila.map((v, idx) => {
+        const el = h('div.prio-fila',
+          h('span.prio-num', letra + (idx + 1)),
+          h('span.prio-tit', v.titulo),
+          h('span.prio-asa', '↕'));
+        el.onpointerdown = (ev) => arrastrar(ev, el, idx);
+        return el;
+      }));
+    };
+
+    async function arrastrar(ev, el, desde) {
+      ev.preventDefault();
+      try { el.setPointerCapture(ev.pointerId); } catch (e) { /* punteros sinteticos */ }
+      const filas = [...listaEl.children];
+      const alto = (filas.length > 1 ? filas[1].offsetTop - filas[0].offsetTop : el.offsetHeight) || 44;
+      const y0 = ev.clientY;
+      let destino = desde;
+      el.classList.add('prio-fila--envuelo');
+      const mover = (e2) => {
+        const dy = e2.clientY - y0;
+        el.style.transform = 'translateY(' + dy + 'px)';
+        const nuevo = Math.max(0, Math.min(filas.length - 1, desde + Math.round(dy / alto)));
+        if (nuevo !== destino) {
+          destino = nuevo;
+          filas.forEach((f, k) => {
+            if (f === el) return;
+            let corr = 0;
+            if (desde < destino && k > desde && k <= destino) corr = -alto;
+            if (desde > destino && k >= destino && k < desde) corr = alto;
+            f.style.transform = corr ? 'translateY(' + corr + 'px)' : '';
+          });
+        }
+      };
+      const soltar = async () => {
+        el.removeEventListener('pointermove', mover);
+        el.removeEventListener('pointerup', soltar);
+        el.removeEventListener('pointercancel', soltar);
+        el.classList.remove('prio-fila--envuelo');
+        if (destino !== desde) {
+          const orden = fila.slice();
+          const [mov] = orden.splice(desde, 1);
+          orden.splice(destino, 0, mov);
+          for (let k = 0; k < orden.length; k++) {
+            const nueva = letra + (k + 1);
+            if (orden[k].prioridad !== nueva) { orden[k].prioridad = nueva; await db.ventaGuardar(orden[k]); }
+          }
+        }
+        await pinta();
+      };
+      el.addEventListener('pointermove', mover);
+      el.addEventListener('pointerup', soltar);
+      el.addEventListener('pointercancel', soltar);
+    }
+
+    pinta();
+    return h('div',
+      h('p.pista', 'Manten presionada una fila y arrastrala hacia arriba o abajo.'),
+      listaEl,
+      h('div.hoja__acciones',
+        h('button.btn.btn--primario', { type: 'button', onclick: () => cerrar(true) }, 'Listo')));
   });
 }
 
@@ -630,15 +762,20 @@ async function hojaDetalle(v, permisos, alCambiar) {
         h('div.venta-linea-cliente',
           h('p.venta-titulo', v.cliente + (v.sede ? ' · ' + v.sede : '')),
           h('p.venta-meta',
-            PRIORIDAD_ACTIVA ? h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()) : null,
-            (PRIORIDAD_ACTIVA ? ' · ' : '') + '📅 Creada: ' + fechaDeTs(v.creado) + (v.cerrada ? ' · CERRADA' : ''))),
+            prioridadValida(v.prioridad) ? h('span.venta-prio.venta-prio--' + v.prioridad[0].toLowerCase(), v.prioridad) : null,
+            (prioridadValida(v.prioridad) ? ' · ' : '') + '📅 Creada: ' + fechaDeTs(v.creado) + (v.cerrada ? ' · CERRADA' : ''))),
         permisos.gestionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
           type: 'button',
           onclick: async () => {
             const datos = await hojaEditarOportunidad(v);
             if (!datos) return;
-            Object.assign(v, datos);
+            const { prioridadLetra, ...resto } = datos;
+            // Si cambia de vendedor, primero libera su lugar en la fila
+            // de prioridades del vendedor anterior.
+            if (resto.duenoId !== v.duenoId && prioridadValida(v.prioridad)) await asignarPrioridad(v, '');
+            Object.assign(v, resto);
             await db.ventaGuardar(v);
+            await asignarPrioridad(v, prioridadLetra);
             pinta();
             alCambiar();
           },
@@ -858,13 +995,16 @@ export async function render(contenedor, refrescar, params = {}) {
           if (!datos) return;
           // Se guarda de inmediato (sin forzar la primera accion) y la
           // oportunidad queda ABIERTA con su boton ✚ para agregarla.
+          const { prioridadLetra, ...restoDatos } = datos;
           const v = {
-            id: db.nuevoId(), ...datos, cerrada: false, creado: db.marcaDeTiempo(),
+            id: db.nuevoId(), ...restoDatos, prioridad: '', cerrada: false, creado: db.marcaDeTiempo(),
             duenoId: yo ? yo.id : '', dueno: yo ? yo.nombre : '',
             anotaciones: [],
             historial: [],
           };
           await db.ventaGuardar(v);
+          // La letra elegida toma el siguiente numero libre de su fila.
+          if (prioridadLetra) await asignarPrioridad(v, prioridadLetra);
           // cliente y sede nuevos → al catalogo global de toda la app
           try { await db.maquinaRecordar({ cliente: datos.cliente, planta: datos.sede }); } catch (e) { /* opcional */ }
           await pintar();
@@ -892,14 +1032,15 @@ export async function render(contenedor, refrescar, params = {}) {
     if (veTodas && filtroVendedor) {
       lista = lista.filter(v => filtroVendedor === '__sin__' ? !v.dueno : v.dueno === filtroVendedor);
     }
-    // Orden: abiertas primero por fecha de seguimiento y luego prioridad;
-    // cerradas al final.
+    // Orden: abiertas primero por fecha de seguimiento y luego prioridad
+    // (A1 < A2 < B1 < C…; sin prioridad al final); cerradas al final.
     lista.sort((a, b) => {
       if (!!a.cerrada !== !!b.cerrada) return a.cerrada ? 1 : -1;
       const fa = compromisoVigente(a) || '9999';
       const fb = compromisoVigente(b) || '9999';
       if (fa !== fb) return fa < fb ? -1 : 1;
-      return (ORDEN_PRIO[a.prioridad] || 1) - (ORDEN_PRIO[b.prioridad] || 1);
+      const pa = clavePrio(a), pb = clavePrio(b);
+      return pa < pb ? -1 : pa > pb ? 1 : 0;
     });
 
     const abiertas = lista.filter(v => !v.cerrada);
@@ -932,7 +1073,7 @@ export async function render(contenedor, refrescar, params = {}) {
         h('div.venta-carta__cols',
           h('div.venta-carta__izq',
             h('div.venta-carta__fila',
-              PRIORIDAD_ACTIVA ? h('span.venta-prio.venta-prio--' + v.prioridad, v.prioridad.toUpperCase()) : null,
+              prioridadValida(v.prioridad) ? h('span.venta-prio.venta-prio--' + v.prioridad[0].toLowerCase(), v.prioridad) : null,
               h('span.venta-cliente', v.titulo)),
             vigente
               ? h('p.venta-carta__accion', vigente.texto)

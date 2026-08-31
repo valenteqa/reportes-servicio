@@ -870,6 +870,34 @@ button { font-family: inherit; font-size: inherit; }
 .venta-estado-chip--verde { background: #5cbd8d4d; color: #2f7a58; border: 1px solid #2f7a5888; }
 .venta-estado-chip--ambar { background: #e2c15955; color: #8a7524; border: 1px solid #8a752488; }
 .venta-estado-chip--rojo  { background: #e26e6e4d; color: #b04a4a; border: 1px solid #b04a4a88; }
+
+/* Prioridades A1/B2/C3: chip por LETRA, misma familia fria (A la mas
+   urgente = rojo, B = ambar, C = verde). */
+.venta-prio--a { background: #e26e6e4d; color: #b04a4a; border: 1px solid #b04a4a88; }
+.venta-prio--b { background: #e2c15955; color: #8a7524; border: 1px solid #8a752488; }
+.venta-prio--c { background: #5cbd8d4d; color: #2f7a58; border: 1px solid #2f7a5888; }
+/* Botonera A/B/C del asistente y de editar (toque para elegir, retocar
+   para quitar). */
+.venta-prio-fila { display: flex; gap: .5rem; }
+.venta-prio-op {
+  flex: 1; padding: .5rem 0; font: inherit; font-weight: 800;
+  background: var(--superficie); color: var(--tinta-suave);
+  border: 1px solid var(--borde-fuerte);
+}
+.venta-prio-op--activa { background: var(--primario); color: var(--primario-tinta); border-color: var(--primario); }
+/* Hoja de prioridades: filas que se ARRASTRAN para reordenar. */
+.prio-lista { margin: .5rem 0 .2rem; }
+.prio-fila {
+  display: flex; align-items: center; gap: .6rem;
+  padding: .6rem .65rem; margin-bottom: .4rem;
+  background: var(--superficie); border: 1px solid var(--borde-fuerte);
+  touch-action: none; user-select: none; -webkit-user-select: none;
+  transition: transform .15s ease;
+}
+.prio-fila--envuelo { transition: none; opacity: .92; box-shadow: var(--sombra-3); position: relative; z-index: 5; }
+.prio-num { flex: none; min-width: 2.1rem; font-weight: 800; color: var(--primario-vivo, var(--primario)); font-variant-numeric: tabular-nums; }
+.prio-tit { flex: 1; min-width: 0; overflow-wrap: break-word; }
+.prio-asa { flex: none; color: var(--tinta-tenue); font-size: 1.15rem; }
 .venta-evento:has(.venta-estado-chip) .venta-evento__cuerpo { padding-right: 9rem; }
 .venta-evento:has(.venta-evento__tools) .venta-evento__cuerpo { padding-right: 4.4rem; }
 .venta-evento .venta-evento__tools { position: absolute; right: .5rem; bottom: .45rem; }
