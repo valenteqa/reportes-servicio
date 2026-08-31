@@ -779,20 +779,21 @@ button { font-family: inherit; font-size: inherit; }
 }
 .venta-h3--centrado::before { background: linear-gradient(90deg, transparent, var(--primario-vivo, var(--primario))); }
 .venta-h3--centrado::after { background: linear-gradient(90deg, var(--primario-vivo, var(--primario)), transparent); }
-/* Calificacion en CIRCULO plano (pedido de Vale): color por rango
-   — >90 verde, 50-90 amarillo, <50 rojo — numero negro en negritas.
-   Colores fijos (no tokens): el semaforo es el mismo en ambos temas. */
+/* Calificacion en TRAPECIO (pedido de Vale, estilo tech): color por
+   rango — >90 verde, 50-90 amarillo, <50 rojo — numero negro negritas.
+   Colores fijos (no tokens): el semaforo es el mismo en ambos temas.
+   El neon va en filter (drop-shadow): un box-shadow lo cortaria el
+   clip-path; el filtro abraza la silueta recortada. */
 .venta-cal-solo {
   display: grid; place-items: center; flex: none;
-  width: 3rem; height: 3rem; border-radius: 50%;
+  width: 3.6rem; height: 2.5rem;
+  clip-path: polygon(0 0, 100% 0, 82% 100%, 18% 100%);
   font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums;
   color: #000;
-  border: 1px solid rgba(0, 0, 0, .35);
 }
-/* Anillo de neon por estado (doble halo: aro + resplandor). */
-.venta-cal-solo--verde { background: #4fc262; box-shadow: 0 0 0 2px rgba(79, 194, 98, .3), 0 0 10px rgba(79, 194, 98, .6); }
-.venta-cal-solo--ambar { background: #f6c445; box-shadow: 0 0 0 2px rgba(246, 196, 69, .32), 0 0 10px rgba(246, 196, 69, .65); }
-.venta-cal-solo--rojo  { background: #ef5350; box-shadow: 0 0 0 2px rgba(239, 83, 80, .3), 0 0 10px rgba(239, 83, 80, .6); }
+.venta-cal-solo--verde { background: #4fc262; filter: drop-shadow(0 0 5px rgba(79, 194, 98, .8)); }
+.venta-cal-solo--ambar { background: #f6c445; filter: drop-shadow(0 0 5px rgba(246, 196, 69, .85)); }
+.venta-cal-solo--rojo  { background: #ef5350; filter: drop-shadow(0 0 5px rgba(239, 83, 80, .8)); }
 /* Titulo de la oportunidad: MAYUSCULAS, un solo color plano — el teal
    de la barra de estado (--primario), igual que los subtitulos.
    Sin margenes: vive en la fila del header y cualquier margen vertical
