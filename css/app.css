@@ -728,8 +728,10 @@ button { font-family: inherit; font-size: inherit; }
    acento lateral, neon en los semaforos y tipografia de terminal.
    Solo clases venta-*: no toca el resto de la app. ══ */
 .venta-carta {
-  /* Pila de filas con RITMO UNIFORME (.45rem entre todas). */
-  display: flex; flex-direction: column; gap: .45rem;
+  /* Pila de filas con RITMO UNIFORME: la misma distancia (.75rem, la
+     que quedo entre el % y el titulo) entre TODAS las filas (pedido
+     de Vale). */
+  display: flex; flex-direction: column; gap: .75rem;
   width: 100%; text-align: left;
   background: var(--superficie);
   border: 1px solid var(--primario);
@@ -802,9 +804,9 @@ button { font-family: inherit; font-size: inherit; }
 .venta-prio-badge--ambar::before { background: #8a752488; }
 .venta-prio-badge--rojo  { background: #e26e6e59; }
 .venta-prio-badge--rojo::before  { background: #b04a4a88; }
-/* F2: titulo y chip de estatus alineados ON TOP (pedido de Vale), con
-   un respiro extra respecto a la fila del % (ademas del gap general). */
-.venta-carta__f2 { display: flex; align-items: flex-start; gap: .5rem; margin-top: .3rem; }
+/* F2: titulo y chip de estatus alineados ON TOP (pedido de Vale). El
+   respiro entre filas lo pone el gap .75rem de la tarjeta. */
+.venta-carta__f2 { display: flex; align-items: flex-start; gap: .5rem; }
 .venta-carta__f2 .venta-estado-chip { position: static; flex: none; }
 .venta-carta__accion {
   margin: 0; font-size: .9rem; overflow-wrap: break-word;

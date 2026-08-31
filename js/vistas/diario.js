@@ -268,7 +268,7 @@ async function renderOrganizacion(contenedor) {
     if (depto === 'Ventas' && yoOrg && (yoOrg.rol === 'admin' || yoOrg.depto === 'Ventas')) {
       carta.append(h('button.btn.btn--fantasma.venta-abrir', {
         type: 'button', onclick: () => { location.hash = '#/d/ventas'; },
-      }, '💼  Ver oportunidades de venta'));
+      }, '💲  Ver oportunidades de venta'));
     }
     cont.append(carta);
   }

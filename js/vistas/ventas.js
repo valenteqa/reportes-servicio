@@ -287,7 +287,7 @@ async function registrarAtrasos(ventas) {
 // cuadricula, paso 2 la SEDE del cliente (los contactos dependen de ella),
 // paso 3 los datos de la oportunidad, con la miga de lo elegido.
 function hojaNuevaOportunidad(clientes) {
-  return hoja('💼  Nueva oportunidad', (cerrar) => {
+  return hoja('💲  Nueva oportunidad', (cerrar) => {
     const sel = { cliente: '', sede: '' };
     let sedes = [];
     let i = 0;
@@ -1083,7 +1083,7 @@ export async function render(contenedor, refrescar, params = {}) {
   contenedor.append(h('header.cabecera',
     h('div.cabecera__fila',
       h('button.icono-btn', { type: 'button', 'aria-label': 'Volver', onclick: () => history.back() }, '←'),
-      h('h1', '💼 Ventas'),
+      h('h1', '💲 Ventas'),
       // El directorio vive en la cabecera (pedido de Vale); el letrero de
       // "cajas" se fue — el filtro por vendedor ya cuenta esa historia.
       veDirectorio(yo) ? h('button.btn.btn--fantasma.btn--pequeno.cabecera__accion', {
