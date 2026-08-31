@@ -739,6 +739,10 @@ button { font-family: inherit; font-size: inherit; }
 .venta-carta__der {
   flex: none; display: flex; flex-direction: column;
   align-items: flex-end; justify-content: space-between; gap: .3rem;
+  /* Margenes negativos (caben en el padding .8/.9rem de la tarjeta):
+     suben el circulo para CENTRARLO con el titulo y lo arriman a la
+     esquina; el inferior baja el chip pegadito al borde de abajo. */
+  margin: -.75rem -.4rem -.5rem 0;
 }
 .venta-carta__der .venta-estado-chip { position: static; }
 .venta-carta__accion { margin: 0 0 .3rem; font-size: .9rem; overflow-wrap: break-word; }
