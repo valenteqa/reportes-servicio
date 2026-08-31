@@ -794,9 +794,11 @@ button { font-family: inherit; font-size: inherit; }
   font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums;
   color: #000;
 }
-.venta-cal-solo--verde { background: #4fc262; }
-.venta-cal-solo--ambar { background: #f6c445; }
-.venta-cal-solo--rojo  { background: #ef5350; }
+/* Colores desaturados y frios (pedido de Vale): siguen leyendose como
+   verde/amarillo/rojo pero sin gritar. */
+.venta-cal-solo--verde { background: #6fbb95; }
+.venta-cal-solo--ambar { background: #dcc06e; }
+.venta-cal-solo--rojo  { background: #dd7a7a; }
 /* Titulo de la oportunidad: MAYUSCULAS, un solo color plano — el teal
    de la barra de estado (--primario), igual que los subtitulos.
    Sin margenes: vive en la fila del header y cualquier margen vertical
