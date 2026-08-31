@@ -786,17 +786,17 @@ button { font-family: inherit; font-size: inherit; }
    clip-path; el filtro abraza la silueta recortada. */
 .venta-cal-solo {
   display: grid; place-items: center; flex: none;
-  /* HEXAGONO REGULAR (lados iguales, pedido de Vale): con este polygon
-     los 6 lados miden igual cuando alto = ancho * (raiz de 3)/2 —
-     3.6rem x 3.12rem; minimo donde "100%" libra las puntas. */
-  width: 3.6rem; height: 3.12rem;
-  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+  /* RECTANGULO redondeado minimalista (pedido de Vale, tras probar
+     trapecios y hexagonos): color plano, sin neon ni bordes; bajito,
+     con el numero casi al ras. */
+  width: 3.2rem; height: 1.8rem;
+  border-radius: .55rem;
   font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums;
   color: #000;
 }
-.venta-cal-solo--verde { background: #4fc262; filter: drop-shadow(0 0 5px rgba(79, 194, 98, .8)); }
-.venta-cal-solo--ambar { background: #f6c445; filter: drop-shadow(0 0 5px rgba(246, 196, 69, .85)); }
-.venta-cal-solo--rojo  { background: #ef5350; filter: drop-shadow(0 0 5px rgba(239, 83, 80, .8)); }
+.venta-cal-solo--verde { background: #4fc262; }
+.venta-cal-solo--ambar { background: #f6c445; }
+.venta-cal-solo--rojo  { background: #ef5350; }
 /* Titulo de la oportunidad: MAYUSCULAS, un solo color plano — el teal
    de la barra de estado (--primario), igual que los subtitulos.
    Sin margenes: vive en la fila del header y cualquier margen vertical
