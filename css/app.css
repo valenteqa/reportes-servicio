@@ -786,19 +786,20 @@ button { font-family: inherit; font-size: inherit; }
    clip-path; el filtro abraza la silueta recortada. */
 .venta-cal-solo {
   display: grid; place-items: center; flex: none;
-  /* RECTANGULO redondeado con CORTE diagonal tech en la esquina
-     superior derecha (mismo lenguaje que los botones de la app);
-     bajito, con el numero casi al ras. */
+  /* RECTANGULO redondeado con CORTES diagonales en esquinas OPUESTAS
+     (sup-der e inf-izq, como los chips); relleno tintado y borde del
+     MISMO juego de colores que los chips de estatus (pedido de Vale:
+     igual que el indicador de vencido, cada estado con su pareja). */
   width: 3.3rem; height: 1.8rem;
   border-radius: .55rem;
-  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 9px 100%, 0 calc(100% - 9px));
+  border: 1px solid;
   font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums;
   color: #000;
 }
-/* Paleta fria con un punto de saturacion (afinada por Vale). */
-.venta-cal-solo--verde { background: #5cbd8d; }
-.venta-cal-solo--ambar { background: #e2c159; }
-.venta-cal-solo--rojo  { background: #e26e6e; }
+.venta-cal-solo--verde { background: #5cbd8d22; border-color: #2f7a5855; }
+.venta-cal-solo--ambar { background: #e2c15926; border-color: #8a752455; }
+.venta-cal-solo--rojo  { background: #e26e6e22; border-color: #b04a4a55; }
 /* Titulo de la oportunidad: MAYUSCULAS, un solo color plano — el teal
    de la barra de estado (--primario), igual que los subtitulos.
    Sin margenes: vive en la fila del header y cualquier margen vertical
