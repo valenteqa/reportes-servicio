@@ -246,14 +246,20 @@ function chipEstadoCompromiso(comp) {
   return h('span.venta-estado-chip.venta-estado-chip--verde', '✓ En tiempo');
 }
 
-// Calendarito de la fecha compromiso (pedido de Vale): el MES como banda
-// arriba y el DIA grande abajo, como icono de calendario de telefono.
+// Calendarito estilo emoji 📅 pero con DATOS REALES (pedido de Vale):
+// banda roja con el mes y el dia en cuerpo claro, igual en ambos temas
+// (colores fijos, como un emoji).
 const MESES_CORTOS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
-function calendarioFecha(clave) {
+function calendarioMini(clave) {
   const d = new Date(clave + 'T12:00:00');
-  return h('span.venta-calendario',
-    h('span.venta-calendario__mes', MESES_CORTOS[d.getMonth()]),
-    h('span.venta-calendario__dia', String(d.getDate())));
+  return h('span.venta-calmini',
+    h('span.venta-calmini__mes', MESES_CORTOS[d.getMonth()]),
+    h('span.venta-calmini__dia', String(d.getDate())));
+}
+
+// dd/mm/aa para la linea del pie de la tarjeta.
+function fechaCorta(clave) {
+  return clave.slice(8, 10) + '/' + clave.slice(5, 7) + '/' + clave.slice(2, 4);
 }
 
 // Un ATRASO automatico por cada fecha compromiso vencida sin accion nueva.
@@ -950,10 +956,11 @@ async function renderDirectorio(contenedor) {
 /* Tarjeta de oportunidad (compartida por tablero e historial)       */
 /* ---------------------------------------------------------------- */
 
-// Izquierda: vendedor (solo vista del lider), titulo, accion actual y la
-// ULTIMA FECHA COMPROMISO como calendarito (mes y dia). El contacto y la
-// fecha de creacion viven SOLO en el detalle (pedido de Vale).
-// Derecha: calificacion con su chip de estatus debajo.
+// Izquierda: vendedor (solo vista del lider), titulo y accion actual. El
+// contacto y la fecha de creacion viven SOLO en el detalle (pedido de Vale).
+// Derecha: calificacion con su chip de estatus EXACTAMENTE debajo.
+// Pie: "Ultima fecha compromiso: 📅 dd/mm/aa" pegado al borde inferior,
+// con el calendarito emoji de datos reales.
 function tarjetaVenta(v, veTodas, permisos, alCambiar) {
   const comp = compromisoVigente(v);
   // La ACCION ACTUAL (misma regla que el detalle): ultima accion real.
@@ -972,12 +979,16 @@ function tarjetaVenta(v, veTodas, permisos, alCambiar) {
           h('span.venta-cliente', v.titulo)),
         vigente
           ? h('p.venta-carta__accion', vigente.texto)
-          : h('p.venta-carta__accion.venta-carta__accion--vacia', 'Sin acciones aun'),
-        h('p.venta-meta.venta-compromiso__titulo', 'Ultima fecha compromiso'),
-        comp ? calendarioFecha(comp) : h('p.venta-meta', 'Sin fecha aun')),
+          : h('p.venta-carta__accion.venta-carta__accion--vacia', 'Sin acciones aun')),
       h('div.venta-carta__der',
         h('span.venta-cal-solo.' + claseCal(cal), cal + '%'),
-        !v.cerrada && comp ? chipEstadoCompromiso(comp) : null)));
+        !v.cerrada && comp ? chipEstadoCompromiso(comp) : null)),
+    h('div.venta-carta__pie',
+      h('span', 'Ultima fecha compromiso:'),
+      comp ? calendarioMini(comp) : null,
+      comp
+        ? h('span.venta-carta__pie-fecha', fechaCorta(comp))
+        : h('span.venta-carta__pie-fecha.venta-carta__pie-fecha--vacia', 'Sin fecha aun')));
 }
 
 /* ---------------------------------------------------------------- */
@@ -1204,7 +1215,7 @@ export async function render(contenedor, refrescar, params = {}) {
     // El HISTORIAL (cerradas) siempre al pie, haya lo que haya arriba.
     const btnHistorial = h('button.btn.btn--fantasma.venta-abrir', {
       type: 'button', onclick: () => { location.hash = '#/d/ventas/hist'; },
-    }, '🗃  HISTORIAL DE VENTAS');
+    }, '🗃  HISTORIAL');
 
     if (!lista.length) {
       const hayFiltro = filtroCliente || filtroVendedor || soloVencidas || soloPorVencer;

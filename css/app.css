@@ -751,36 +751,42 @@ button { font-family: inherit; font-size: inherit; }
 .venta-carta__izq { flex: 1; min-width: 0; }
 .venta-carta__der {
   flex: none; display: flex; flex-direction: column;
-  align-items: flex-end; justify-content: space-between; gap: .3rem;
+  align-items: flex-end; justify-content: flex-start; gap: .3rem;
   /* Margenes negativos (caben en el padding .8/.9rem de la tarjeta).
      Regla de Vale: la distancia del borde SUPERIOR al contorno del
      circulo = la del borde DERECHO (8px ambas: 12.8-4.8 y 14.4-6.4);
-     el inferior baja el chip pegadito al borde de abajo. */
-  margin: -.3rem -.4rem -.5rem 0;
+     el chip de estatus va EXACTAMENTE debajo del porcentaje. */
+  margin: -.3rem -.4rem 0 0;
 }
 .venta-carta__der .venta-estado-chip { position: static; }
 .venta-carta__accion { margin: 0 0 .3rem; font-size: .9rem; overflow-wrap: break-word; }
 .venta-carta__accion--vacia { color: var(--tinta-tenue); font-style: italic; }
-/* Calendarito de la ULTIMA FECHA COMPROMISO: banda con el mes arriba y
-   el dia grande abajo, con el corte diagonal de la casa. */
-.venta-compromiso__titulo { margin-top: .15rem; letter-spacing: .07em; text-transform: uppercase; }
-.venta-calendario {
-  display: inline-flex; flex-direction: column; align-items: stretch;
-  min-width: 46px; margin-top: .25rem;
-  border: 1px solid var(--primario-borde, var(--borde-fuerte));
-  background: var(--superficie-2);
-  clip-path: polygon(6px 0, 100% 0, 100% 100%, 0 100%, 0 6px);
-}
-.venta-calendario__mes {
-  text-align: center; font-size: .62rem; font-weight: 800; letter-spacing: .12em;
-  padding: .12rem .4rem .1rem;
-  background: var(--primario); color: var(--primario-tinta);
-}
-.venta-calendario__dia {
-  text-align: center; font-size: 1.2rem; font-weight: 800; line-height: 1.2;
+/* Pie de la tarjeta: "Ultima fecha compromiso:" + calendarito + dd/mm/aa
+   en una linea pegada al borde inferior. */
+.venta-carta__pie {
+  display: flex; align-items: center; gap: .4rem;
+  margin: .5rem 0 -.3rem;
   font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: .76rem; color: var(--tinta-suave);
+}
+.venta-carta__pie-fecha { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--tinta); }
+.venta-carta__pie-fecha--vacia { font-weight: 400; font-style: italic; color: var(--tinta-tenue); }
+/* Calendarito estilo emoji 📅 con datos reales: colores FIJOS en ambos
+   temas (como un emoji): banda roja, cuerpo claro, dia oscuro. */
+.venta-calmini {
+  display: inline-flex; flex-direction: column; align-items: stretch;
+  min-width: 27px; border-radius: 5px; overflow: hidden;
+  border: 1px solid rgba(20, 26, 34, .45);
+  background: #fdfdfd; flex: none;
+}
+.venta-calmini__mes {
+  text-align: center; font-size: 7px; font-weight: 800; letter-spacing: .06em;
+  padding: 1.5px 3px 1px; background: #d3302f; color: #fff;
+}
+.venta-calmini__dia {
+  text-align: center; font-size: 12px; font-weight: 800; line-height: 1.15;
+  color: #16202b; padding: 0 3px 1.5px;
   font-variant-numeric: tabular-nums;
-  padding: .05rem .4rem .1rem; color: var(--tinta);
 }
 .venta-prio {
   padding: .1rem .45rem; border-radius: 99px;
