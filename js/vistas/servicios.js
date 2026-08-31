@@ -6,7 +6,7 @@ import * as media from '../media.js';
 import { APP_VERSION } from '../version.js';
 import { temaActual, alternarTema, zoomActual, aplicarZoom } from '../tema.js';
 import { esNativa, compartirArchivoNativo, guardarEnCarpetaNativa, nombreSeguro, guardarUltimoRespaldo, leerUltimoRespaldo, instalarActualizacionApk } from '../nativo.js';
-import { DEPTOS, ROLES, rolesParaDepto, ajustarRolAlDepto, organizacion, organizacionGuardar, quienSoy, quienSoyReal, serYo, esAdmin, claveDelDia, claveDeManana, activarTest, estadoPrueba } from '../organizacion.js';
+import { DEPTOS, ROLES, rolesParaDepto, ajustarRolAlDepto, organizacion, organizacionGuardar, quienSoy, quienSoyReal, serYo, esAdmin, claveDelDia, claveDeManana, activarTest, estadoPrueba, PERMISOS_ESPECIALES } from '../organizacion.js';
 
 // La ⚙ completa se abre con la CLAVE DEL DIA (solo el administrador la
 // tiene). Una vez dada, queda abierta hasta cerrar la app: variable en
@@ -291,6 +291,21 @@ async function hojaUsuarios() {
         };
         selRol.onchange = async () => { u.rol = selRol.value; await organizacionGuardar(org); };
         if (!soyAdmin) { selDepto.disabled = true; selRol.disabled = true; }
+
+        // PERMISOS ESPECIALES por usuario (solo los ve y toca el admin;
+        // el admin mismo no los necesita: siempre puede todo).
+        const filasPermisos = (soyAdmin && u.rol !== 'admin')
+          ? Object.keys(PERMISOS_ESPECIALES).map(clave => {
+            const chk = h('input', { type: 'checkbox' });
+            chk.checked = !!(u.permisos && u.permisos[clave]);
+            chk.onchange = async () => {
+              if (!u.permisos) u.permisos = {};
+              u.permisos[clave] = chk.checked;
+              await organizacionGuardar(org);
+            };
+            return h('label.org-permiso', chk, PERMISOS_ESPECIALES[clave]);
+          })
+          : [];
         return h('div.org-fila',
           h('div.org-fila__cab',
             h('span.org-nombre', u.nombre),
@@ -318,7 +333,8 @@ async function hojaUsuarios() {
                 pinta();
               },
             }, '🗑') : null),
-          h('div.org-selects', selDepto, selRol));
+          h('div.org-selects', selDepto, selRol),
+          ...filasPermisos);
       });
 
       cuerpo.replaceChildren(...[

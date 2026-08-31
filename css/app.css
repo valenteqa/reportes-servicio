@@ -691,6 +691,12 @@ button { font-family: inherit; font-size: inherit; }
 .org-mini { width: 1.8rem; height: 1.8rem; font-size: .82rem; flex: none; }
 .org-agregar { width: 100%; margin: .2rem 0 .5rem; }
 .org-selects { display: flex; gap: .5rem; }
+/* Permisos especiales por usuario (solo los ve el admin). */
+.org-permiso {
+  display: flex; align-items: center; gap: .45rem;
+  margin-top: .45rem; font-size: .82rem; color: var(--tinta-suave);
+}
+.org-permiso input { width: 1.05rem; height: 1.05rem; flex: none; accent-color: var(--primario); }
 .org-select {
   flex: 1; min-width: 0; padding: .4rem .5rem;
   border: 1px solid var(--borde-fuerte); border-radius: var(--r-ch);
@@ -743,6 +749,7 @@ button { font-family: inherit; font-size: inherit; }
    con elipsis; el chip manda en el ancho. */
 .venta-carta__cliente {
   flex: 1; min-width: 0; font-weight: 700; font-size: .9rem;
+  text-transform: uppercase;   /* el cliente SIEMPRE en mayusculas (Vale) */
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 /* TITULO en su propia fila: 1 o 2 renglones, los que use (nunca mas
@@ -983,6 +990,16 @@ button { font-family: inherit; font-size: inherit; }
 /* Botonera A/B/C del asistente y de editar (toque para elegir, retocar
    para quitar). */
 .venta-prio-fila { display: flex; gap: .5rem; }
+/* Botones para ASIGNAR la oportunidad a un vendedor (lider/admin):
+   misma familia de la botonera A/B/C, dos por fila. */
+.venta-vend-fila { display: flex; flex-wrap: wrap; gap: .5rem; }
+.venta-vend-fila .venta-vend-op {
+  flex: 1 1 calc(50% - .5rem); min-width: 0; padding: .5rem .35rem;
+  font-size: .85rem; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* Ficha del contacto (directorio): renglones de dato. */
+.contacto-dato { margin: 0 0 .55rem; font-size: .95rem; overflow-wrap: break-word; }
 .venta-prio-op {
   flex: 1; padding: .5rem 0; font: inherit; font-weight: 800;
   background: var(--superficie); color: var(--tinta-suave);

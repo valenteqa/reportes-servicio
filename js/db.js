@@ -2,7 +2,7 @@
 // Todo vive en el telefono. Nada se sube a ningun servidor.
 
 const DB_NOMBRE  = 'app-reportes';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 export const GENERAL = '__general__';
 
@@ -106,6 +106,15 @@ export function abrir() {
       }
       if (!db.objectStoreNames.contains('ventasTest')) {
         db.createObjectStore('ventasTest', { keyPath: 'id' });
+      }
+
+      // FICHAS de contactos del directorio (v5): cargo, correo y telefono
+      // por contacto; la clave es cliente|sede|nombre en minusculas.
+      if (!db.objectStoreNames.contains('contactos')) {
+        db.createObjectStore('contactos', { keyPath: 'clave' });
+      }
+      if (!db.objectStoreNames.contains('contactosTest')) {
+        db.createObjectStore('contactosTest', { keyPath: 'clave' });
       }
     };
 
@@ -495,7 +504,7 @@ export function ajusteGuardar(clave, valor) {
 /* Respaldo: acceso a stores completos                               */
 /* ---------------------------------------------------------------- */
 
-const STORES_RESPALDO = ['servicios', 'equipos', 'eventos', 'catalogo', 'ajustes', 'diario', 'ventas'];
+const STORES_RESPALDO = ['servicios', 'equipos', 'eventos', 'catalogo', 'ajustes', 'diario', 'ventas', 'contactos'];
 
 export function todosDe(nombre) {
   return tx(nombre, 'readonly', st => pedir(st[nombre].getAll()));
@@ -503,12 +512,12 @@ export function todosDe(nombre) {
 
 export function volcadoCompleto() {
   return Promise.all(STORES_RESPALDO.map(s => todosDe(s)))
-    .then(([servicios, equipos, eventos, catalogo, ajustes, diario, ventas]) =>
-      ({ servicios, equipos, eventos, catalogo, ajustes, diario, ventas }));
+    .then(([servicios, equipos, eventos, catalogo, ajustes, diario, ventas, contactos]) =>
+      ({ servicios, equipos, eventos, catalogo, ajustes, diario, ventas, contactos }));
 }
 
 export function restaurarVolcado(volcado, fotos) {
-  return tx(['servicios', 'equipos', 'eventos', 'catalogo', 'ajustes', 'diario', 'ventas', 'fotos'], 'readwrite', async (st) => {
+  return tx(['servicios', 'equipos', 'eventos', 'catalogo', 'ajustes', 'diario', 'ventas', 'contactos', 'fotos'], 'readwrite', async (st) => {
     let n = 0;
     for (const s of STORES_RESPALDO) {
       for (const registro of (volcado[s] || [])) {
@@ -547,6 +556,19 @@ let sandboxTest = false;
 export function activarSandbox(activo) { sandboxTest = !!activo; }
 const stDiario = () => (sandboxTest ? 'diarioTest' : 'diario');
 const stVentas = () => (sandboxTest ? 'ventasTest' : 'ventas');
+const stContactos = () => (sandboxTest ? 'contactosTest' : 'contactos');
+
+// Ficha de un contacto del directorio: { clave, nombre, cliente, sede,
+// cargo, correo, telefono }. Los contactos nunca se eliminan.
+export function contactoFicha(clave) {
+  const s = stContactos();
+  return tx(s, 'readonly', st => pedir(st[s].get(clave)));
+}
+
+export function contactoFichaGuardar(ficha) {
+  const s = stContactos();
+  return tx(s, 'readwrite', st => { st[s].put(ficha); });
+}
 
 export function diaLeer(fecha) {
   const s = stDiario();

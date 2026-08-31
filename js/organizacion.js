@@ -74,7 +74,30 @@ export async function organizacion() {
     org.v = 3;
     await ajusteGuardar('organizacion', org);
   }
+  // Migracion v4: PERMISOS ESPECIALES por usuario (dictado de Vale, 31 ago
+  // 2026): Usuario2 y Fredy pueden editar contactos del directorio. Solo
+  // se siembra una vez; despues manda lo que el admin ajuste en ⚙.
+  if (org.v < 4) {
+    for (const u of org.usuarios) {
+      if (!u.permisos) u.permisos = {};
+      if (u.nombre === 'Usuario2' || u.nombre === 'Usuario5') {
+        u.permisos.contactos = true;
+      }
+    }
+    org.v = 4;
+    await ajusteGuardar('organizacion', org);
+  }
   return org;
+}
+
+// Catalogo de permisos especiales (⚙ → Usuarios y deptos). El admin
+// (developer) siempre puede TODO sin necesidad de estos.
+export const PERMISOS_ESPECIALES = {
+  contactos: 'Editar contactos del directorio',
+};
+
+export function puedeEditarContactos(yo) {
+  return !!yo && (yo.rol === 'admin' || !!(yo.permisos && yo.permisos.contactos));
 }
 
 export function organizacionGuardar(org) {

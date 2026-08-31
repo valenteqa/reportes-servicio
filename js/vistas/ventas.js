@@ -12,7 +12,7 @@
 
 import { h, aviso, vaciar, confirmar, hoja, campo, campoArea } from '../ui.js';
 import * as db from '../db.js';
-import { organizacion, quienSoy, puedeCrearVentas, puedeAccionarVentas, puedeGestionarVentas, veTodasLasVentas, fechaSimulada } from '../organizacion.js';
+import { organizacion, quienSoy, puedeCrearVentas, puedeAccionarVentas, puedeGestionarVentas, veTodasLasVentas, puedeEditarContactos, fechaSimulada } from '../organizacion.js';
 import { clientesConocidos } from './servicios.js';
 
 // PRIORIDADES tipo A1/A2/B1/C3 (regla de Vale, 31 ago 2026): a cada
@@ -286,9 +286,13 @@ async function registrarAtrasos(ventas) {
 // Asistente CALCADO del de Servicio (consistencia): paso 1 el cliente en
 // cuadricula, paso 2 la SEDE del cliente (los contactos dependen de ella),
 // paso 3 los datos de la oportunidad, con la miga de lo elegido.
-function hojaNuevaOportunidad(clientes) {
+// vendedores: null para un vendedor (la oportunidad es suya), o la lista
+// [{id,nombre}] con EL PRIMERO siendo quien crea (lider/admin) para que
+// pueda ASIGNARLA a cualquiera del equipo (pedido de Vale).
+function hojaNuevaOportunidad(clientes, vendedores) {
   return hoja('💲  Nueva oportunidad', (cerrar) => {
     const sel = { cliente: '', sede: '' };
+    let vendedorElegido = vendedores ? vendedores[0] : null;
     let sedes = [];
     let i = 0;
     const TOTAL = 3;
@@ -377,10 +381,31 @@ function hojaNuevaOportunidad(clientes) {
       // (la primera se pide justo despues, obligatoria).
       const cTitulo = campo('Oportunidad', { maxLength: 160, placeholder: 'p. ej. Refacciones para H400' });
       const botonesPrio = botoneraPrioridad('');
+
+      // El lider (o el admin) ASIGNA la oportunidad: botones de todo el
+      // equipo, el suyo primero y preseleccionado.
+      let filaVendedores = null;
+      if (vendedores) {
+        const botones = vendedores.map(u => h('button.venta-prio-op.venta-vend-op', {
+          type: 'button',
+          onclick: (ev) => {
+            vendedorElegido = u;
+            for (const b of ev.currentTarget.parentElement.children) {
+              b.classList.toggle('venta-prio-op--activa', b === ev.currentTarget);
+            }
+          },
+        }, u.nombre));
+        botones[0].classList.add('venta-prio-op--activa');
+        filaVendedores = h('label.campo',
+          h('span.campo__etiqueta', 'Asignar al vendedor'),
+          h('div.venta-vend-fila', ...botones));
+      }
+
       poner(
         cabeza('La oportunidad'),
         cTitulo,
         h('label.campo', h('span.campo__etiqueta', 'Prioridad (opcional)'), botonesPrio),
+        filaVendedores,
         h('div.hoja__acciones',
           h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
           h('button.btn.btn--primario', {
@@ -391,6 +416,7 @@ function hojaNuevaOportunidad(clientes) {
               cerrar({
                 cliente: sel.cliente, sede: sel.sede, titulo,
                 prioridadLetra: botonesPrio.valorPrio(),
+                vendedor: vendedorElegido ? { id: vendedorElegido.id, nombre: vendedorElegido.nombre } : null,
               });
             },
           }, 'Crear'))
@@ -893,7 +919,7 @@ async function directorioClientes() {
     if (!c) return null;
     if (!mapa.has(c.toLowerCase())) mapa.set(c.toLowerCase(), { nombre: c, sedes: new Map() });
     const ent = mapa.get(c.toLowerCase());
-    const s = (sede || '').trim();
+    const s = sedeBonita(sede);   // "N/A" y vacio son la misma no-sede
     if (!ent.sedes.has(s.toLowerCase())) ent.sedes.set(s.toLowerCase(), { nombre: s, contactos: new Map() });
     return ent.sedes.get(s.toLowerCase());
   };
@@ -910,6 +936,66 @@ async function directorioClientes() {
     }
   } catch (e) { /* sin ventas */ }
   return [...mapa.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+}
+
+// FICHA del contacto: cargo, correo y telefono viven en su propio store
+// (db.contactoFicha*), colgados de la clave cliente|sede|nombre. Editar
+// es SOLO para quien tenga el permiso especial (o el admin); eliminar
+// no existe (regla de Vale).
+function claveContacto(cliente, sede, nombre) {
+  return (cliente + '|' + (sede || '') + '|' + nombre).toLowerCase();
+}
+
+function hojaEditarContacto(ficha) {
+  return hoja('✎  ' + ficha.nombre, (cerrar) => {
+    const cCargo = campo('Cargo', { maxLength: 80, value: ficha.cargo || '', placeholder: 'p. ej. Jefe de mantenimiento' });
+    const cCorreo = campo('Correo(s)', { maxLength: 160, value: ficha.correo || '', placeholder: 'correo@empresa.com' });
+    const cTel = campo('Telefono(s)', { maxLength: 120, value: ficha.telefono || '', placeholder: '722 000 0000' });
+    return h('div',
+      cCargo, cCorreo, cTel,
+      h('div.hoja__acciones',
+        h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+        h('button.btn.btn--primario', {
+          type: 'button',
+          onclick: () => cerrar({
+            cargo: cCargo.querySelector('input').value.trim(),
+            correo: cCorreo.querySelector('input').value.trim(),
+            telefono: cTel.querySelector('input').value.trim(),
+          }),
+        }, 'Guardar')));
+  });
+}
+
+async function hojaContacto(cliente, sede, nombre, puedeEditar) {
+  const clave = claveContacto(cliente, sede, nombre);
+  const ficha = (await db.contactoFicha(clave))
+    || { clave, nombre, cliente, sede: sede || '', cargo: '', correo: '', telefono: '' };
+  await hoja('👤  ' + nombre, (cerrar) => {
+    const cuerpo = h('div');
+    const dato = (etq, val) => h('p.contacto-dato',
+      h('span.venta-carta__etiqueta', etq + ': '),
+      val || h('span.venta-carta__accion--vacia', 'Sin registrar'));
+    const pinta = () => {
+      vaciar(cuerpo).append(...[
+        h('p.pista', cliente + (sede ? ' · ' + sede : '')),
+        dato('Cargo', ficha.cargo),
+        dato('Correo', ficha.correo),
+        dato('Telefono', ficha.telefono),
+        puedeEditar ? h('button.btn.btn--fantasma.venta-btn-mini', {
+          type: 'button',
+          onclick: async () => {
+            const nuevos = await hojaEditarContacto(ficha);
+            if (!nuevos) return;
+            Object.assign(ficha, nuevos);
+            await db.contactoFichaGuardar(ficha);
+            pinta();
+          },
+        }, '✎  EDITAR CONTACTO') : null,
+      ].filter(Boolean));
+    };
+    pinta();
+    return cuerpo;
+  });
 }
 
 async function renderDirectorio(contenedor) {
@@ -937,12 +1023,17 @@ async function renderDirectorio(contenedor) {
 
   // Mismo formato que el tablero (pedido de Vale): grupo por EMPRESA ·
   // SEDE con el numero de contactos a la derecha, y cada contacto en su
-  // tarjeta como las oportunidades (con su avatar placeholder).
+  // tarjeta como las oportunidades. Tocar la tarjeta abre su FICHA
+  // (cargo, correo, telefono); editarla es solo con permiso especial.
+  const puedeEd = puedeEditarContactos(yo);
   for (const c of clientes) {
-    const sedes = [...c.sedes.values()].sort((a, b) => (a.nombre || '~').localeCompare(b.nombre || '~', 'es'));
+    // Sedes con nombre primero (alfabetico); la "sin sede" al FINAL (el
+    // viejo truco del '~' las mandaba al principio en collation es).
+    const sedes = [...c.sedes.values()].sort((a, b) =>
+      (!a.nombre - !b.nombre) || a.nombre.localeCompare(b.nombre, 'es'));
     for (const s of sedes) {
       const contactos = [...s.contactos.values()].sort((a, b) => a.localeCompare(b, 'es'));
-      cont.append(h('h3.venta-grupo', '🏢 ' + c.nombre + ' · ' + (s.nombre || 'Sin sede'),
+      cont.append(h('h3.venta-grupo', '🏢 ' + c.nombre + (s.nombre ? ' · ' + s.nombre : ''),
         h('span.sem-dato', contactos.length + ' contacto' + (contactos.length === 1 ? '' : 's'))));
       if (!contactos.length) {
         cont.append(h('div.venta-carta',
@@ -950,8 +1041,10 @@ async function renderDirectorio(contenedor) {
         continue;
       }
       for (const nombre of contactos) {
-        cont.append(h('div.venta-carta',
-          h('p.venta-dueno', avatarVendedor(nombre), h('span.venta-dueno__nombre', nombre))));
+        cont.append(h('button.venta-carta', {
+          type: 'button',
+          onclick: () => hojaContacto(c.nombre, s.nombre, nombre, puedeEd),
+        }, h('p.venta-dueno', avatarVendedor(nombre), h('span.venta-dueno__nombre', nombre))));
       }
     }
   }
@@ -975,6 +1068,13 @@ async function renderDirectorio(contenedor) {
 // Colores de prioridad (regla de Vale, 31 ago 2026): A=verde, B=amarillo,
 // C=rojo claro — tambien en las pastillas del detalle (venta-prio--a/b/c).
 const COLOR_PRIO = { A: 'verde', B: 'ambar', C: 'rojo' };
+
+// La sede solo se muestra cuando dice algo: vacia o "N/A" no aparece
+// (pedido de Vale).
+function sedeBonita(sede) {
+  const s = (sede || '').trim();
+  return s.toUpperCase() === 'N/A' ? '' : s;
+}
 
 // En la tarjeta el vendedor va SIN apellido (pedido de Vale): fuera la
 // ultima palabra cuando el nombre trae mas de una.
@@ -1011,7 +1111,7 @@ function tarjetaVenta(v, veTodas, permisos, alCambiar) {
         : h('span'),
       h('span.venta-cal-solo.' + claseCal(cal), cal + '%')),
     h('div.venta-carta__f2',
-      h('span.venta-carta__cliente', v.cliente),
+      h('span.venta-carta__cliente', v.cliente + (sedeBonita(v.sede) ? ' · ' + sedeBonita(v.sede) : '')),
       !v.cerrada && comp ? chipEstadoCompromiso(comp) : null),
     h('p.venta-carta__titulo', v.titulo),
     h('p.venta-carta__accion',
@@ -1155,14 +1255,25 @@ export async function render(contenedor, refrescar, params = {}) {
       permisos.crear ? h('button.btn.btn--primario', {
         type: 'button',
         onclick: async () => {
-          const datos = await hojaNuevaOportunidad(await clientesGlobales());
+          // El lider/admin puede ASIGNAR la oportunidad a cualquiera del
+          // equipo de Ventas (el mismo primero); un vendedor crea la suya.
+          let vendedores = null;
+          if (permisos.gestionar && yo) {
+            const equipo = (await organizacion()).usuarios
+              .filter(u => u.depto === 'Ventas' && u.id !== yo.id)
+              .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+            vendedores = [{ id: yo.id, nombre: yo.nombre },
+              ...equipo.map(u => ({ id: u.id, nombre: u.nombre }))];
+          }
+          const datos = await hojaNuevaOportunidad(await clientesGlobales(), vendedores);
           if (!datos) return;
           // Se guarda de inmediato (sin forzar la primera accion) y la
           // oportunidad queda ABIERTA con su boton ✚ para agregarla.
-          const { prioridadLetra, ...restoDatos } = datos;
+          const { prioridadLetra, vendedor, ...restoDatos } = datos;
+          const dueno = vendedor || (yo ? { id: yo.id, nombre: yo.nombre } : { id: '', nombre: '' });
           const v = {
             id: db.nuevoId(), ...restoDatos, prioridad: '', cerrada: false, creado: db.marcaDeTiempo(),
-            duenoId: yo ? yo.id : '', dueno: yo ? yo.nombre : '',
+            duenoId: dueno.id, dueno: dueno.nombre,
             anotaciones: [],
             historial: [],
           };
