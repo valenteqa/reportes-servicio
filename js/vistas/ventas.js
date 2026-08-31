@@ -1059,7 +1059,9 @@ async function renderDirectorio(contenedor) {
       (!a.nombre - !b.nombre) || a.nombre.localeCompare(b.nombre, 'es'));
     for (const s of sedes) {
       const contactos = [...s.contactos.values()].sort((a, b) => a.localeCompare(b, 'es'));
-      cont.append(h('h3.venta-grupo', '🏢 ' + c.nombre + (s.nombre ? ' · ' + s.nombre : ''),
+      // Empresa y sede en MAYUSCULAS y seguidas, sin punto (pedido de
+      // Vale — igual que en la tarjeta del tablero).
+      cont.append(h('h3.venta-grupo', '🏢 ' + (c.nombre + (s.nombre ? ' ' + s.nombre : '')).toUpperCase(),
         h('span.sem-dato', contactos.length + ' contacto' + (contactos.length === 1 ? '' : 's'))));
       if (!contactos.length) {
         cont.append(h('div.venta-carta',

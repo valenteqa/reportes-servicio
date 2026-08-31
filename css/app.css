@@ -841,7 +841,14 @@ button { font-family: inherit; font-size: inherit; }
   margin: 0;
   font-size: .9rem; color: var(--tinta-suave);
 }
-.venta-carta__pie .venta-calmini { margin-left: auto; }
+.venta-carta__pie .venta-calmini {
+  margin-left: auto;
+  /* El calendarito es mas alto que el renglon: sin esto estiraba la
+     fila y dejaba un hueco tipo "linea vacia" sobre la fecha (pedido
+     de Vale). El margen negativo lo deja SUBIR a ocupar el gap entre
+     filas sin que la fila crezca; la alineacion on-bottom se conserva. */
+  margin-top: -.75rem;
+}
 .venta-carta__pie-fecha {
   font-weight: 800; color: var(--tinta);
   /* Digitos de ancho parejo: sin esto "28/08/26" media mas que
