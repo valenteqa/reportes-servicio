@@ -786,11 +786,10 @@ button { font-family: inherit; font-size: inherit; }
    clip-path; el filtro abraza la silueta recortada. */
 .venta-cal-solo {
   display: grid; place-items: center; flex: none;
-  /* Trapecio INCLINADO como la referencia de Vale: base menor arriba
-     corrida a la derecha, base mayor abajo, ambos lados recostados en
-     la misma direccion; bajito, con el numero casi al ras. */
-  width: 4.4rem; height: 1.8rem;
-  clip-path: polygon(21% 0, 100% 0, 80% 100%, 0 100%);
+  /* HEXAGONO acostado (puntas a los lados), estilo tech; bajito, con
+     el numero casi al ras de los bordes. */
+  width: 4rem; height: 1.8rem;
+  clip-path: polygon(20% 0, 80% 0, 100% 50%, 80% 100%, 20% 100%, 0 50%);
   font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums;
   color: #000;
 }
