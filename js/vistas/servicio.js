@@ -604,8 +604,6 @@ export async function render(contenedor, refrescar, params) {
 
   const cabecera = h('header.cabecera',
     h('div.cabecera__fila',
-      h('button.icono-btn', { type: 'button', 'aria-label': 'Volver',
-        onclick: () => history.back() }, '←'),
       h('div.cabecera__titulo',
         h('h1.cabecera__h1doble', titulo),
         sub ? h('p', sub) : null

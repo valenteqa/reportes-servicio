@@ -284,8 +284,9 @@ export function ensayoDeMarca() {
     chips[0].classList.add('chip-ensayo--activo');
 
     const pantalla = h('div.ensayo',
+      // Sin flecha de regreso (pedido de Vale): el ensayo se cierra con
+      // el atras del telefono (el ancla de capa ya lo maneja).
       h('header.ensayo__cabeza',
-        h('button.ensayo__volver', { type: 'button', 'aria-label': 'Volver', onclick: () => cerrar() }, '←'),
         h('h2', 'Ensayo del logo')
       ),
       h('div.ensayo__centro',

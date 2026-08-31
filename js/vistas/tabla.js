@@ -202,8 +202,8 @@ export async function render(contenedor, refrescar, params) {
   // editor esta completo; ya agregada, abrirla es SOLO VER.
   const soloVer = !evento.enEdicion;
 
-  // GUARDIA de la captura: mientras la tabla se esta agregando, salir (con
-  // ← o con el atras del telefono) pregunta y, si se confirma, la tabla EN
+  // GUARDIA de la captura: mientras la tabla se esta agregando, salir con
+  // el atras del telefono pregunta y, si se confirma, la tabla EN
   // CURSO se descarta. Usa el ancla de capas de ui.js — el mismo mecanismo
   // del visor y el editor — para no pelearse con los fantasmas de las hojas.
   let guardia = null;
@@ -231,18 +231,6 @@ export async function render(contenedor, refrescar, params) {
     history.back();
   };
 
-  // history.back() en vez de asignar el hash: asi el boton atras del telefono
-  // y el de la app recorren la misma jerarquia (tabla → arbol → lista).
-  const volver = async () => {
-    if (soloVer) { history.back(); return; }
-    const ok = await confirmar('¿Regresar a la linea de tiempo? Se perdera la tabla.',
-      { textoOk: 'Regresar', peligro: true });
-    if (!ok) return;
-    clearTimeout(guardadoPendiente);
-    await db.eventoBorrar(evento.id);
-    await salirCaptura();
-  };
-
   const indicador = h('span.estado', 'Guardado');
 
   const cTitulo = soloVer
@@ -265,9 +253,10 @@ export async function render(contenedor, refrescar, params) {
     document.body.classList.remove('pantalla-ancha');
   }, { once: true });
 
+  // Sin flecha de regreso (pedido de Vale): se sale con el atras del
+  // telefono y la GUARDIA de arriba hace la misma pregunta/limpieza.
   const cabecera = h('header.cabecera',
     h('div.cabecera__fila',
-      h('button.icono-btn', { type: 'button', 'aria-label': 'Volver', onclick: volver }, '←'),
       h('div.cabecera__titulo', cTitulo,
         evento.datos.subtitulo ? h('p', evento.datos.subtitulo) : null),
       soloVer ? null : indicador,
@@ -293,8 +282,8 @@ export async function render(contenedor, refrescar, params) {
         onclick: async () => {
           const ok = await confirmar('Se elimina la tabla completa.');
           if (!ok) return;
-          // OJO: no usar volver() aqui — su guardarYa re-escribiria la tabla
-          // recien borrada (la resucitaba). Cancelar el autoguardado y salir.
+          // OJO: cancelar el autoguardado ANTES de salir — un guardado
+          // pendiente re-escribiria la tabla recien borrada (la resucitaba).
           clearTimeout(guardadoPendiente);
           await db.eventoBorrar(evento.id);
           aviso('Tabla eliminada');

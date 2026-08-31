@@ -209,7 +209,6 @@ function resumenSemana(dias, lunes) {
 function cabeceraSub(titulo, extra) {
   return h('header.cabecera',
     h('div.cabecera__fila',
-      h('button.icono-btn', { type: 'button', 'aria-label': 'Volver', onclick: () => history.back() }, '←'),
       h('h1', titulo),
       extra ? h('span.diario-fecha', extra) : null
     ));
@@ -411,7 +410,6 @@ export async function render(contenedor, refrescar, params = {}) {
 
   const cabecera = h('header.cabecera',
     h('div.cabecera__fila',
-      h('button.icono-btn', { type: 'button', 'aria-label': 'Volver', onclick: () => history.back() }, '←'),
       h('h1', '📔 Gestion de Deptos'),
       h('span.diario-fecha', nombreDia(hoyClave))
     ));

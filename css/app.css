@@ -311,10 +311,6 @@ button { font-family: inherit; font-size: inherit; }
   border-bottom: 1px solid #e2e2e2; flex: none;
 }
 .ensayo__cabeza h2 { margin: 0; font-size: 1.05rem; }
-.ensayo__volver {
-  border: 0; background: none; color: #16181d; font-size: 1.55rem;
-  line-height: 1; padding: .15rem .5rem;
-}
 .ensayo__centro {
   flex: 1; min-height: 130px; display: flex; align-items: center;
   justify-content: center;
@@ -798,20 +794,26 @@ button { font-family: inherit; font-size: inherit; }
   clip-path: polygon(evenodd,
     14% 0, 86% 0, 100% 50%, 86% 100%, 14% 100%, 0 50%, 14% 0,
     16% 7%, 3.5% 50%, 16% 93%, 84% 93%, 96.5% 50%, 84% 7%, 16% 7%);
+  /* Look tech (pedido de Vale): el anillo se INTERRUMPE en dos tramos
+     opuestos (arriba-derecha y abajo-izquierda), como los cortes
+     diagonales de la casa. El color lo pone --prio-borde por variante. */
+  background: conic-gradient(from 0deg,
+    var(--prio-borde) 0 30deg, transparent 30deg 72deg,
+    var(--prio-borde) 72deg 210deg, transparent 210deg 252deg,
+    var(--prio-borde) 252deg 360deg);
 }
-.venta-prio-badge--verde { background: #5cbd8d59; }
-.venta-prio-badge--verde::before { background: #2f7a5888; }
-.venta-prio-badge--ambar { background: #e2c15966; }
-.venta-prio-badge--ambar::before { background: #8a752488; }
-.venta-prio-badge--rojo  { background: #e26e6e59; }
-.venta-prio-badge--rojo::before  { background: #b04a4a88; }
+.venta-prio-badge--verde { background: #5cbd8d59; --prio-borde: #2f7a5888; }
+.venta-prio-badge--ambar { background: #e2c15966; --prio-borde: #8a752488; }
+.venta-prio-badge--rojo  { background: #e26e6e59; --prio-borde: #b04a4a88; }
 /* F2: titulo y chip de estatus alineados ON TOP (pedido de Vale). El
    respiro entre filas lo pone el gap .75rem de la tarjeta. */
 .venta-carta__f2 { display: flex; align-items: flex-start; gap: .5rem; }
 .venta-carta__f2 .venta-estado-chip { position: static; flex: none; }
 .venta-carta__accion {
   margin: 0; font-size: .9rem; overflow-wrap: break-word;
-  line-height: 1.4; min-height: 2.8em;
+  /* Maximo dos renglones, pero SIN reservar el segundo si no se usa
+     (pedido de Vale: el hueco vacio se veia mal). */
+  line-height: 1.4;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
 }
 .venta-carta__accion--vacia { color: var(--tinta-tenue); font-style: italic; }

@@ -914,9 +914,10 @@ async function directorioClientes() {
 
 async function renderDirectorio(contenedor) {
   const yo = await quienSoy();
+  // Sin flecha de regreso (pedido de Vale): se vuelve con el atras del
+  // telefono; anclarCapa/rutas ya recorren la jerarquia correcta.
   contenedor.append(h('header.cabecera',
     h('div.cabecera__fila',
-      h('button.icono-btn', { type: 'button', 'aria-label': 'Volver', onclick: () => history.back() }, '←'),
       h('h1', '📇 Directorio de clientes'),
     )));
   const cont = h('div.contenido.diario');
@@ -969,6 +970,13 @@ async function renderDirectorio(contenedor) {
 // C=rojo claro — tambien en las pastillas del detalle (venta-prio--a/b/c).
 const COLOR_PRIO = { A: 'verde', B: 'ambar', C: 'rojo' };
 
+// En la tarjeta el vendedor va SIN apellido (pedido de Vale): fuera la
+// ultima palabra cuando el nombre trae mas de una.
+function sinApellido(nombre) {
+  const partes = (nombre || '').trim().split(/\s+/);
+  return partes.length > 1 ? partes.slice(0, -1).join(' ') : (nombre || '');
+}
+
 // Avatar del vendedor: PLACEHOLDER con iniciales por ahora — aqui ira su
 // FOTO cuando la organizacion la tenga.
 function avatarVendedor(nombre) {
@@ -990,7 +998,7 @@ function tarjetaVenta(v, veTodas, permisos, alCambiar) {
   },
     h('div.venta-carta__f1',
       veTodas && v.dueno
-        ? h('p.venta-dueno', avatarVendedor(v.dueno), h('span.venta-dueno__nombre', v.dueno))
+        ? h('p.venta-dueno', avatarVendedor(v.dueno), h('span.venta-dueno__nombre', sinApellido(v.dueno)))
         : h('span'),
       prioridadValida(v.prioridad)
         ? h('span.venta-prio-badge.venta-prio-badge--' + COLOR_PRIO[v.prioridad[0]], v.prioridad)
@@ -1029,7 +1037,6 @@ async function renderHistorial(contenedor) {
 
   contenedor.append(h('header.cabecera',
     h('div.cabecera__fila',
-      h('button.icono-btn', { type: 'button', 'aria-label': 'Volver', onclick: () => history.back() }, '←'),
       h('h1', '🗃 Historial de ventas'),
     )));
   const cont = h('div.contenido.diario');
@@ -1082,7 +1089,6 @@ export async function render(contenedor, refrescar, params = {}) {
 
   contenedor.append(h('header.cabecera',
     h('div.cabecera__fila',
-      h('button.icono-btn', { type: 'button', 'aria-label': 'Volver', onclick: () => history.back() }, '←'),
       h('h1', '💲 Ventas'),
       // El directorio vive en la cabecera (pedido de Vale); el letrero de
       // "cajas" se fue — el filtro por vendedor ya cuenta esa historia.
