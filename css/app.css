@@ -786,10 +786,11 @@ button { font-family: inherit; font-size: inherit; }
    clip-path; el filtro abraza la silueta recortada. */
 .venta-cal-solo {
   display: grid; place-items: center; flex: none;
-  /* Trapecio clasico: base menor ARRIBA, base mayor abajo; bajito para
-     que el numero quede casi al ras de los bordes (pedido de Vale). */
-  width: 3.9rem; height: 1.8rem;
-  clip-path: polygon(18% 0, 82% 0, 100% 100%, 0 100%);
+  /* Trapecio INCLINADO como la referencia de Vale: base menor arriba
+     corrida a la derecha, base mayor abajo, ambos lados recostados en
+     la misma direccion; bajito, con el numero casi al ras. */
+  width: 4.2rem; height: 1.8rem;
+  clip-path: polygon(30% 0, 100% 0, 72% 100%, 0 100%);
   font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums;
   color: #000;
 }
