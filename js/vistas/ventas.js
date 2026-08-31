@@ -985,10 +985,12 @@ function tarjetaVenta(v, veTodas, permisos, alCambiar) {
         !v.cerrada && comp ? chipEstadoCompromiso(comp) : null)),
     h('div.venta-carta__pie',
       h('span', 'Ultima fecha compromiso:'),
-      comp ? calendarioMini(comp) : null,
       comp
         ? h('span.venta-carta__pie-fecha', fechaCorta(comp))
-        : h('span.venta-carta__pie-fecha.venta-carta__pie-fecha--vacia', 'Sin fecha aun')));
+        : h('span.venta-carta__pie-fecha.venta-carta__pie-fecha--vacia', 'Sin fecha aun'),
+      // El calendarito HASTA la derecha (pedido de Vale), alineado con
+      // la columna del porcentaje.
+      comp ? calendarioMini(comp) : null));
 }
 
 /* ---------------------------------------------------------------- */

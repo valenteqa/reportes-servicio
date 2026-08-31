@@ -739,8 +739,15 @@ button { font-family: inherit; font-size: inherit; }
   color: var(--tinta); font: inherit;
 }
 .venta-carta--cerrada { opacity: .55; }
-.venta-carta__fila { display: flex; align-items: center; gap: .5rem; margin-bottom: .3rem; }
-.venta-cliente { flex: 1; min-width: 0; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.venta-carta__fila { display: flex; align-items: flex-start; gap: .5rem; }
+/* PLANTILLA UNIFORME (pedido de Vale): titulo y descripcion reservan
+   SIEMPRE dos renglones (mas largo se recorta con …), asi todas las
+   tarjetas miden lo mismo y el ritmo vertical es parejo. */
+.venta-cliente {
+  flex: 1; min-width: 0; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
+  line-height: 1.3; min-height: 2.6em;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
 /* Fechas y datos con sabor a terminal. */
 .venta-carta .venta-meta { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: .76rem; }
 /* Tarjeta en dos columnas: texto a la izquierda, semaforo a la derecha.
@@ -748,10 +755,12 @@ button { font-family: inherit; font-size: inherit; }
    pegado al borde derecho, chip ABAJO pegado al borde derecho e
    inferior (pedido de Vale: todos los circulos alineados igual). */
 .venta-carta__cols { display: flex; gap: .6rem; }
-.venta-carta__izq { flex: 1; min-width: 0; }
+/* Columna izquierda como pila con RITMO UNIFORME: la misma separacion
+   (.45rem) entre vendedor, titulo, descripcion y el pie (pedido de Vale). */
+.venta-carta__izq { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .45rem; }
 .venta-carta__der {
   flex: none; display: flex; flex-direction: column;
-  align-items: flex-end; justify-content: flex-start; gap: .3rem;
+  align-items: flex-end; justify-content: flex-start; gap: .45rem;
   /* Margenes negativos (caben en el padding .8/.9rem de la tarjeta).
      Regla de Vale: la distancia del borde SUPERIOR al contorno del
      circulo = la del borde DERECHO (8px ambas: 12.8-4.8 y 14.4-6.4);
@@ -759,16 +768,21 @@ button { font-family: inherit; font-size: inherit; }
   margin: -.3rem -.4rem 0 0;
 }
 .venta-carta__der .venta-estado-chip { position: static; }
-.venta-carta__accion { margin: 0 0 .3rem; font-size: .9rem; overflow-wrap: break-word; }
+.venta-carta__accion {
+  margin: 0; font-size: .9rem; overflow-wrap: break-word;
+  line-height: 1.4; min-height: 2.8em;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
 .venta-carta__accion--vacia { color: var(--tinta-tenue); font-style: italic; }
-/* Pie de la tarjeta: "Ultima fecha compromiso:" + calendarito + dd/mm/aa
-   en una linea pegada al borde inferior. */
+/* Pie de la tarjeta: "Ultima fecha compromiso: dd/mm/aa" a la izquierda
+   y el calendarito HASTA la derecha, con el mismo ritmo de .45rem. */
 .venta-carta__pie {
   display: flex; align-items: center; gap: .4rem;
-  margin: .5rem 0 -.3rem;
+  margin: .45rem 0 0;
   font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
   font-size: .76rem; color: var(--tinta-suave);
 }
+.venta-carta__pie .venta-calmini { margin-left: auto; }
 .venta-carta__pie-fecha { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--tinta); }
 .venta-carta__pie-fecha--vacia { font-weight: 400; font-style: italic; color: var(--tinta-tenue); }
 /* Calendarito estilo emoji 📅 con datos reales: colores FIJOS en ambos
@@ -968,7 +982,7 @@ button { font-family: inherit; font-size: inherit; }
 .venta-evento__contacto { display: block; font-size: .78rem; color: var(--tinta-tenue); margin-top: .1rem; }
 .venta-op__seña { display: block; font-size: .72rem; color: var(--tinta-tenue); font-weight: 400; }
 /* Vendedor asignado, arriba del titulo (vista del lider). */
-.venta-dueno { margin: 0 0 .2rem; font-size: .74rem; font-weight: 700; letter-spacing: .03em; color: var(--primario-vivo, var(--primario)); }
+.venta-dueno { margin: 0; font-size: .74rem; font-weight: 700; letter-spacing: .03em; color: var(--primario-vivo, var(--primario)); }
 .venta-grupo {
   display: flex; align-items: baseline; justify-content: space-between; gap: .6rem;
   margin: 1rem 0 .45rem; padding-bottom: .25rem;
