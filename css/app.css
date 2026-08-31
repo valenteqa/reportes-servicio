@@ -728,7 +728,9 @@ button { font-family: inherit; font-size: inherit; }
    acento lateral, neon en los semaforos y tipografia de terminal.
    Solo clases venta-*: no toca el resto de la app. ══ */
 .venta-carta {
-  display: block; width: 100%; text-align: left;
+  /* Pila de filas con RITMO UNIFORME (.45rem entre todas). */
+  display: flex; flex-direction: column; gap: .45rem;
+  width: 100%; text-align: left;
   background: var(--superficie);
   border: 1px solid var(--primario);
   border-left: 4px solid var(--primario-vivo, var(--primario));
@@ -739,7 +741,6 @@ button { font-family: inherit; font-size: inherit; }
   color: var(--tinta); font: inherit;
 }
 .venta-carta--cerrada { opacity: .55; }
-.venta-carta__fila { display: flex; align-items: flex-start; gap: .5rem; }
 /* PLANTILLA UNIFORME (pedido de Vale): titulo y descripcion reservan
    SIEMPRE dos renglones (mas largo se recorta con …), asi todas las
    tarjetas miden lo mismo y el ritmo vertical es parejo. */
@@ -750,37 +751,32 @@ button { font-family: inherit; font-size: inherit; }
 }
 /* Fechas y datos con sabor a terminal. */
 .venta-carta .venta-meta { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: .76rem; }
-/* Tarjeta en dos columnas: texto a la izquierda, semaforo a la derecha.
-   La columna derecha estira a la altura de la tarjeta: circulo ARRIBA
-   pegado al borde derecho, chip ABAJO pegado al borde derecho e
-   inferior (pedido de Vale: todos los circulos alineados igual). */
-.venta-carta__cols { display: flex; gap: .6rem; }
-/* Columna izquierda como pila con RITMO UNIFORME: la misma separacion
-   (.45rem) entre vendedor, titulo, descripcion y el pie (pedido de Vale). */
-.venta-carta__izq { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .45rem; }
-.venta-carta__der {
-  flex: none; display: flex; flex-direction: column;
-  align-items: flex-end; justify-content: flex-start; gap: .45rem;
-  /* Margenes negativos (caben en el padding .8/.9rem de la tarjeta).
-     Regla de Vale: la distancia del borde SUPERIOR al contorno del
-     circulo = la del borde DERECHO (8px ambas: 12.8-4.8 y 14.4-6.4);
-     el chip de estatus va EXACTAMENTE debajo del porcentaje. */
-  margin: -.3rem -.4rem 0 0;
+/* F1: vendedor | prioridad | % — centrados verticalmente entre si; la
+   prioridad al centro del espacio ENTRE el nombre y el porcentaje
+   (pedido de Vale). El nombre no se parte: elipsis si no cabe. */
+.venta-carta__f1 {
+  display: flex; align-items: center; justify-content: space-between; gap: .5rem;
 }
-.venta-carta__der .venta-estado-chip { position: static; }
+.venta-carta__f1 .venta-dueno {
+  flex: 0 1 auto; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* F2: titulo y chip de estatus alineados ON TOP (pedido de Vale). */
+.venta-carta__f2 { display: flex; align-items: flex-start; gap: .5rem; }
+.venta-carta__f2 .venta-estado-chip { position: static; flex: none; }
 .venta-carta__accion {
   margin: 0; font-size: .9rem; overflow-wrap: break-word;
   line-height: 1.4; min-height: 2.8em;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
 }
 .venta-carta__accion--vacia { color: var(--tinta-tenue); font-style: italic; }
-/* Pie de la tarjeta: "Ultima fecha compromiso: dd/mm/aa" a la izquierda
-   y el calendarito HASTA la derecha, con el mismo ritmo de .45rem. */
+/* F4 (pie): "Ultima fecha compromiso: dd/mm/aa" con la MISMA fuente y
+   tamano que la descripcion, y el calendarito HASTA la derecha,
+   alineados ON BOTTOM (pedido de Vale). */
 .venta-carta__pie {
-  display: flex; align-items: center; gap: .4rem;
-  margin: .45rem 0 0;
-  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
-  font-size: .76rem; color: var(--tinta-suave);
+  display: flex; align-items: flex-end; gap: .5rem;
+  margin: 0;
+  font-size: .9rem; color: var(--tinta-suave);
 }
 .venta-carta__pie .venta-calmini { margin-left: auto; }
 .venta-carta__pie-fecha { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--tinta); }

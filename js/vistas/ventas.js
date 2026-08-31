@@ -956,11 +956,15 @@ async function renderDirectorio(contenedor) {
 /* Tarjeta de oportunidad (compartida por tablero e historial)       */
 /* ---------------------------------------------------------------- */
 
-// Izquierda: vendedor (solo vista del lider), titulo y accion actual. El
-// contacto y la fecha de creacion viven SOLO en el detalle (pedido de Vale).
-// Derecha: calificacion con su chip de estatus EXACTAMENTE debajo.
-// Pie: "Ultima fecha compromiso: 📅 dd/mm/aa" pegado al borde inferior,
-// con el calendarito emoji de datos reales.
+// Tarjeta por FILAS (pedido de Vale, con terminologia Office):
+//   F1: vendedor | PRIORIDAD | % — centrados verticalmente entre si; la
+//       prioridad al centro horizontal y con el MISMO formato que el %.
+//   F2: titulo y chip de estatus alineados ON TOP.
+//   F3: la descripcion (accion actual).
+//   F4: "Ultima fecha compromiso: dd/mm/aa" (tamano de la descripcion) y
+//       el calendarito hasta la derecha, alineados ON BOTTOM.
+// El contacto y la fecha de creacion viven SOLO en el detalle.
+const COLOR_PRIO = { A: 'rojo', B: 'ambar', C: 'verde' };
 function tarjetaVenta(v, veTodas, permisos, alCambiar) {
   const comp = compromisoVigente(v);
   // La ACCION ACTUAL (misma regla que el detalle): ultima accion real.
@@ -971,25 +975,23 @@ function tarjetaVenta(v, veTodas, permisos, alCambiar) {
     type: 'button',
     onclick: () => hojaDetalle(v, permisos, alCambiar),
   },
-    h('div.venta-carta__cols',
-      h('div.venta-carta__izq',
-        veTodas && v.dueno ? h('p.venta-dueno', '👤 ' + v.dueno) : null,
-        h('div.venta-carta__fila',
-          prioridadValida(v.prioridad) ? h('span.venta-prio.venta-prio--' + v.prioridad[0].toLowerCase(), v.prioridad) : null,
-          h('span.venta-cliente', v.titulo)),
-        vigente
-          ? h('p.venta-carta__accion', vigente.texto)
-          : h('p.venta-carta__accion.venta-carta__accion--vacia', 'Sin acciones aun')),
-      h('div.venta-carta__der',
-        h('span.venta-cal-solo.' + claseCal(cal), cal + '%'),
-        !v.cerrada && comp ? chipEstadoCompromiso(comp) : null)),
+    h('div.venta-carta__f1',
+      veTodas && v.dueno ? h('p.venta-dueno', '👤 ' + v.dueno) : h('span'),
+      prioridadValida(v.prioridad)
+        ? h('span.venta-cal-solo.venta-cal-solo--' + COLOR_PRIO[v.prioridad[0]], v.prioridad)
+        : h('span'),
+      h('span.venta-cal-solo.' + claseCal(cal), cal + '%')),
+    h('div.venta-carta__f2',
+      h('span.venta-cliente', v.titulo),
+      !v.cerrada && comp ? chipEstadoCompromiso(comp) : null),
+    vigente
+      ? h('p.venta-carta__accion', vigente.texto)
+      : h('p.venta-carta__accion.venta-carta__accion--vacia', 'Sin acciones aun'),
     h('div.venta-carta__pie',
       h('span', 'Ultima fecha compromiso:'),
       comp
         ? h('span.venta-carta__pie-fecha', fechaCorta(comp))
         : h('span.venta-carta__pie-fecha.venta-carta__pie-fecha--vacia', 'Sin fecha aun'),
-      // El calendarito HASTA la derecha (pedido de Vale), alineado con
-      // la columna del porcentaje.
       comp ? calendarioMini(comp) : null));
 }
 
