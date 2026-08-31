@@ -29,18 +29,19 @@ function clavePrio(v) {
   return prioridadValida(v.prioridad) ? v.prioridad[0] + v.prioridad.slice(1).padStart(4, '0') : 'Z9999';
 }
 
-// La FILA de una letra para un vendedor: abiertas, por numero.
-function filaDePrioridad(ventas, duenoId, letra) {
+// La FILA de una letra es GLOBAL del depto (regla de Vale): abiertas,
+// por numero, sin importar el vendedor. Los vendedores solo VEN las
+// suyas (el reordenador vive en EDITAR, que es del lider/admin).
+function filaDePrioridad(ventas, letra) {
   return ventas
-    .filter(v => !v.cerrada && (v.duenoId || '') === (duenoId || '') &&
-      prioridadValida(v.prioridad) && v.prioridad[0] === letra)
+    .filter(v => !v.cerrada && prioridadValida(v.prioridad) && v.prioridad[0] === letra)
     .sort((a, b) => parseInt(a.prioridad.slice(1), 10) - parseInt(b.prioridad.slice(1), 10));
 }
 
 // Renumera 1..n la fila (saltando la venta con id saltarId) y guarda
 // solo las que cambiaron.
-async function compactarFila(ventas, duenoId, letra, saltarId) {
-  const fila = filaDePrioridad(ventas, duenoId, letra).filter(v => v.id !== saltarId);
+async function compactarFila(ventas, letra, saltarId) {
+  const fila = filaDePrioridad(ventas, letra).filter(v => v.id !== saltarId);
   for (let k = 0; k < fila.length; k++) {
     const nueva = letra + (k + 1);
     if (fila[k].prioridad !== nueva) { fila[k].prioridad = nueva; await db.ventaGuardar(fila[k]); }
@@ -53,9 +54,9 @@ async function asignarPrioridad(v, letra) {
   const letraVieja = prioridadValida(v.prioridad) ? v.prioridad[0] : '';
   if (letraVieja === letra) return;
   const todas = await db.ventasTodas();
-  if (letraVieja) await compactarFila(todas, v.duenoId, letraVieja, v.id);
+  if (letraVieja) await compactarFila(todas, letraVieja, v.id);
   v.prioridad = letra
-    ? letra + (filaDePrioridad(todas, v.duenoId, letra).filter(x => x.id !== v.id).length + 1)
+    ? letra + (filaDePrioridad(todas, letra).filter(x => x.id !== v.id).length + 1)
     : '';
   await db.ventaGuardar(v);
 }
@@ -523,10 +524,11 @@ async function hojaEditarOportunidad(v) {
     return h('div',
       cCliente, cSede, cTitulo,
       h('label.campo', h('span.campo__etiqueta', 'Prioridad' + (prioridadValida(v.prioridad) ? ' (actual: ' + v.prioridad + ')' : '')), botonesPrio),
-      // El orden dentro de la letra se cambia ARRASTRANDO en su hoja.
+      // El orden dentro de la letra se cambia ARRASTRANDO en su hoja
+      // (fila GLOBAL: el lider ve todas, de todos los vendedores).
       letraActual ? h('button.btn.btn--fantasma.venta-btn-mini', {
         type: 'button',
-        onclick: () => hojaPrioridades(letraActual, v.duenoId, v.dueno),
+        onclick: () => hojaPrioridades(letraActual),
       }, '⇅  ORDENAR PRIORIDADES ' + letraActual) : null,
       h('label.campo', h('span.campo__etiqueta', 'Vendedor asignado'), selVendedor),
       h('div.hoja__acciones',
@@ -551,16 +553,17 @@ async function hojaEditarOportunidad(v) {
   });
 }
 
-// Hoja de PRIORIDADES de una letra: la fila del vendedor en orden;
-// se mantiene presionada una fila y se ARRASTRA para reordenar (los
-// numeros se reasignan 1..n al soltar).
-function hojaPrioridades(letra, duenoId, nombreDueno) {
-  return hoja('⇅  Prioridades ' + letra + (nombreDueno ? ' · ' + nombreDueno : ''), (cerrar) => {
+// Hoja de PRIORIDADES de una letra: TODAS las de esa letra en orden
+// (fila global; cada fila muestra su vendedor); se mantiene presionada
+// una fila y se ARRASTRA para reordenar (los numeros se reasignan
+// 1..n al soltar). Solo llega aqui el lider o el admin (via EDITAR).
+function hojaPrioridades(letra) {
+  return hoja('⇅  Prioridades ' + letra, (cerrar) => {
     const listaEl = h('div.prio-lista');
     let fila = [];
 
     const pinta = async () => {
-      fila = filaDePrioridad(await db.ventasTodas(), duenoId, letra);
+      fila = filaDePrioridad(await db.ventasTodas(), letra);
       if (!fila.length) {
         listaEl.replaceChildren(h('p.pista', 'No hay oportunidades abiertas con prioridad ' + letra + '.'));
         return;
@@ -568,7 +571,8 @@ function hojaPrioridades(letra, duenoId, nombreDueno) {
       listaEl.replaceChildren(...fila.map((v, idx) => {
         const el = h('div.prio-fila',
           h('span.prio-num', letra + (idx + 1)),
-          h('span.prio-tit', v.titulo),
+          h('span.prio-tit', v.titulo,
+            v.dueno ? h('span.prio-dueno', '👤 ' + v.dueno) : null),
           h('span.prio-asa', '↕'));
         el.onpointerdown = (ev) => arrastrar(ev, el, idx);
         return el;
@@ -652,15 +656,37 @@ function hojaEditarAccion(e) {
   });
 }
 
-// Detalle COMPLETO de una accion (toque en su cuadro): solo lectura —
-// editar y eliminar siguen en los botoncitos ✎/🗑 del cuadro.
-function hojaDetalleAccion(e, esVigente, cerrada) {
-  return hoja('📄  Detalle de la accion', () => h('div',
-    esVigente && e.compromiso && !cerrada ? h('p.venta-accion-chip', chipEstadoCompromiso(e.compromiso)) : null,
-    h('p.venta-accion-texto', e.texto),
-    e.contacto ? h('p.venta-accion-dato', '👤 Contacto: ' + e.contacto) : null,
-    h('p.venta-accion-dato', '📅 Fecha de creacion: ' + fechaBonita(e.fecha)),
-    e.compromiso ? h('p.venta-accion-dato', '📅 Fecha compromiso: ' + fechaBonita(e.compromiso)) : null));
+// Detalle COMPLETO de una accion (toque en su cuadro). Aqui vive el
+// boton EDITAR (solo lider/admin) — los cuadros van limpios y borrar
+// acciones ya no existe (regla de Vale).
+function hojaDetalleAccion(e, esVigente, v, permisos, alCambiar) {
+  return hoja('📄  Detalle de la accion', () => {
+    const cuerpo = h('div');
+    const pinta = () => {
+      cuerpo.replaceChildren(...[
+        esVigente && e.compromiso && !v.cerrada ? h('p.venta-accion-chip', chipEstadoCompromiso(e.compromiso)) : null,
+        h('p.venta-accion-texto', e.texto),
+        e.contacto ? h('p.venta-accion-dato', '👤 Contacto: ' + e.contacto) : null,
+        h('p.venta-accion-dato', '📅 Fecha de creacion: ' + fechaBonita(e.fecha)),
+        e.compromiso ? h('p.venta-accion-dato', '📅 Fecha compromiso: ' + fechaBonita(e.compromiso)) : null,
+        permisos.gestionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
+          type: 'button',
+          onclick: async () => {
+            const datos = await hojaEditarAccion(e);
+            if (!datos) return;
+            e.texto = datos.texto;
+            e.contacto = datos.contacto;
+            e.compromiso = datos.compromiso;
+            await db.ventaGuardar(v);
+            pinta();
+            alCambiar();
+          },
+        }, '✎  EDITAR ACCION') : null,
+      ].filter(Boolean));
+    };
+    pinta();
+    return cuerpo;
+  });
 }
 
 function hojaEditarAnotacion(n) {
@@ -717,12 +743,9 @@ async function hojaDetalle(v, permisos, alCambiar) {
       const anteriores = acciones.slice(0, -1).reverse();
       const eventoEl = (e, esVigente) =>
         h('div.venta-evento', {
-          // Toque en el cuadro = ver el detalle completo; los botoncitos
-          // ✎/🗑 no lo disparan (su toque es de ellos).
-          onclick: (ev) => {
-            if (ev.target.closest('.venta-evento__tools')) return;
-            hojaDetalleAccion(e, esVigente, v.cerrada);
-          },
+          // Toque en el cuadro = ver el detalle completo (ahi vive
+          // EDITAR para el lider; borrar acciones ya no existe).
+          onclick: () => hojaDetalleAccion(e, esVigente, v, permisos, () => { pinta(); alCambiar(); }),
         },
           // Semaforo SOLO en la accion vigente (la ACCION ACTUAL).
           esVigente && e.compromiso && !v.cerrada ? chipEstadoCompromiso(e.compromiso) : null,
@@ -730,31 +753,7 @@ async function hojaDetalle(v, permisos, alCambiar) {
             e.contacto ? h('span.venta-evento__contacto', '👤 ' + e.contacto) : null),
           h('div.venta-evento__fechas',
             h('span', 'Fecha de creacion: ' + fechaBonita(e.fecha)),
-            e.compromiso ? h('span', 'Fecha compromiso: ' + fechaBonita(e.compromiso)) : null),
-          permisos.gestionar ? h('span.venta-evento__tools',
-            h('button.icono-btn.org-mini', {
-              type: 'button', 'aria-label': 'Editar accion',
-              onclick: async () => {
-                const datos = await hojaEditarAccion(e);
-                if (!datos) return;
-                e.texto = datos.texto;
-                e.contacto = datos.contacto;
-                e.compromiso = datos.compromiso;
-                await db.ventaGuardar(v);
-                pinta();
-                alCambiar();
-              },
-            }, '✎'),
-            h('button.icono-btn.org-mini', {
-              type: 'button', 'aria-label': 'Eliminar accion',
-              onclick: async () => {
-                if (!(await confirmar('¿Eliminar este estatus del historial? La calificacion se recalcula.'))) return;
-                v.historial = v.historial.filter(x => x !== e);
-                await db.ventaGuardar(v);
-                pinta();
-                alCambiar();
-              },
-            }, '🗑')) : null);
+            e.compromiso ? h('span', 'Fecha compromiso: ' + fechaBonita(e.compromiso)) : null));
       // OJO: append(null) pinta el texto "null" (h() si filtra nulos);
       // aqui los condicionales entregan null, se filtran antes de anexar.
       const partes = [
@@ -770,9 +769,6 @@ async function hojaDetalle(v, permisos, alCambiar) {
             const datos = await hojaEditarOportunidad(v);
             if (!datos) return;
             const { prioridadLetra, ...resto } = datos;
-            // Si cambia de vendedor, primero libera su lugar en la fila
-            // de prioridades del vendedor anterior.
-            if (resto.duenoId !== v.duenoId && prioridadValida(v.prioridad)) await asignarPrioridad(v, '');
             Object.assign(v, resto);
             await db.ventaGuardar(v);
             await asignarPrioridad(v, prioridadLetra);

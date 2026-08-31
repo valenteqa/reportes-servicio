@@ -897,6 +897,7 @@ button { font-family: inherit; font-size: inherit; }
 .prio-fila--envuelo { transition: none; opacity: .92; box-shadow: var(--sombra-3); position: relative; z-index: 5; }
 .prio-num { flex: none; min-width: 2.1rem; font-weight: 800; color: var(--primario-vivo, var(--primario)); font-variant-numeric: tabular-nums; }
 .prio-tit { flex: 1; min-width: 0; overflow-wrap: break-word; }
+.prio-dueno { display: block; font-size: .72rem; color: var(--tinta-tenue); }
 .prio-asa { flex: none; color: var(--tinta-tenue); font-size: 1.15rem; }
 .venta-evento:has(.venta-estado-chip) .venta-evento__cuerpo { padding-right: 9rem; }
 .venta-evento:has(.venta-evento__tools) .venta-evento__cuerpo { padding-right: 4.4rem; }
