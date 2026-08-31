@@ -958,13 +958,16 @@ async function renderDirectorio(contenedor) {
 
 // Tarjeta por FILAS (pedido de Vale, con terminologia Office):
 //   F1: vendedor | PRIORIDAD | % — centrados verticalmente entre si; la
-//       prioridad al centro horizontal y con el MISMO formato que el %.
+//       prioridad EXACTAMENTE al centro horizontal de la tarjeta, en
+//       hexagono (forma distintiva, distinta del %).
 //   F2: titulo y chip de estatus alineados ON TOP.
-//   F3: la descripcion (accion actual).
+//   F3: "Accion Actual: " + la descripcion.
 //   F4: "Ultima fecha compromiso: dd/mm/aa" (tamano de la descripcion) y
 //       el calendarito hasta la derecha, alineados ON BOTTOM.
 // El contacto y la fecha de creacion viven SOLO en el detalle.
-const COLOR_PRIO = { A: 'rojo', B: 'ambar', C: 'verde' };
+// Colores de prioridad (regla de Vale, 31 ago 2026): A=verde, B=amarillo,
+// C=rojo claro — tambien en las pastillas del detalle (venta-prio--a/b/c).
+const COLOR_PRIO = { A: 'verde', B: 'ambar', C: 'rojo' };
 function tarjetaVenta(v, veTodas, permisos, alCambiar) {
   const comp = compromisoVigente(v);
   // La ACCION ACTUAL (misma regla que el detalle): ultima accion real.
@@ -978,20 +981,24 @@ function tarjetaVenta(v, veTodas, permisos, alCambiar) {
     h('div.venta-carta__f1',
       veTodas && v.dueno ? h('p.venta-dueno', '👤 ' + v.dueno) : h('span'),
       prioridadValida(v.prioridad)
-        ? h('span.venta-cal-solo.venta-cal-solo--' + COLOR_PRIO[v.prioridad[0]], v.prioridad)
+        ? h('span.venta-prio-badge.venta-prio-badge--' + COLOR_PRIO[v.prioridad[0]], v.prioridad)
         : h('span'),
       h('span.venta-cal-solo.' + claseCal(cal), cal + '%')),
     h('div.venta-carta__f2',
       h('span.venta-cliente', v.titulo),
       !v.cerrada && comp ? chipEstadoCompromiso(comp) : null),
-    vigente
-      ? h('p.venta-carta__accion', vigente.texto)
-      : h('p.venta-carta__accion.venta-carta__accion--vacia', 'Sin acciones aun'),
+    h('p.venta-carta__accion',
+      h('span.venta-carta__etiqueta', 'Accion Actual: '),
+      vigente ? vigente.texto : h('span.venta-carta__accion--vacia', 'Sin acciones aun')),
     h('div.venta-carta__pie',
-      h('span', 'Ultima fecha compromiso:'),
-      comp
-        ? h('span.venta-carta__pie-fecha', fechaCorta(comp))
-        : h('span.venta-carta__pie-fecha.venta-carta__pie-fecha--vacia', 'Sin fecha aun'),
+      // Etiqueta y fecha en un mismo flujo: la etiqueta es indivisible
+      // (nowrap) y si el ancho no da, la fecha baja COMPLETA al segundo
+      // renglon en vez de partir la etiqueta a media palabra.
+      h('span.venta-carta__pie-texto',
+        h('span.venta-carta__etiqueta', 'Ultima fecha compromiso: '),
+        comp
+          ? h('span.venta-carta__pie-fecha', fechaCorta(comp))
+          : h('span.venta-carta__pie-fecha.venta-carta__pie-fecha--vacia', 'Sin fecha aun')),
       comp ? calendarioMini(comp) : null));
 }
 

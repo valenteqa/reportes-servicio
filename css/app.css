@@ -752,16 +752,35 @@ button { font-family: inherit; font-size: inherit; }
 }
 /* Fechas y datos con sabor a terminal. */
 .venta-carta .venta-meta { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: .76rem; }
-/* F1: vendedor | prioridad | % — centrados verticalmente entre si; la
-   prioridad al centro del espacio ENTRE el nombre y el porcentaje
-   (pedido de Vale). El nombre no se parte: elipsis si no cabe. */
+/* F1: vendedor | prioridad | % — la prioridad EXACTAMENTE al centro
+   horizontal de la tarjeta (grid de columnas iguales), los tres
+   centrados verticalmente (pedido de Vale). El nombre no se parte:
+   elipsis si no cabe. */
 .venta-carta__f1 {
-  display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+  display: grid; grid-template-columns: 1fr auto 1fr;
+  align-items: center; gap: .5rem;
 }
+.venta-carta__f1 > :first-child { justify-self: start; }
+.venta-carta__f1 > :nth-child(2) { justify-self: center; }
+.venta-carta__f1 > :last-child { justify-self: end; }
 .venta-carta__f1 .venta-dueno {
-  flex: 0 1 auto; min-width: 0;
+  min-width: 0; max-width: 100%;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* PRIORIDAD en HEXAGONO acostado: forma distintiva (distinta del % y
+   de los chips), mismo tamano de letra que el %. Colores de Vale:
+   A=verde, B=amarillo, C=rojo claro; sin borde (el clip se lo comeria
+   en las puntas), tinte un pelin mas presente para compensar. */
+.venta-prio-badge {
+  display: grid; place-items: center; flex: none;
+  width: 3.6rem; height: 1.8rem;
+  clip-path: polygon(14% 0, 86% 0, 100% 50%, 86% 100%, 14% 100%, 0 50%);
+  font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums;
+  color: #000;
+}
+.venta-prio-badge--verde { background: #5cbd8d59; }
+.venta-prio-badge--ambar { background: #e2c15966; }
+.venta-prio-badge--rojo  { background: #e26e6e59; }
 /* F2: titulo y chip de estatus alineados ON TOP (pedido de Vale). */
 .venta-carta__f2 { display: flex; align-items: flex-start; gap: .5rem; }
 .venta-carta__f2 .venta-estado-chip { position: static; flex: none; }
@@ -771,32 +790,45 @@ button { font-family: inherit; font-size: inherit; }
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
 }
 .venta-carta__accion--vacia { color: var(--tinta-tenue); font-style: italic; }
+/* Leyendas de la tarjeta ("Accion Actual:", "Ultima fecha compromiso:"),
+   mismo tono que el pie; indivisibles para que nunca se partan a media
+   palabra. */
+.venta-carta__etiqueta { color: var(--tinta-suave); font-style: normal; white-space: nowrap; }
+.venta-carta__pie-texto { flex: 1 1 auto; min-width: 0; }
 /* F4 (pie): "Ultima fecha compromiso: dd/mm/aa" con la MISMA fuente y
    tamano que la descripcion, y el calendarito HASTA la derecha,
    alineados ON BOTTOM (pedido de Vale). */
 .venta-carta__pie {
-  display: flex; align-items: flex-end; gap: .5rem;
+  display: flex; align-items: flex-end; gap: .3rem;
   margin: 0;
   font-size: .9rem; color: var(--tinta-suave);
 }
 .venta-carta__pie .venta-calmini { margin-left: auto; }
-.venta-carta__pie-fecha { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--tinta); }
+.venta-carta__pie-fecha {
+  font-weight: 800; color: var(--tinta);
+  /* Digitos de ancho parejo: sin esto "28/08/26" media mas que
+     "10/09/26" y unas tarjetas doblaban el pie y otras no. */
+  font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1;
+}
 .venta-carta__pie-fecha--vacia { font-weight: 400; font-style: italic; color: var(--tinta-tenue); }
 /* Calendarito estilo emoji 📅 con datos reales: colores FIJOS en ambos
    temas (como un emoji): banda roja, cuerpo claro, dia oscuro. */
 .venta-calmini {
   display: inline-flex; flex-direction: column; align-items: stretch;
-  min-width: 27px; border-radius: 5px; overflow: hidden;
+  /* Ancho FIJO: "AGO" es mas ancha que "SEP" y con min-width el icono
+     variaba por tarjeta, doblando el pie en unas si y en otras no. */
+  width: 44px; border-radius: 6px; overflow: hidden;
   border: 1px solid rgba(20, 26, 34, .45);
   background: #fdfdfd; flex: none;
 }
+.venta-calmini__mes, .venta-calmini__dia { overflow: hidden; }
 .venta-calmini__mes {
-  text-align: center; font-size: 7px; font-weight: 800; letter-spacing: .06em;
-  padding: 1.5px 3px 1px; background: #d3302f; color: #fff;
+  text-align: center; font-size: .62rem; font-weight: 800; letter-spacing: .06em;
+  padding: .12rem .25rem .08rem; background: #d3302f; color: #fff;
 }
 .venta-calmini__dia {
-  text-align: center; font-size: 12px; font-weight: 800; line-height: 1.15;
-  color: #16202b; padding: 0 3px 1.5px;
+  text-align: center; font-size: 1.05rem; font-weight: 800; line-height: 1.2;
+  color: #16202b; padding: 0 .2rem .1rem;
   font-variant-numeric: tabular-nums;
 }
 .venta-prio {
@@ -912,11 +944,11 @@ button { font-family: inherit; font-size: inherit; }
 .venta-estado-chip--ambar { background: #e2c15955; color: #8a7524; border: 1px solid #8a752488; }
 .venta-estado-chip--rojo  { background: #e26e6e4d; color: #b04a4a; border: 1px solid #b04a4a88; }
 
-/* Prioridades A1/B2/C3: chip por LETRA, misma familia fria (A la mas
-   urgente = rojo, B = ambar, C = verde). */
-.venta-prio--a { background: #e26e6e4d; color: #b04a4a; border: 1px solid #b04a4a88; }
+/* Prioridades A1/B2/C3: chip por LETRA (regla de Vale, 31 ago 2026:
+   A = verde, B = amarillo, C = rojo claro). */
+.venta-prio--a { background: #5cbd8d4d; color: #2f7a58; border: 1px solid #2f7a5888; }
 .venta-prio--b { background: #e2c15955; color: #8a7524; border: 1px solid #8a752488; }
-.venta-prio--c { background: #5cbd8d4d; color: #2f7a58; border: 1px solid #2f7a5888; }
+.venta-prio--c { background: #e26e6e4d; color: #b04a4a; border: 1px solid #b04a4a88; }
 /* Botonera A/B/C del asistente y de editar (toque para elegir, retocar
    para quitar). */
 .venta-prio-fila { display: flex; gap: .5rem; }
