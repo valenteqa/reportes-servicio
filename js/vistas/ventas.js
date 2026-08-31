@@ -313,7 +313,7 @@ function hojaNuevaOportunidad(clientes) {
           }, 'Continuar')
         )
       );
-      setTimeout(() => entrada.focus(), 80);
+
     }
 
     function pintarPaso() {
@@ -374,7 +374,7 @@ function hojaNuevaOportunidad(clientes) {
             },
           }, 'Crear'))
       );
-      setTimeout(() => { const e = cTitulo.querySelector('input'); if (e) e.focus(); }, 80);
+
     }
 
     pintarPaso();
@@ -447,7 +447,7 @@ function hojaNuevaAccion(v, contactos, globales) {
           }, 'Continuar')
         )
       );
-      setTimeout(() => entrada.focus(), 80);
+
     }
 
     function pintarPaso() {
@@ -495,7 +495,7 @@ function hojaNuevaAccion(v, contactos, globales) {
             },
           }, 'Guardar'))
       );
-      setTimeout(() => { const e = cTexto.querySelector('input'); if (e) e.focus(); }, 80);
+
     }
 
     pintarPaso();
@@ -966,6 +966,16 @@ export async function render(contenedor, refrescar, params = {}) {
 
   let filtroCliente = '';
   let filtroVendedor = '';
+  // Controles del lider (regla de Vale): agrupar por vendedor apagable
+  // y orden elegible; el orden de las opciones tambien es dictado.
+  let agruparPorVendedor = true;
+  let ordenarPor = 'prioridad';
+  const ORDENES = [
+    ['prioridad', 'Prioridad'],
+    ['compromiso', 'Fecha compromiso'],
+    ['atraso', 'Dias de atraso'],
+    ['creacion', 'Fecha de creacion'],
+  ];
 
   const pintar = async () => {
     const todasLasVentas = await db.ventasTodas();
@@ -1018,6 +1028,17 @@ export async function render(contenedor, refrescar, params = {}) {
         haySinDueno ? h('option', { value: '__sin__', selected: filtroVendedor === '__sin__' }, 'Sin vendedor') : null);
       selVendedor.onchange = () => { filtroVendedor = selVendedor.value; pintar(); };
       cont.append(h('div.gd-nav', selVendedor));
+
+      // Debajo del filtro: agrupar (izq) y ordenar por (der).
+      const chkAgrupar = h('input', { type: 'checkbox' });
+      chkAgrupar.checked = agruparPorVendedor;
+      chkAgrupar.onchange = () => { agruparPorVendedor = chkAgrupar.checked; pintar(); };
+      const selOrden = h('select.org-select',
+        ...ORDENES.map(([val, n]) => h('option', { value: val, selected: ordenarPor === val }, n)));
+      selOrden.onchange = () => { ordenarPor = selOrden.value; pintar(); };
+      cont.append(h('div.venta-controles',
+        h('label.venta-agrupar', chkAgrupar, 'Agrupar por vendedor'),
+        h('label.venta-ordenar', 'Ordenar por', selOrden)));
     }
 
     cont.append(h('button.btn.btn--fantasma.venta-abrir', {
@@ -1028,15 +1049,30 @@ export async function render(contenedor, refrescar, params = {}) {
     if (veTodas && filtroVendedor) {
       lista = lista.filter(v => filtroVendedor === '__sin__' ? !v.dueno : v.dueno === filtroVendedor);
     }
-    // Orden: abiertas primero por fecha de seguimiento y luego prioridad
-    // (A1 < A2 < B1 < C…; sin prioridad al final); cerradas al final.
-    lista.sort((a, b) => {
-      if (!!a.cerrada !== !!b.cerrada) return a.cerrada ? 1 : -1;
+    // Orden segun el criterio elegido (lider); los vendedores conservan
+    // el clasico: fecha compromiso y luego prioridad. Cerradas al final.
+    const hoyClave = fechaClave();
+    const diasAtraso = (v) => {
+      const comp = compromisoVigente(v);
+      if (!comp || v.cerrada || comp >= hoyClave) return -1;
+      return Math.round((new Date(hoyClave + 'T12:00:00') - new Date(comp + 'T12:00:00')) / 86400000);
+    };
+    const criterio = veTodas ? ordenarPor : 'compromiso';
+    const porCompromiso = (a, b) => {
       const fa = compromisoVigente(a) || '9999';
       const fb = compromisoVigente(b) || '9999';
-      if (fa !== fb) return fa < fb ? -1 : 1;
+      return fa < fb ? -1 : fa > fb ? 1 : 0;
+    };
+    const porPrioridad = (a, b) => {
       const pa = clavePrio(a), pb = clavePrio(b);
       return pa < pb ? -1 : pa > pb ? 1 : 0;
+    };
+    lista.sort((a, b) => {
+      if (!!a.cerrada !== !!b.cerrada) return a.cerrada ? 1 : -1;
+      if (criterio === 'prioridad') return porPrioridad(a, b) || porCompromiso(a, b);
+      if (criterio === 'atraso') return (diasAtraso(b) - diasAtraso(a)) || porCompromiso(a, b);
+      if (criterio === 'creacion') return (b.creado || 0) - (a.creado || 0);
+      return porCompromiso(a, b) || porPrioridad(a, b);
     });
 
     const abiertas = lista.filter(v => !v.cerrada);
@@ -1082,7 +1118,8 @@ export async function render(contenedor, refrescar, params = {}) {
             !v.cerrada && comp ? chipEstadoCompromiso(comp) : null)));
     };
 
-    if (!veTodas) {
+    // Sin agrupar (vendedor, o lider con el checkbox apagado): lista corrida.
+    if (!veTodas || !agruparPorVendedor) {
       for (const v of lista) cont.append(tarjeta(v));
       return;
     }

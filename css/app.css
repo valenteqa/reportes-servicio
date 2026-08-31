@@ -898,6 +898,22 @@ button { font-family: inherit; font-size: inherit; }
 .prio-num { flex: none; min-width: 2.1rem; font-weight: 800; color: var(--primario-vivo, var(--primario)); font-variant-numeric: tabular-nums; }
 .prio-tit { flex: 1; min-width: 0; overflow-wrap: break-word; }
 .prio-dueno { display: block; font-size: .72rem; color: var(--tinta-tenue); }
+/* Controles del lider bajo el filtro de vendedores: checkbox de agrupar
+   al extremo izquierdo, "Ordenar por" al derecho. */
+.venta-controles {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: .8rem; margin: .15rem 0 .55rem;
+}
+.venta-agrupar {
+  display: flex; align-items: center; gap: .4rem;
+  font-size: .84rem; color: var(--tinta-suave);
+}
+.venta-agrupar input { width: 1.15rem; height: 1.15rem; accent-color: var(--primario); }
+.venta-ordenar {
+  display: flex; align-items: center; gap: .4rem; flex: none;
+  font-size: .84rem; color: var(--tinta-suave);
+}
+.venta-ordenar .org-select { width: auto; }
 .prio-asa { flex: none; color: var(--tinta-tenue); font-size: 1.15rem; }
 .venta-evento:has(.venta-estado-chip) .venta-evento__cuerpo { padding-right: 9rem; }
 .venta-evento:has(.venta-evento__tools) .venta-evento__cuerpo { padding-right: 4.4rem; }

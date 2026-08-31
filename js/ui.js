@@ -618,8 +618,8 @@ export function hoja(titulo, construir, { altura = 'auto' } = {}) {
     requestAnimationFrame(() => {
       fondo.classList.add('hoja-fondo--visible');
       panel.classList.add('hoja--visible');
-      const primero = cuerpo.querySelector('input, textarea');
-      if (primero && !primero.readOnly) setTimeout(() => primero.focus(), 260);
+      // SIN auto-enfoque (regla de Vale): el teclado no brinca al abrir
+      // una hoja; el usuario toca el campo que quiera editar.
     });
 
     document.addEventListener('keydown', function esc(ev) {

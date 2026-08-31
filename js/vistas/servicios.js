@@ -808,7 +808,7 @@ async function asistenteServicio() {
           }, 'Continuar')
         )
       );
-      setTimeout(() => entrada.focus(), 80);
+
     }
 
     function pintarPaso() {
@@ -937,7 +937,7 @@ function elegirDeCuadricula(etiqueta, actual, opciones, nombreNuevo) {
             : h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
           h('button.btn.btn--primario', { type: 'button', onclick: () => cerrar(inp.value.trim()) }, 'Guardar')
         ));
-      setTimeout(() => inp.focus(), 80);
+
     };
 
     if (opciones.length) modoRejilla(); else modoEntrada();
