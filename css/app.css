@@ -353,6 +353,12 @@ button { font-family: inherit; font-size: inherit; }
   font-variant-numeric: tabular-nums;
 }
 .rama-flotante strong { text-transform: uppercase; letter-spacing: .03em; font-weight: 750; }
+/* Avatar del vendedor dentro del gafete (tablero de ventas agrupado):
+   version compacta, alineada con el texto de la pastilla. */
+.rama-flotante .venta-avatar {
+  display: inline-grid; width: 1.35rem; height: 1.35rem;
+  font-size: .55rem; margin-right: .4rem; vertical-align: -0.4em;
+}
 
 /* Cameos "Toasty!": el invitado se asoma desde abajo por una esquina,
    saluda y se vuelve a meter. Encima de todo, sin estorbar los toques. */

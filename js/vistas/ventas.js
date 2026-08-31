@@ -961,6 +961,14 @@ async function directorioClientes() {
       for (const e of (v.historial || [])) ver(e.contacto);
     }
   } catch (e) { /* sin ventas */ }
+  // Contactos agregados A MANO en el directorio (viven como fichas).
+  try {
+    for (const f of await db.contactosFichasTodas()) {
+      if (!f.cliente || !f.nombre) continue;
+      const sede = asegura(f.cliente, f.sede);
+      if (sede && !sede.contactos.has(f.nombre.toLowerCase())) sede.contactos.set(f.nombre.toLowerCase(), f.nombre);
+    }
+  } catch (e) { /* sin fichas */ }
   return [...mapa.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
 }
 
@@ -970,6 +978,35 @@ async function directorioClientes() {
 // no existe (regla de Vale).
 function claveContacto(cliente, sede, nombre) {
   return (cliente + '|' + (sede || '') + '|' + nombre).toLowerCase();
+}
+
+// AGREGAR contacto a una empresa·sede: lo puede hacer CUALQUIERA que vea
+// el directorio (editar si es con permiso; eliminar no existe).
+function hojaNuevoContacto(cliente, sede) {
+  return hoja('＋  Nuevo contacto', (cerrar) => {
+    const cNombre = campo('Nombre', { maxLength: 80, placeholder: 'p. ej. Ing. Perez' });
+    const cCargo = campo('Cargo', { maxLength: 80, placeholder: 'p. ej. Jefe de mantenimiento' });
+    const cCorreo = campo('Correo(s)', { maxLength: 160, placeholder: 'correo@empresa.com' });
+    const cTel = campo('Telefono(s)', { maxLength: 120, placeholder: '722 000 0000' });
+    return h('div',
+      h('p.pista', cliente + (sede ? ' ' + sede : '')),
+      cNombre, cCargo, cCorreo, cTel,
+      h('div.hoja__acciones',
+        h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+        h('button.btn.btn--primario', {
+          type: 'button',
+          onclick: () => {
+            const nombre = cNombre.querySelector('input').value.trim();
+            if (!nombre) { aviso('Escribe el nombre del contacto.', 'error'); return; }
+            cerrar({
+              nombre,
+              cargo: cCargo.querySelector('input').value.trim(),
+              correo: cCorreo.querySelector('input').value.trim(),
+              telefono: cTel.querySelector('input').value.trim(),
+            });
+          },
+        }, 'Guardar')));
+  });
 }
 
 function hojaEditarContacto(ficha) {
@@ -1041,42 +1078,58 @@ async function renderDirectorio(contenedor) {
     return;
   }
 
-  const clientes = await directorioClientes();
-  if (!clientes.length) {
-    cont.append(h('div.diario-carta', h('p.pista', 'Aun no hay clientes dados de alta.')));
-    return;
-  }
-
   // Mismo formato que el tablero (pedido de Vale): grupo por EMPRESA ·
   // SEDE con el numero de contactos a la derecha, y cada contacto en su
   // tarjeta como las oportunidades. Tocar la tarjeta abre su FICHA
-  // (cargo, correo, telefono); editarla es solo con permiso especial.
+  // (cargo, correo, telefono); editarla es solo con permiso especial;
+  // AGREGAR contacto lo puede hacer cualquiera del directorio.
   const puedeEd = puedeEditarContactos(yo);
-  for (const c of clientes) {
-    // Sedes con nombre primero (alfabetico); la "sin sede" al FINAL (el
-    // viejo truco del '~' las mandaba al principio en collation es).
-    const sedes = [...c.sedes.values()].sort((a, b) =>
-      (!a.nombre - !b.nombre) || a.nombre.localeCompare(b.nombre, 'es'));
-    for (const s of sedes) {
-      const contactos = [...s.contactos.values()].sort((a, b) => a.localeCompare(b, 'es'));
-      // Empresa y sede en MAYUSCULAS y seguidas, sin punto (pedido de
-      // Vale — igual que en la tarjeta del tablero).
-      cont.append(h('h3.venta-grupo', '🏢 ' + (c.nombre + (s.nombre ? ' ' + s.nombre : '')).toUpperCase(),
-        h('span.sem-dato', contactos.length + ' contacto' + (contactos.length === 1 ? '' : 's'))));
-      if (!contactos.length) {
-        cont.append(h('div.venta-carta',
-          h('p.venta-carta__accion', h('span.venta-carta__accion--vacia', 'Sin contactos registrados.'))));
-        continue;
-      }
-      for (const nombre of contactos) {
-        cont.append(h('button.venta-carta', {
+  const pintar = async () => {
+    vaciar(cont);
+    const clientes = await directorioClientes();
+    if (!clientes.length) {
+      cont.append(h('div.diario-carta', h('p.pista', 'Aun no hay clientes dados de alta.')));
+      return;
+    }
+    for (const c of clientes) {
+      // Sedes con nombre primero (alfabetico); la "sin sede" al FINAL (el
+      // viejo truco del '~' las mandaba al principio en collation es).
+      const sedes = [...c.sedes.values()].sort((a, b) =>
+        (!a.nombre - !b.nombre) || a.nombre.localeCompare(b.nombre, 'es'));
+      for (const s of sedes) {
+        const contactos = [...s.contactos.values()].sort((a, b) => a.localeCompare(b, 'es'));
+        // Empresa y sede en MAYUSCULAS y seguidas, sin punto (pedido de
+        // Vale — igual que en la tarjeta del tablero).
+        cont.append(h('h3.venta-grupo', '🏢 ' + (c.nombre + (s.nombre ? ' ' + s.nombre : '')).toUpperCase(),
+          h('span.sem-dato', contactos.length + ' contacto' + (contactos.length === 1 ? '' : 's'))));
+        for (const nombre of contactos) {
+          cont.append(h('button.venta-carta', {
+            type: 'button',
+            onclick: () => hojaContacto(c.nombre, s.nombre, nombre, puedeEd),
+          }, h('p.venta-dueno', avatarVendedor(nombre), h('span.venta-dueno__nombre', nombre))));
+        }
+        cont.append(h('button.btn.btn--fantasma.venta-btn-mini', {
           type: 'button',
-          onclick: () => hojaContacto(c.nombre, s.nombre, nombre, puedeEd),
-        }, h('p.venta-dueno', avatarVendedor(nombre), h('span.venta-dueno__nombre', nombre))));
+          onclick: async () => {
+            const datos = await hojaNuevoContacto(c.nombre, s.nombre);
+            if (!datos) return;
+            if (s.contactos.has(datos.nombre.toLowerCase())) {
+              aviso('Ese contacto ya existe en esta sede.', 'error');
+              return;
+            }
+            const { nombre, ...resto } = datos;
+            await db.contactoFichaGuardar({
+              clave: claveContacto(c.nombre, s.nombre, nombre),
+              nombre, cliente: c.nombre, sede: s.nombre || '', ...resto,
+            });
+            await pintar();
+          },
+        }, '＋  Agregar contacto'));
       }
     }
-  }
-  cont.append(h('p.pista', 'Los contactos se registran solos con cada accion de venta; las sedes salen del catalogo y de las oportunidades.'));
+    cont.append(h('p.pista', 'Los contactos se registran solos con cada accion de venta y tambien puedes agregarlos aqui; editar su ficha es solo con permiso.'));
+  };
+  await pintar();
 }
 
 /* ---------------------------------------------------------------- */
@@ -1253,8 +1306,11 @@ export async function render(contenedor, refrescar, params = {}) {
       gafete.style.display = 'none';   // sin grupos, o el titulo aun se ve
       return;
     }
-    gafete.replaceChildren(
-      h('strong', actual.childNodes[0].textContent),
+    // Agrupado por VENDEDOR: su avatar de iniciales en lugar del emoji.
+    const partesGafete = (actual.dataset.tipo === 'vendedor' && actual.dataset.grupo)
+      ? [avatarVendedor(actual.dataset.grupo), h('strong', actual.dataset.grupo)]
+      : [h('strong', actual.childNodes[0].textContent)];
+    gafete.replaceChildren(...partesGafete,
       ' · ' + (actual.querySelector('.sem-dato') || { textContent: '' }).textContent);
     gafete.style.top = (limite + 6) + 'px';
     gafete.style.display = '';
@@ -1474,8 +1530,13 @@ export async function render(contenedor, refrescar, params = {}) {
       for (const nombre of nombres) {
         const suyas = grupos.get(nombre);
         const promG = Math.round(suyas.reduce((s, v) => s + calificacion(v), 0) / suyas.length);
-        cont.append(h('h3.venta-grupo', ICONO_GRUPO[agruparPor] + nombre,
-          h('span.sem-dato', suyas.length + ' abierta' + (suyas.length === 1 ? '' : 's') + ' · ' + promG + '%')));
+        const cabGrupo = h('h3.venta-grupo', ICONO_GRUPO[agruparPor] + nombre,
+          h('span.sem-dato', suyas.length + ' abierta' + (suyas.length === 1 ? '' : 's') + ' · ' + promG + '%'));
+        // El gafete flotante lee de aqui QUE es el grupo (para poner el
+        // avatar del vendedor con sus iniciales, pedido de Vale).
+        cabGrupo.dataset.tipo = agruparPor;
+        cabGrupo.dataset.grupo = nombre;
+        cont.append(cabGrupo);
         for (const v of suyas) cont.append(tarjetaVenta(v, veTodas, permisos, pintar));
       }
     }

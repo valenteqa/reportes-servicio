@@ -570,6 +570,11 @@ export function contactoFichaGuardar(ficha) {
   return tx(s, 'readwrite', st => { st[s].put(ficha); });
 }
 
+export function contactosFichasTodas() {
+  const s = stContactos();
+  return tx(s, 'readonly', st => pedir(st[s].getAll()));
+}
+
 export function diaLeer(fecha) {
   const s = stDiario();
   return tx(s, 'readonly', st => pedir(st[s].get(fecha)));
