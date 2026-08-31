@@ -797,9 +797,9 @@ button { font-family: inherit; font-size: inherit; }
   font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums;
   color: #000;
 }
-.venta-cal-solo--verde { background: #5cbd8d22; border-color: #2f7a5855; }
-.venta-cal-solo--ambar { background: #e2c15926; border-color: #8a752455; }
-.venta-cal-solo--rojo  { background: #e26e6e22; border-color: #b04a4a55; }
+.venta-cal-solo--verde { background: #5cbd8d4d; border-color: #2f7a5888; }
+.venta-cal-solo--ambar { background: #e2c15955; border-color: #8a752488; }
+.venta-cal-solo--rojo  { background: #e26e6e4d; border-color: #b04a4a88; }
 /* Titulo de la oportunidad: MAYUSCULAS, un solo color plano — el teal
    de la barra de estado (--primario), igual que los subtitulos.
    Sin margenes: vive en la fila del header y cualquier margen vertical
@@ -867,9 +867,9 @@ button { font-family: inherit; font-size: inherit; }
   font-size: .7rem; font-weight: 800; letter-spacing: .04em; white-space: nowrap;
 }
 /* Chips en la MISMA familia fria que los rectangulos del %. */
-.venta-estado-chip--verde { background: #5cbd8d22; color: #2f7a58; border: 1px solid #2f7a5855; }
-.venta-estado-chip--ambar { background: #e2c15926; color: #8a7524; border: 1px solid #8a752455; }
-.venta-estado-chip--rojo  { background: #e26e6e22; color: #b04a4a; border: 1px solid #b04a4a55; }
+.venta-estado-chip--verde { background: #5cbd8d4d; color: #2f7a58; border: 1px solid #2f7a5888; }
+.venta-estado-chip--ambar { background: #e2c15955; color: #8a7524; border: 1px solid #8a752488; }
+.venta-estado-chip--rojo  { background: #e26e6e4d; color: #b04a4a; border: 1px solid #b04a4a88; }
 .venta-evento:has(.venta-estado-chip) .venta-evento__cuerpo { padding-right: 9rem; }
 .venta-evento:has(.venta-evento__tools) .venta-evento__cuerpo { padding-right: 4.4rem; }
 .venta-evento .venta-evento__tools { position: absolute; right: .5rem; bottom: .45rem; }
