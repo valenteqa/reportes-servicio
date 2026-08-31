@@ -786,19 +786,19 @@ button { font-family: inherit; font-size: inherit; }
    clip-path; el filtro abraza la silueta recortada. */
 .venta-cal-solo {
   display: grid; place-items: center; flex: none;
-  /* RECTANGULO redondeado minimalista (pedido de Vale, tras probar
-     trapecios y hexagonos): color plano, sin neon ni bordes; bajito,
-     con el numero casi al ras. */
-  width: 3.2rem; height: 1.8rem;
+  /* RECTANGULO redondeado con CORTE diagonal tech en la esquina
+     superior derecha (mismo lenguaje que los botones de la app);
+     bajito, con el numero casi al ras. */
+  width: 3.3rem; height: 1.8rem;
   border-radius: .55rem;
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
   font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums;
   color: #000;
 }
-/* Colores desaturados y frios (pedido de Vale): siguen leyendose como
-   verde/amarillo/rojo pero sin gritar. */
-.venta-cal-solo--verde { background: #6fbb95; }
-.venta-cal-solo--ambar { background: #dcc06e; }
-.venta-cal-solo--rojo  { background: #dd7a7a; }
+/* Paleta fria con un punto de saturacion (afinada por Vale). */
+.venta-cal-solo--verde { background: #5cbd8d; }
+.venta-cal-solo--ambar { background: #e2c159; }
+.venta-cal-solo--rojo  { background: #e26e6e; }
 /* Titulo de la oportunidad: MAYUSCULAS, un solo color plano — el teal
    de la barra de estado (--primario), igual que los subtitulos.
    Sin margenes: vive en la fila del header y cualquier margen vertical
@@ -865,9 +865,10 @@ button { font-family: inherit; font-size: inherit; }
   clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
   font-size: .7rem; font-weight: 800; letter-spacing: .04em; white-space: nowrap;
 }
-.venta-estado-chip--verde { background: #2e7d3222; color: #2e7d32; border: 1px solid #2e7d3255; }
-.venta-estado-chip--ambar { background: #b8860b22; color: #a3760a; border: 1px solid #a3760a55; }
-.venta-estado-chip--rojo  { background: #d3302f22; color: #c22a29; border: 1px solid #c22a2955; }
+/* Chips en la MISMA familia fria que los rectangulos del %. */
+.venta-estado-chip--verde { background: #5cbd8d22; color: #2f7a58; border: 1px solid #2f7a5855; }
+.venta-estado-chip--ambar { background: #e2c15926; color: #8a7524; border: 1px solid #8a752455; }
+.venta-estado-chip--rojo  { background: #e26e6e22; color: #b04a4a; border: 1px solid #b04a4a55; }
 .venta-evento:has(.venta-estado-chip) .venta-evento__cuerpo { padding-right: 9rem; }
 .venta-evento:has(.venta-evento__tools) .venta-evento__cuerpo { padding-right: 4.4rem; }
 .venta-evento .venta-evento__tools { position: absolute; right: .5rem; bottom: .45rem; }
