@@ -739,14 +739,19 @@ button { font-family: inherit; font-size: inherit; }
   color: var(--tinta); font: inherit;
 }
 .venta-carta--cerrada { opacity: .55; }
-/* PLANTILLA UNIFORME (pedido de Vale): el titulo va en UN solo renglon
-   (mas largo se recorta con …) y la descripcion reserva SIEMPRE dos,
-   asi todas las tarjetas miden lo mismo y el ritmo vertical es parejo. */
-.venta-cliente {
-  flex: 1; min-width: 0; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
-  font-size: .9rem;   /* parejo con la accion actual (pedido de Vale) */
-  line-height: 1.3;
+/* CLIENTE en la fila del chip de estatus (pedido de Vale): una linea
+   con elipsis; el chip manda en el ancho. */
+.venta-carta__cliente {
+  flex: 1; min-width: 0; font-weight: 700; font-size: .9rem;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* TITULO en su propia fila: 1 o 2 renglones, los que use (nunca mas
+   de 2, sin reservar el segundo — pedido de Vale). */
+.venta-carta__titulo {
+  margin: 0; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
+  font-size: .9rem;   /* parejo con la accion actual */
+  line-height: 1.3; overflow-wrap: break-word;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
 }
 /* Fechas y datos con sabor a terminal. */
 .venta-carta .venta-meta { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: .76rem; }
@@ -761,10 +766,6 @@ button { font-family: inherit; font-size: inherit; }
 .venta-carta__f1 > :first-child { justify-self: start; }
 .venta-carta__f1 > :nth-child(2) { justify-self: center; }
 .venta-carta__f1 > :last-child { justify-self: end; }
-.venta-carta__f1 .venta-dueno {
-  min-width: 0; max-width: 100%;
-  display: flex; align-items: center; gap: .35rem;
-}
 .venta-dueno__nombre { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Avatar del vendedor: placeholder circular con iniciales (aqui ira la
    foto cuando exista). Mismo diametro que la ALTURA del % y del
@@ -807,8 +808,11 @@ button { font-family: inherit; font-size: inherit; }
 .venta-prio-badge--rojo  { background: #e26e6e59; --prio-borde: #b04a4a88; }
 /* F2: titulo y chip de estatus alineados ON TOP (pedido de Vale). El
    respiro entre filas lo pone el gap .75rem de la tarjeta. */
-.venta-carta__f2 { display: flex; align-items: flex-start; gap: .5rem; }
+.venta-carta__f2 { display: flex; align-items: center; gap: .5rem; }
 .venta-carta__f2 .venta-estado-chip { position: static; flex: none; }
+/* En la tarjeta el chip de estatus va al tamano de la accion actual
+   (pedido de Vale); en el detalle conserva su tamano compacto. */
+.venta-carta .venta-estado-chip { font-size: .9rem; }
 .venta-carta__accion {
   margin: 0; font-size: .9rem; overflow-wrap: break-word;
   /* Maximo dos renglones, pero SIN reservar el segundo si no se usa
@@ -1040,7 +1044,14 @@ button { font-family: inherit; font-size: inherit; }
 /* Vendedor asignado, arriba del titulo (vista del lider). */
 /* Mismo tamano que la accion actual (.9rem) — pedido de Vale: vendedor,
    titulo y fecha compromiso parejos con la descripcion. */
-.venta-dueno { margin: 0; font-size: .9rem; font-weight: 700; letter-spacing: .03em; color: var(--primario-vivo, var(--primario)); }
+/* Fila avatar + nombre: se usa en la tarjeta del tablero (vendedor) y
+   en las tarjetas de contacto del directorio. */
+.venta-dueno {
+  margin: 0; min-width: 0; max-width: 100%;
+  display: flex; align-items: center; gap: .35rem;
+  font-size: .9rem; font-weight: 700; letter-spacing: .03em;
+  color: var(--primario-vivo, var(--primario));
+}
 .venta-grupo {
   display: flex; align-items: baseline; justify-content: space-between; gap: .6rem;
   margin: 1rem 0 .45rem; padding-bottom: .25rem;
@@ -1048,9 +1059,6 @@ button { font-family: inherit; font-size: inherit; }
   font-size: .85rem; letter-spacing: .04em;
 }
 .venta-evento__tools { flex: none; display: flex; gap: .2rem; align-self: flex-start; }
-.dir-sede { margin: .5rem 0 .15rem; font-weight: 700; font-size: .88rem; }
-.dir-contacto { margin: 0 0 .1rem .95rem; font-size: .86rem; }
-.dir-contacto--vacio { color: var(--tinta-tenue); font-style: italic; }
 .venta-nota { display: flex; gap: .6rem; padding: .4rem 0; border-bottom: 1px dashed var(--borde); font-size: .88rem; }
 .venta-nota__texto { white-space: pre-wrap; overflow-wrap: break-word; min-width: 0; }
 

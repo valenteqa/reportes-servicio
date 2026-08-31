@@ -935,20 +935,25 @@ async function renderDirectorio(contenedor) {
     return;
   }
 
+  // Mismo formato que el tablero (pedido de Vale): grupo por EMPRESA ·
+  // SEDE con el numero de contactos a la derecha, y cada contacto en su
+  // tarjeta como las oportunidades (con su avatar placeholder).
   for (const c of clientes) {
-    const carta = h('section.diario-carta');
-    carta.append(h('h3', c.nombre));
     const sedes = [...c.sedes.values()].sort((a, b) => (a.nombre || '~').localeCompare(b.nombre || '~', 'es'));
     for (const s of sedes) {
-      carta.append(h('p.dir-sede', '📍 ' + (s.nombre || 'Sede sin especificar')));
       const contactos = [...s.contactos.values()].sort((a, b) => a.localeCompare(b, 'es'));
-      if (contactos.length) {
-        for (const nombre of contactos) carta.append(h('p.dir-contacto', '👤 ' + nombre));
-      } else {
-        carta.append(h('p.dir-contacto.dir-contacto--vacio', 'Sin contactos registrados.'));
+      cont.append(h('h3.venta-grupo', '🏢 ' + c.nombre + ' · ' + (s.nombre || 'Sin sede'),
+        h('span.sem-dato', contactos.length + ' contacto' + (contactos.length === 1 ? '' : 's'))));
+      if (!contactos.length) {
+        cont.append(h('div.venta-carta',
+          h('p.venta-carta__accion', h('span.venta-carta__accion--vacia', 'Sin contactos registrados.'))));
+        continue;
+      }
+      for (const nombre of contactos) {
+        cont.append(h('div.venta-carta',
+          h('p.venta-dueno', avatarVendedor(nombre), h('span.venta-dueno__nombre', nombre))));
       }
     }
-    cont.append(carta);
   }
   cont.append(h('p.pista', 'Los contactos se registran solos con cada accion de venta; las sedes salen del catalogo y de las oportunidades.'));
 }
@@ -961,9 +966,10 @@ async function renderDirectorio(contenedor) {
 //   F1: vendedor | PRIORIDAD | % — centrados verticalmente entre si; la
 //       prioridad EXACTAMENTE al centro horizontal de la tarjeta, en
 //       hexagono (forma distintiva, distinta del %).
-//   F2: titulo y chip de estatus alineados ON TOP.
-//   F3: "Accion Actual: " + la descripcion.
-//   F4: "Ultima fecha compromiso: dd/mm/aa" (tamano de la descripcion) y
+//   F2: CLIENTE alineado con el chip de estatus.
+//   F3: el titulo (1 o 2 renglones, los que use; nunca mas de 2).
+//   F4: "Accion Actual: " + la descripcion.
+//   F5: "Ultima fecha compromiso: dd/mm/aa" (tamano de la descripcion) y
 //       el calendarito hasta la derecha, alineados ON BOTTOM.
 // El contacto y la fecha de creacion viven SOLO en el detalle.
 // Colores de prioridad (regla de Vale, 31 ago 2026): A=verde, B=amarillo,
@@ -1005,8 +1011,9 @@ function tarjetaVenta(v, veTodas, permisos, alCambiar) {
         : h('span'),
       h('span.venta-cal-solo.' + claseCal(cal), cal + '%')),
     h('div.venta-carta__f2',
-      h('span.venta-cliente', v.titulo),
+      h('span.venta-carta__cliente', v.cliente),
       !v.cerrada && comp ? chipEstadoCompromiso(comp) : null),
+    h('p.venta-carta__titulo', v.titulo),
     h('p.venta-carta__accion',
       h('span.venta-carta__etiqueta', 'Accion Actual: '),
       vigente ? vigente.texto : h('span.venta-carta__accion--vacia', 'Sin acciones aun')),
@@ -1117,10 +1124,11 @@ export async function render(contenedor, refrescar, params = {}) {
   // se ven ambas (vencidas + cerca de vencer).
   let soloVencidas = false;
   let soloPorVencer = false;
+  // "Dias de atraso" se fue (pedido de Vale): ordenaba igual que la
+  // fecha compromiso, solo que al reves.
   const ORDENES = [
     ['prioridad', 'Prioridad'],
     ['compromiso', 'Fecha compromiso'],
-    ['atraso', 'Dias de atraso'],
     ['creacion', 'Fecha de creacion'],
   ];
 
@@ -1219,11 +1227,6 @@ export async function render(contenedor, refrescar, params = {}) {
 
     // Orden segun el criterio elegido (lider); los vendedores conservan
     // el clasico: fecha compromiso y luego prioridad.
-    const diasAtraso = (v) => {
-      const comp = compromisoVigente(v);
-      const dias = comp ? diasPara(comp) : 0;
-      return dias < 0 ? -dias : -1;
-    };
     const criterio = veTodas ? ordenarPor : 'compromiso';
     const porCompromiso = (a, b) => {
       const fa = compromisoVigente(a) || '9999';
@@ -1236,7 +1239,6 @@ export async function render(contenedor, refrescar, params = {}) {
     };
     lista.sort((a, b) => {
       if (criterio === 'prioridad') return porPrioridad(a, b) || porCompromiso(a, b);
-      if (criterio === 'atraso') return (diasAtraso(b) - diasAtraso(a)) || porCompromiso(a, b);
       if (criterio === 'creacion') return (b.creado || 0) - (a.creado || 0);
       return porCompromiso(a, b) || porPrioridad(a, b);
     });
