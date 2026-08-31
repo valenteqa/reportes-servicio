@@ -786,10 +786,11 @@ button { font-family: inherit; font-size: inherit; }
    clip-path; el filtro abraza la silueta recortada. */
 .venta-cal-solo {
   display: grid; place-items: center; flex: none;
-  /* HEXAGONO acostado (puntas a los lados), estilo tech; bajito, con
-     el numero casi al ras de los bordes. */
-  width: 4rem; height: 1.8rem;
-  clip-path: polygon(20% 0, 80% 0, 100% 50%, 80% 100%, 20% 100%, 0 50%);
+  /* HEXAGONO REGULAR (lados iguales, pedido de Vale): con este polygon
+     los 6 lados miden igual cuando alto = ancho * (raiz de 3)/2 —
+     3.6rem x 3.12rem; minimo donde "100%" libra las puntas. */
+  width: 3.6rem; height: 3.12rem;
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
   font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums;
   color: #000;
 }
