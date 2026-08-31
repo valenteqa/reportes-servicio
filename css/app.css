@@ -933,7 +933,8 @@ button { font-family: inherit; font-size: inherit; }
 .venta-divisor { border: 0; height: 2px; margin: 1.1rem 0 .2rem; background: linear-gradient(90deg, var(--primario-vivo, var(--primario)), transparent 85%); }
 .venta-evento__contacto { display: block; font-size: .78rem; color: var(--tinta-tenue); margin-top: .1rem; }
 .venta-op__seña { display: block; font-size: .72rem; color: var(--tinta-tenue); font-weight: 400; }
-.venta-dueno { margin: 0 0 .25rem; font-size: .78rem; font-weight: 700; color: var(--primario-tinta); }
+/* Vendedor asignado, arriba del titulo (vista del lider). */
+.venta-dueno { margin: 0 0 .2rem; font-size: .74rem; font-weight: 700; letter-spacing: .03em; color: var(--primario-vivo, var(--primario)); }
 .venta-grupo {
   display: flex; align-items: baseline; justify-content: space-between; gap: .6rem;
   margin: 1rem 0 .45rem; padding-bottom: .25rem;

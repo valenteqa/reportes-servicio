@@ -1100,19 +1100,20 @@ export async function render(contenedor, refrescar, params = {}) {
         type: 'button',
         onclick: () => hojaDetalle(v, permisos, pintar),
       },
-        // Izquierda: titulo, accion actual y fecha+contacto.
-        // Derecha: circulo de calificacion con su chip de estatus debajo.
+        // Izquierda: vendedor (solo vista del lider), titulo, accion
+        // actual, fecha y contacto en su propia linea.
+        // Derecha: calificacion con su chip de estatus debajo.
         h('div.venta-carta__cols',
           h('div.venta-carta__izq',
+            veTodas && v.dueno ? h('p.venta-dueno', '👤 ' + v.dueno) : null,
             h('div.venta-carta__fila',
               prioridadValida(v.prioridad) ? h('span.venta-prio.venta-prio--' + v.prioridad[0].toLowerCase(), v.prioridad) : null,
               h('span.venta-cliente', v.titulo)),
             vigente
               ? h('p.venta-carta__accion', vigente.texto)
               : h('p.venta-carta__accion.venta-carta__accion--vacia', 'Sin acciones aun'),
-            h('p.venta-meta', '📅 Creada: ' + fechaDeTs(v.creado)
-              + (vigente && vigente.contacto ? ' · 👤 ' + vigente.contacto : '')
-              + (v.cerrada ? ' · CERRADA' : ''))),
+            h('p.venta-meta', '📅 Creada: ' + fechaDeTs(v.creado) + (v.cerrada ? ' · CERRADA' : '')),
+            vigente && vigente.contacto ? h('p.venta-meta', '👤 ' + vigente.contacto) : null),
           h('div.venta-carta__der',
             h('span.venta-cal-solo.' + claseCal(cal), cal + '%'),
             !v.cerrada && comp ? chipEstadoCompromiso(comp) : null)));
