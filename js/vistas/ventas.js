@@ -231,13 +231,14 @@ function claseCal(cal) {
 }
 
 // Dias que faltan para una fecha clave (negativos = ya vencio). Es el
-// MISMO umbral del chip y de los filtros "solo vencidas"/"cerca de vencer".
-function diasPara(comp) {
-  return Math.round((new Date(comp + 'T12:00:00') - new Date(fechaClave() + 'T12:00:00')) / 86400000);
+// MISMO umbral del chip y de los filtros. refClave opcional: comparar
+// contra OTRO dia (p. ej. el del CIERRE, para congelar el estatus).
+function diasPara(comp, refClave) {
+  return Math.round((new Date(comp + 'T12:00:00') - new Date((refClave || fechaClave()) + 'T12:00:00')) / 86400000);
 }
 
-function chipEstadoCompromiso(comp) {
-  const dias = diasPara(comp);
+function chipEstadoCompromiso(comp, refClave) {
+  const dias = diasPara(comp, refClave);
   if (dias < 0) {
     const x = -dias;
     return h('span.venta-estado-chip.venta-estado-chip--rojo', '⚠ Vencida por ' + x + (x === 1 ? ' dia' : ' dias'));
@@ -972,6 +973,42 @@ async function directorioClientes() {
   return [...mapa.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
 }
 
+// GAFETE flotante de grupo (mismo mecanismo que el arbol de Servicio):
+// al scrollear una lista agrupada larga, una pastilla bajo la cabecera
+// dice en QUE grupo vas cuando su titulo ya no esta a la vista. Lo usan
+// el tablero (vendedor con su avatar, cliente, prioridad) y el directorio.
+function montarGafete(contenedor, cont) {
+  const gafete = h('div.rama-flotante.rama-flotante--ventas', { style: { display: 'none' } });
+  contenedor.append(gafete);
+  const cabeceraEl = contenedor.querySelector('header.cabecera');
+  const actualizar = () => {
+    const limite = cabeceraEl.getBoundingClientRect().bottom;
+    let actual = null;
+    for (const g of cont.querySelectorAll('h3.venta-grupo')) {
+      if (g.getBoundingClientRect().top <= limite + 8) actual = g;
+      else break;
+    }
+    if (!actual || actual.getBoundingClientRect().bottom > limite) {
+      gafete.style.display = 'none';   // sin grupos, o el titulo aun se ve
+      return;
+    }
+    // Agrupado por VENDEDOR: su avatar de iniciales en lugar del emoji.
+    const partes = (actual.dataset.tipo === 'vendedor' && actual.dataset.grupo)
+      ? [avatarVendedor(actual.dataset.grupo), h('strong', actual.dataset.grupo)]
+      : [h('strong', actual.childNodes[0].textContent)];
+    gafete.replaceChildren(...partes,
+      h('span', '· ' + (actual.querySelector('.sem-dato') || { textContent: '' }).textContent));
+    gafete.style.top = (limite + 6) + 'px';
+    gafete.style.display = '';
+  };
+  let marco = null;
+  cont.addEventListener('scroll', () => {
+    if (marco) return;
+    marco = requestAnimationFrame(() => { marco = null; actualizar(); });
+  }, { passive: true });
+  return actualizar;
+}
+
 // FICHA del contacto: cargo, correo y telefono viven en su propio store
 // (db.contactoFicha*), colgados de la clave cliente|sede|nombre. Editar
 // es SOLO para quien tenga el permiso especial (o el admin); eliminar
@@ -1071,6 +1108,7 @@ async function renderDirectorio(contenedor) {
     )));
   const cont = h('div.contenido.diario');
   contenedor.append(cont);
+  const actualizarGafete = montarGafete(contenedor, cont);
 
   if (!veDirectorio(yo)) {
     cont.append(h('div.diario-carta', h('p.pista',
@@ -1128,6 +1166,7 @@ async function renderDirectorio(contenedor) {
       }
     }
     cont.append(h('p.pista', 'Los contactos se registran solos con cada accion de venta y tambien puedes agregarlos aqui; editar su ficha es solo con permiso.'));
+    actualizarGafete();
   };
   await pintar();
 }
@@ -1193,7 +1232,11 @@ function tarjetaVenta(v, veTodas, permisos, alCambiar) {
       h('span.venta-cal-solo.' + claseCal(cal), cal + '%')),
     h('div.venta-carta__f2',
       h('span.venta-carta__cliente', v.cliente + (sedeBonita(v.sede) ? ' ' + sedeBonita(v.sede) : '')),
-      !v.cerrada && comp ? chipEstadoCompromiso(comp) : null),
+      // Abiertas: estatus contra HOY. Cerradas (historial): estatus
+      // CONGELADO al dia del cierre (si cerro en tiempo, ahi se queda).
+      comp && (!v.cerrada || v.cerrado)
+        ? chipEstadoCompromiso(comp, v.cerrada ? fechaClave(new Date(v.cerrado)) : '')
+        : null),
     h('p.venta-carta__titulo', v.titulo),
     h('p.venta-carta__accion',
       h('span.venta-carta__etiqueta', 'Accion Actual: '),
@@ -1288,38 +1331,7 @@ export async function render(contenedor, refrescar, params = {}) {
   const cont = h('div.contenido.diario');
   contenedor.append(cont);
 
-  // GAFETE flotante de grupo (mismo mecanismo que el arbol de Servicio,
-  // pedido de Vale): al scrollear agrupado, un gafete bajo la cabecera
-  // dice en QUE grupo vas (vendedor, cliente o prioridad) cuando el
-  // titulo del grupo ya no esta a la vista.
-  const gafete = h('div.rama-flotante', { style: { display: 'none' } });
-  contenedor.append(gafete);
-  const cabeceraEl = contenedor.querySelector('header.cabecera');
-  const actualizarGafete = () => {
-    const limite = cabeceraEl.getBoundingClientRect().bottom;
-    let actual = null;
-    for (const g of cont.querySelectorAll('h3.venta-grupo')) {
-      if (g.getBoundingClientRect().top <= limite + 8) actual = g;
-      else break;
-    }
-    if (!actual || actual.getBoundingClientRect().bottom > limite) {
-      gafete.style.display = 'none';   // sin grupos, o el titulo aun se ve
-      return;
-    }
-    // Agrupado por VENDEDOR: su avatar de iniciales en lugar del emoji.
-    const partesGafete = (actual.dataset.tipo === 'vendedor' && actual.dataset.grupo)
-      ? [avatarVendedor(actual.dataset.grupo), h('strong', actual.dataset.grupo)]
-      : [h('strong', actual.childNodes[0].textContent)];
-    gafete.replaceChildren(...partesGafete,
-      ' · ' + (actual.querySelector('.sem-dato') || { textContent: '' }).textContent);
-    gafete.style.top = (limite + 6) + 'px';
-    gafete.style.display = '';
-  };
-  let marcoGafete = null;
-  cont.addEventListener('scroll', () => {
-    if (marcoGafete) return;
-    marcoGafete = requestAnimationFrame(() => { marcoGafete = null; actualizarGafete(); });
-  }, { passive: true });
+  const actualizarGafete = montarGafete(contenedor, cont);
 
   // Las oportunidades SOLO las ve el equipo de Ventas (y el admin); los
   // porcentajes del depto siguen siendo publicos en Organizacion.
@@ -1341,11 +1353,10 @@ export async function render(contenedor, refrescar, params = {}) {
     ['prioridad', 'Prioridad'],
     ['', 'Sin agrupar'],
   ];
-  // Filtros por estado del compromiso (checkboxes): prendidos varios se
-  // ve la union.
+  // Filtros por estado del compromiso (checkboxes): prendidos los dos
+  // se ven ambas (vencidas + cerca de vencer).
   let soloVencidas = false;
   let soloPorVencer = false;
-  let soloEnTiempo = false;
   // "Dias de atraso" se fue (pedido de Vale): ordenaba igual que la
   // fecha compromiso, solo que al reves.
   const ORDENES = [
@@ -1438,29 +1449,23 @@ export async function render(contenedor, refrescar, params = {}) {
       const chkPorVencer = h('input', { type: 'checkbox' });
       chkPorVencer.checked = soloPorVencer;
       chkPorVencer.onchange = () => { soloPorVencer = chkPorVencer.checked; pintar(); };
-      const chkEnTiempo = h('input', { type: 'checkbox' });
-      chkEnTiempo.checked = soloEnTiempo;
-      chkEnTiempo.onchange = () => { soloEnTiempo = chkEnTiempo.checked; pintar(); };
       cont.append(h('div.venta-controles.venta-controles--filtros',
         h('label.venta-agrupar', chkVencidas, 'Ver solo vencidas'),
-        h('label.venta-agrupar', chkPorVencer, 'Ver solo cerca de vencer'),
-        h('label.venta-agrupar', chkEnTiempo, 'Ver solo en tiempo')));
+        h('label.venta-agrupar', chkPorVencer, 'Ver solo cerca de vencer')));
     }
 
     let lista = abiertas.filter(v => !filtroCliente || v.cliente === filtroCliente);
     if (veTodas && filtroVendedor) {
       lista = lista.filter(v => filtroVendedor === '__sin__' ? !v.dueno : v.dueno === filtroVendedor);
     }
-    // Checkboxes del lider: dejar solo lo vencido, lo cerca de vencer
-    // y/o lo en tiempo (sin fecha compromiso no entra en ninguno).
-    if (soloVencidas || soloPorVencer || soloEnTiempo) {
+    // Checkboxes del lider: dejar solo lo vencido y/o lo cerca de vencer
+    // (sin fecha compromiso no entra en ninguno de los dos).
+    if (soloVencidas || soloPorVencer) {
       lista = lista.filter(v => {
         const comp = compromisoVigente(v);
         if (!comp) return false;
         const dias = diasPara(comp);
-        return (soloVencidas && dias < 0)
-          || (soloPorVencer && dias >= 0 && dias < 3)
-          || (soloEnTiempo && dias >= 3);
+        return (soloVencidas && dias < 0) || (soloPorVencer && dias >= 0 && dias < 3);
       });
     }
 
