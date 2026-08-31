@@ -778,6 +778,12 @@ async function hojaDetalle(v, permisos, alCambiar) {
   await hoja(v.titulo, (cerrar) => {
     const cuerpo = h('div');
     const pinta = () => {
+      // En el HISTORIAL (cerradas) TODO es de solo lectura: estos
+      // permisos "de vista" apagan editar/agregar; lo unico vivo es
+      // REACTIVAR, que usa los permisos reales (regla de Vale).
+      const pv = v.cerrada
+        ? { crear: false, accionar: false, gestionar: false }
+        : permisos;
       const cal = calificacion(v);
       calEl.textContent = cal + '%';
       calEl.classList.remove('venta-cal-solo--verde', 'venta-cal-solo--ambar', 'venta-cal-solo--rojo');
@@ -792,7 +798,7 @@ async function hojaDetalle(v, permisos, alCambiar) {
         h('div.venta-evento', {
           // Toque en el cuadro = ver el detalle completo (ahi vive
           // EDITAR para el lider; borrar acciones ya no existe).
-          onclick: () => hojaDetalleAccion(e, esVigente, v, permisos, () => { pinta(); alCambiar(); }),
+          onclick: () => hojaDetalleAccion(e, esVigente, v, pv, () => { pinta(); alCambiar(); }),
         },
           // Semaforo SOLO en la accion vigente (la ACCION ACTUAL).
           esVigente && e.compromiso && !v.cerrada ? chipEstadoCompromiso(e.compromiso) : null,
@@ -810,7 +816,7 @@ async function hojaDetalle(v, permisos, alCambiar) {
           h('p.venta-meta',
             prioridadValida(v.prioridad) ? h('span.venta-prio.venta-prio--' + v.prioridad[0].toLowerCase(), v.prioridad) : null,
             (prioridadValida(v.prioridad) ? ' · ' : '') + '📅 Creada: ' + fechaDeTs(v.creado) + (v.cerrada ? ' · CERRADA' + (v.cerrado ? ' el ' + fechaDeTs(v.cerrado) : '') : ''))),
-        permisos.gestionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
+        pv.gestionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
           type: 'button',
           onclick: async () => {
             const datos = await hojaEditarOportunidad(v);
@@ -833,7 +839,7 @@ async function hojaDetalle(v, permisos, alCambiar) {
           : h('p.pista', 'Aun no hay acciones. Agrega la primera.'),
         anteriores.length ? h('h3.venta-h3.venta-h3--centrado', 'HISTORIAL DE ACCIONES') : null,
         anteriores.length ? h('div.venta-historial', ...anteriores.map(e => eventoEl(e, false))) : null,
-        permisos.accionar && !v.cerrada ? h('button.btn.btn--primario.venta-btn', {
+        pv.accionar ? h('button.btn.btn--primario.venta-btn', {
           type: 'button',
           onclick: async () => {
             const accion = await hojaNuevaAccion(v, await contactosDe(v.cliente, v.sede), await contactosGlobales());
@@ -855,7 +861,7 @@ async function hojaDetalle(v, permisos, alCambiar) {
               h('div.venta-nota',
                 h('span.venta-evento__fecha', fechaBonita(n.fecha)),
                 h('span.venta-nota__texto', n.texto),
-                permisos.gestionar ? h('span.venta-evento__tools',
+                pv.gestionar ? h('span.venta-evento__tools',
                   h('button.icono-btn.org-mini', {
                     type: 'button', 'aria-label': 'Editar anotacion',
                     onclick: async () => {
@@ -876,7 +882,7 @@ async function hojaDetalle(v, permisos, alCambiar) {
                     },
                   }, '🗑')) : null)))
           : h('p.pista', 'Datos importantes, tips, señas del cliente… (no afectan la calificacion)'),
-        permisos.accionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
+        pv.accionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
           type: 'button',
           onclick: async () => {
             const texto = await hojaNuevaAnotacion(v);
@@ -900,6 +906,26 @@ async function hojaDetalle(v, permisos, alCambiar) {
             alCambiar();
           },
         }, '✔  CERRAR OPORTUNIDAD') : null,
+        // En el HISTORIAL lo unico vivo es REACTIVAR (solo el lider o el
+        // admin): la oportunidad regresa al tablero de abiertas.
+        permisos.gestionar && v.cerrada ? h('button.btn.btn--fantasma.venta-btn', {
+          type: 'button',
+          onclick: async () => {
+            if (!(await confirmar('¿Reactivar la oportunidad "' + v.titulo + '"? Regresa al tablero de abiertas.', { textoOk: 'Reactivar', peligro: false }))) return;
+            v.cerrada = false;
+            delete v.cerrado;
+            await db.ventaGuardar(v);
+            // Su numero de prioridad pudo tomarlo otra abierta mientras
+            // estuvo cerrada: retoma el siguiente libre de su letra.
+            if (prioridadValida(v.prioridad)) {
+              const letra = v.prioridad[0];
+              v.prioridad = '';
+              await asignarPrioridad(v, letra);
+            }
+            pinta();
+            alCambiar();
+          },
+        }, '↺  REACTIVAR OPORTUNIDAD') : null,
       ];
       vaciar(cuerpo).append(...partes.filter(Boolean));
     };
@@ -1111,7 +1137,7 @@ function tarjetaVenta(v, veTodas, permisos, alCambiar) {
         : h('span'),
       h('span.venta-cal-solo.' + claseCal(cal), cal + '%')),
     h('div.venta-carta__f2',
-      h('span.venta-carta__cliente', v.cliente + (sedeBonita(v.sede) ? ' · ' + sedeBonita(v.sede) : '')),
+      h('span.venta-carta__cliente', v.cliente + (sedeBonita(v.sede) ? ' ' + sedeBonita(v.sede) : '')),
       !v.cerrada && comp ? chipEstadoCompromiso(comp) : null),
     h('p.venta-carta__titulo', v.titulo),
     h('p.venta-carta__accion',
@@ -1144,7 +1170,7 @@ async function renderHistorial(contenedor) {
 
   contenedor.append(h('header.cabecera',
     h('div.cabecera__fila',
-      h('h1', '🗃 Historial de ventas'),
+      h('h1', '📜 Historial de ventas'),
     )));
   const cont = h('div.contenido.diario');
   contenedor.append(cont);
@@ -1357,7 +1383,7 @@ export async function render(contenedor, refrescar, params = {}) {
     // El HISTORIAL (cerradas) siempre al pie, haya lo que haya arriba.
     const btnHistorial = h('button.btn.btn--fantasma.venta-abrir', {
       type: 'button', onclick: () => { location.hash = '#/d/ventas/hist'; },
-    }, '🗃  HISTORIAL');
+    }, '📜  HISTORIAL');
 
     if (!lista.length) {
       const hayFiltro = filtroCliente || filtroVendedor || soloVencidas || soloPorVencer;
