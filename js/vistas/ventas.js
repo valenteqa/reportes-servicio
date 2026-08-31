@@ -1144,16 +1144,17 @@ function tarjetaVenta(v, veTodas, permisos, alCambiar) {
     h('p.venta-carta__titulo', v.titulo),
     h('p.venta-carta__accion',
       h('span.venta-carta__etiqueta', 'Accion Actual: '),
-      vigente ? vigente.texto : h('span.venta-carta__accion--vacia', 'Sin acciones aun')),
+      vigente ? vigente.texto : h('span.venta-carta__alerta', 'SIN ACCIONES REGISTRADAS')),
     h('div.venta-carta__pie',
       // Etiqueta y fecha en un mismo flujo: la etiqueta es indivisible
       // (nowrap) y si el ancho no da, la fecha baja COMPLETA al segundo
       // renglon en vez de partir la etiqueta a media palabra.
-      h('span.venta-carta__pie-texto',
-        h('span.venta-carta__etiqueta', 'Ultima fecha compromiso: '),
-        comp
-          ? h('span.venta-carta__pie-fecha', fechaCorta(comp))
-          : h('span.venta-carta__pie-fecha.venta-carta__pie-fecha--vacia', 'Sin fecha aun')),
+      comp
+        ? h('span.venta-carta__pie-texto',
+          h('span.venta-carta__etiqueta', 'Ultima fecha compromiso: '),
+          h('span.venta-carta__pie-fecha', fechaCorta(comp)))
+        : h('span.venta-carta__pie-texto',
+          h('span.venta-carta__alerta', 'SIN FECHA COMPROMISO')),
       comp ? calendarioMini(comp) : null));
 }
 
@@ -1234,6 +1235,36 @@ export async function render(contenedor, refrescar, params = {}) {
   const cont = h('div.contenido.diario');
   contenedor.append(cont);
 
+  // GAFETE flotante de grupo (mismo mecanismo que el arbol de Servicio,
+  // pedido de Vale): al scrollear agrupado, un gafete bajo la cabecera
+  // dice en QUE grupo vas (vendedor, cliente o prioridad) cuando el
+  // titulo del grupo ya no esta a la vista.
+  const gafete = h('div.rama-flotante', { style: { display: 'none' } });
+  contenedor.append(gafete);
+  const cabeceraEl = contenedor.querySelector('header.cabecera');
+  const actualizarGafete = () => {
+    const limite = cabeceraEl.getBoundingClientRect().bottom;
+    let actual = null;
+    for (const g of cont.querySelectorAll('h3.venta-grupo')) {
+      if (g.getBoundingClientRect().top <= limite + 8) actual = g;
+      else break;
+    }
+    if (!actual || actual.getBoundingClientRect().bottom > limite) {
+      gafete.style.display = 'none';   // sin grupos, o el titulo aun se ve
+      return;
+    }
+    gafete.replaceChildren(
+      h('strong', actual.childNodes[0].textContent),
+      ' · ' + (actual.querySelector('.sem-dato') || { textContent: '' }).textContent);
+    gafete.style.top = (limite + 6) + 'px';
+    gafete.style.display = '';
+  };
+  let marcoGafete = null;
+  cont.addEventListener('scroll', () => {
+    if (marcoGafete) return;
+    marcoGafete = requestAnimationFrame(() => { marcoGafete = null; actualizarGafete(); });
+  }, { passive: true });
+
   // Las oportunidades SOLO las ve el equipo de Ventas (y el admin); los
   // porcentajes del depto siguen siendo publicos en Organizacion.
   if (!veTablero(yo)) {
@@ -1244,14 +1275,21 @@ export async function render(contenedor, refrescar, params = {}) {
 
   let filtroCliente = '';
   let filtroVendedor = '';
-  // Controles del lider (regla de Vale): agrupar por vendedor apagable
-  // y orden elegible; el orden de las opciones tambien es dictado.
-  let agruparPorVendedor = true;
+  // Controles del lider (regla de Vale): AGRUPAR elegible (vendedor,
+  // cliente, prioridad o nada) y orden elegible.
+  let agruparPor = 'vendedor';
   let ordenarPor = 'prioridad';
-  // Filtros por estado del compromiso (checkboxes): prendidos los dos
-  // se ven ambas (vencidas + cerca de vencer).
+  const AGRUPARES = [
+    ['vendedor', 'Vendedor'],
+    ['cliente', 'Cliente'],
+    ['prioridad', 'Prioridad'],
+    ['', 'Sin agrupar'],
+  ];
+  // Filtros por estado del compromiso (checkboxes): prendidos varios se
+  // ve la union.
   let soloVencidas = false;
   let soloPorVencer = false;
+  let soloEnTiempo = false;
   // "Dias de atraso" se fue (pedido de Vale): ordenaba igual que la
   // fecha compromiso, solo que al reves.
   const ORDENES = [
@@ -1326,15 +1364,15 @@ export async function render(contenedor, refrescar, params = {}) {
       selVendedor.onchange = () => { filtroVendedor = selVendedor.value; pintar(); };
       cont.append(h('div.gd-nav', selVendedor));
 
-      // Debajo del filtro: agrupar (izq) y ordenar por (der).
-      const chkAgrupar = h('input', { type: 'checkbox' });
-      chkAgrupar.checked = agruparPorVendedor;
-      chkAgrupar.onchange = () => { agruparPorVendedor = chkAgrupar.checked; pintar(); };
+      // Debajo del filtro: agrupar (izq) y ordenar por (der), ambos select.
+      const selAgrupar = h('select.org-select',
+        ...AGRUPARES.map(([val, n]) => h('option', { value: val, selected: agruparPor === val }, n)));
+      selAgrupar.onchange = () => { agruparPor = selAgrupar.value; pintar(); };
       const selOrden = h('select.org-select',
         ...ORDENES.map(([val, n]) => h('option', { value: val, selected: ordenarPor === val }, n)));
       selOrden.onchange = () => { ordenarPor = selOrden.value; pintar(); };
       cont.append(h('div.venta-controles',
-        h('label.venta-agrupar', chkAgrupar, 'Agrupar por vendedor'),
+        h('label.venta-ordenar', 'Agrupar por', selAgrupar),
         h('label.venta-ordenar', 'Ordenar por', selOrden)));
 
       // Fila de filtros por estado (mismos umbrales que el chip).
@@ -1344,23 +1382,29 @@ export async function render(contenedor, refrescar, params = {}) {
       const chkPorVencer = h('input', { type: 'checkbox' });
       chkPorVencer.checked = soloPorVencer;
       chkPorVencer.onchange = () => { soloPorVencer = chkPorVencer.checked; pintar(); };
+      const chkEnTiempo = h('input', { type: 'checkbox' });
+      chkEnTiempo.checked = soloEnTiempo;
+      chkEnTiempo.onchange = () => { soloEnTiempo = chkEnTiempo.checked; pintar(); };
       cont.append(h('div.venta-controles.venta-controles--filtros',
         h('label.venta-agrupar', chkVencidas, 'Ver solo vencidas'),
-        h('label.venta-agrupar', chkPorVencer, 'Ver solo cerca de vencer')));
+        h('label.venta-agrupar', chkPorVencer, 'Ver solo cerca de vencer'),
+        h('label.venta-agrupar', chkEnTiempo, 'Ver solo en tiempo')));
     }
 
     let lista = abiertas.filter(v => !filtroCliente || v.cliente === filtroCliente);
     if (veTodas && filtroVendedor) {
       lista = lista.filter(v => filtroVendedor === '__sin__' ? !v.dueno : v.dueno === filtroVendedor);
     }
-    // Checkboxes del lider: dejar solo lo vencido y/o lo cerca de vencer
-    // (sin fecha compromiso no entra en ninguno de los dos).
-    if (soloVencidas || soloPorVencer) {
+    // Checkboxes del lider: dejar solo lo vencido, lo cerca de vencer
+    // y/o lo en tiempo (sin fecha compromiso no entra en ninguno).
+    if (soloVencidas || soloPorVencer || soloEnTiempo) {
       lista = lista.filter(v => {
         const comp = compromisoVigente(v);
         if (!comp) return false;
         const dias = diasPara(comp);
-        return (soloVencidas && dias < 0) || (soloPorVencer && dias >= 0 && dias < 3);
+        return (soloVencidas && dias < 0)
+          || (soloPorVencer && dias >= 0 && dias < 3)
+          || (soloEnTiempo && dias >= 3);
       });
     }
 
@@ -1403,29 +1447,41 @@ export async function render(contenedor, refrescar, params = {}) {
     const prom = Math.round(lista.reduce((s, v) => s + calificacion(v), 0) / lista.length);
     cont.append(h('p.sem-total', lista.length + ' abierta' + (lista.length === 1 ? '' : 's') + ' · calificacion promedio ' + prom + '%'));
 
-    // Sin agrupar (vendedor, o lider con el checkbox apagado): lista corrida.
-    if (!veTodas || !agruparPorVendedor) {
+    // Sin agrupar (vendedor, o lider con "Sin agrupar"): lista corrida.
+    if (!veTodas || !agruparPor) {
       for (const v of lista) cont.append(tarjetaVenta(v, veTodas, permisos, pintar));
     } else {
-      // Vista del lider: AGRUPADAS por vendedor (sin dueño al final).
+      // Vista del lider: AGRUPADAS por el criterio elegido (los "sin"
+      // siempre al final; con prioridad el orden A, B, C sale solo).
+      const ICONO_GRUPO = { vendedor: '🧑‍🔧 ', cliente: '🏢 ', prioridad: '🎯 ' };
+      const claveDe = (v) => {
+        if (agruparPor === 'cliente') {
+          return ((v.cliente || 'Sin cliente') + (sedeBonita(v.sede) ? ' ' + sedeBonita(v.sede) : '')).toUpperCase();
+        }
+        if (agruparPor === 'prioridad') {
+          return prioridadValida(v.prioridad) ? 'Prioridad ' + v.prioridad[0] : 'Sin prioridad';
+        }
+        return v.dueno || 'Sin vendedor';
+      };
       const grupos = new Map();
       for (const v of lista) {
-        const clave = v.dueno || 'Sin vendedor';
+        const clave = claveDe(v);
         if (!grupos.has(clave)) grupos.set(clave, []);
         grupos.get(clave).push(v);
       }
       const nombres = [...grupos.keys()].sort((a, b) =>
-        (a === 'Sin vendedor') - (b === 'Sin vendedor') || a.localeCompare(b, 'es'));
+        a.startsWith('Sin ') - b.startsWith('Sin ') || a.localeCompare(b, 'es'));
       for (const nombre of nombres) {
         const suyas = grupos.get(nombre);
         const promG = Math.round(suyas.reduce((s, v) => s + calificacion(v), 0) / suyas.length);
-        cont.append(h('h3.venta-grupo', '🧑‍🔧 ' + nombre,
+        cont.append(h('h3.venta-grupo', ICONO_GRUPO[agruparPor] + nombre,
           h('span.sem-dato', suyas.length + ' abierta' + (suyas.length === 1 ? '' : 's') + ' · ' + promG + '%')));
         for (const v of suyas) cont.append(tarjetaVenta(v, veTodas, permisos, pintar));
       }
     }
 
     cont.append(btnHistorial);
+    actualizarGafete();
   };
 
   await pintar();
