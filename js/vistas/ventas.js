@@ -968,6 +968,16 @@ async function renderDirectorio(contenedor) {
 // Colores de prioridad (regla de Vale, 31 ago 2026): A=verde, B=amarillo,
 // C=rojo claro — tambien en las pastillas del detalle (venta-prio--a/b/c).
 const COLOR_PRIO = { A: 'verde', B: 'ambar', C: 'rojo' };
+
+// Avatar del vendedor: PLACEHOLDER con iniciales por ahora — aqui ira su
+// FOTO cuando la organizacion la tenga.
+function avatarVendedor(nombre) {
+  const partes = (nombre || '').trim().split(/\s+/);
+  const ini = partes.length >= 2
+    ? partes[0][0] + partes[partes.length - 1][0]
+    : (partes[0] || '?').slice(0, 2);
+  return h('span.venta-avatar', ini.toUpperCase());
+}
 function tarjetaVenta(v, veTodas, permisos, alCambiar) {
   const comp = compromisoVigente(v);
   // La ACCION ACTUAL (misma regla que el detalle): ultima accion real.
@@ -979,7 +989,9 @@ function tarjetaVenta(v, veTodas, permisos, alCambiar) {
     onclick: () => hojaDetalle(v, permisos, alCambiar),
   },
     h('div.venta-carta__f1',
-      veTodas && v.dueno ? h('p.venta-dueno', '👤 ' + v.dueno) : h('span'),
+      veTodas && v.dueno
+        ? h('p.venta-dueno', avatarVendedor(v.dueno), h('span.venta-dueno__nombre', v.dueno))
+        : h('span'),
       prioridadValida(v.prioridad)
         ? h('span.venta-prio-badge.venta-prio-badge--' + COLOR_PRIO[v.prioridad[0]], v.prioridad)
         : h('span'),
