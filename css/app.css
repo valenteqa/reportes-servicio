@@ -823,9 +823,10 @@ button { font-family: inherit; font-size: inherit; }
    respiro entre filas lo pone el gap .75rem de la tarjeta. */
 .venta-carta__f2 { display: flex; align-items: center; gap: .5rem; }
 .venta-carta__f2 .venta-estado-chip { position: static; flex: none; }
-/* En la tarjeta el chip de estatus va al tamano de la accion actual
-   (pedido de Vale); en el detalle conserva su tamano compacto. */
-.venta-carta .venta-estado-chip { font-size: .9rem; }
+/* En la tarjeta y en la cabecera del detalle el chip de estatus va al
+   tamano de la accion actual (pedido de Vale); en la hoja de detalle
+   de una accion conserva su tamano compacto. */
+.venta-carta .venta-estado-chip, .venta-detalle-cab .venta-estado-chip { font-size: .9rem; }
 .venta-carta__accion {
   margin: 0; font-size: .9rem; overflow-wrap: break-word;
   /* Maximo dos renglones, pero SIN reservar el segundo si no se usa
@@ -885,27 +886,7 @@ button { font-family: inherit; font-size: inherit; }
   color: #16202b; padding: 0 .2rem .1rem;
   font-variant-numeric: tabular-nums;
 }
-.venta-prio {
-  padding: .1rem .45rem; border-radius: 99px;
-  font-size: .66rem; font-weight: 800; letter-spacing: .05em;
-}
-.venta-prio--alta  { background: #d3302f22; color: #c22a29; border: 1px solid #c22a2955; }
-.venta-prio--media { background: #b8860b22; color: #a3760a; border: 1px solid #a3760a55; }
-.venta-prio--baja  { background: var(--superficie-2); color: var(--tinta-suave); border: 1px solid var(--borde); }
-.venta-cal { font-weight: 800; font-variant-numeric: tabular-nums; }
-.venta-titulo { margin: 0 0 .25rem; font-weight: 600; }
 .venta-meta { margin: 0; font-size: .82rem; color: var(--tinta-suave); }
-.venta-vencida { color: var(--peligro, #c22a29); font-weight: 700; }
-.venta-estatus { color: var(--tinta-tenue); }
-.venta-h3 { font-size: .78rem; letter-spacing: .1em; color: var(--primario-vivo, var(--primario)); margin: .8rem 0 .35rem; }
-/* ACCION ACTUAL e HISTORIAL van centrados (pedido de Vale), con
-   lineas de energia a los lados (estilo tech). */
-.venta-h3--centrado { display: flex; align-items: center; justify-content: center; gap: .6rem; text-align: center; }
-.venta-h3--centrado::before, .venta-h3--centrado::after {
-  content: ''; flex: 1; height: 1px;
-}
-.venta-h3--centrado::before { background: linear-gradient(90deg, transparent, var(--primario-vivo, var(--primario))); }
-.venta-h3--centrado::after { background: linear-gradient(90deg, var(--primario-vivo, var(--primario)), transparent); }
 /* Calificacion en TRAPECIO (pedido de Vale, estilo tech): color por
    rango — >90 verde, 50-90 amarillo, <50 rojo — numero negro negritas.
    Colores fijos (no tokens): el semaforo es el mismo en ambos temas.
@@ -930,32 +911,27 @@ button { font-family: inherit; font-size: inherit; }
 /* Titulo de la oportunidad: MAYUSCULAS, un solo color plano — el teal
    de la barra de estado (--primario), igual que los subtitulos.
    Sin margenes: vive en la fila del header y cualquier margen vertical
-   descentra el texto frente al % y la ✕. */
+   descentra el texto frente a la ✕. */
 .venta-titulo--detalle {
   font-size: 1.08rem; font-weight: 800;
   text-transform: uppercase; letter-spacing: .045em;
   margin: 0;
   color: var(--primario-vivo, var(--primario));
 }
-/* Ritmo vertical PAREJO en el detalle (pedido de Vale): .55rem entre
-   titulo → cliente → fecha de creacion → ACCION ACTUAL. La fila del
-   header es alta (la ✕ manda): su margen va corto para que el hueco
-   VISTO desde el texto del titulo empareje con los demas. El boton
-   EDITAR (cuando hay permisos) entra al mismo ritmo. */
+/* La fila del header es alta (la ✕ manda): su margen va corto para que
+   el hueco visto desde el titulo hasta la cabecera empareje. */
 .hoja__titulo:has(.venta-titulo--detalle) { margin-bottom: .1rem; }
-/* Cliente (izq) y fecha de creacion (der) en UNA fila, alineados por la
-   base del texto; si no caben, la fecha baja de renglon. */
-.venta-linea-cliente {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: .25rem .6rem; flex-wrap: wrap;
-  margin: 0 0 .4rem;
+/* Cabecera del detalle CALCADA de la tarjeta del tablero (pedido de
+   Vale): F1 vendedor | prioridad | % y F2 cliente + chip de estatus,
+   con el MISMO ritmo entre filas de la tarjeta (.75rem); debajo, la
+   fecha de creacion, que solo vive en el detalle. */
+.venta-detalle-cab {
+  display: flex; flex-direction: column; gap: .75rem;
+  margin: .3rem 0 0;
 }
-.venta-linea-cliente .venta-titulo, .venta-linea-cliente .venta-meta { margin: 0; }
-/* Respiro extra entre la linea del cliente y lo que sigue (ACCION
-   ACTUAL, o el boton EDITAR en la vista del lider). */
-.venta-linea-cliente + .venta-h3 { margin-top: .8rem; }
-.venta-linea-cliente + .venta-btn-mini { margin-top: .8rem; }
-.venta-btn-mini + .venta-h3 { margin-top: .4rem; }
+/* Respiro extra entre la cabecera y el boton EDITAR del lider (los
+   titulos de grupo ya traen su propio margen). */
+.venta-detalle-cab + .venta-btn-mini { margin-top: .8rem; }
 /* En hoja completa el cuerpo entero scrollea: el historial sin tope. */
 .venta-historial { overflow-wrap: break-word; }
 /* Cada accion en su CUADRO: blanco con borde negro (pedido de Vale).
@@ -1062,7 +1038,6 @@ button { font-family: inherit; font-size: inherit; }
 }
 .venta-ordenar .org-select { flex: 1 1 0; min-width: 0; width: auto; }
 .prio-asa { flex: none; color: var(--tinta-tenue); font-size: 1.15rem; }
-.venta-evento:has(.venta-estado-chip) .venta-evento__cuerpo { padding-right: 9rem; }
 .venta-evento:has(.venta-evento__tools) .venta-evento__cuerpo { padding-right: 4.4rem; }
 .venta-evento .venta-evento__tools { position: absolute; right: .5rem; bottom: .45rem; }
 .venta-evento__fecha { flex: none; color: var(--tinta-tenue); font-variant-numeric: tabular-nums; }
@@ -1071,7 +1046,6 @@ button { font-family: inherit; font-size: inherit; }
 .venta-btn-mini { width: 100%; margin-top: .5rem; font-size: .8rem; padding: .45rem; }
 /* Divisor grueso entre acciones y anotaciones (mismo lenguaje visual que
    los separadores de grupo de las tablas). */
-.venta-divisor { border: 0; height: 2px; margin: 1.1rem 0 .2rem; background: linear-gradient(90deg, var(--primario-vivo, var(--primario)), transparent 85%); }
 .venta-evento__contacto { display: block; font-size: .78rem; color: var(--tinta-tenue); margin-top: .1rem; }
 .venta-op__seña { display: block; font-size: .72rem; color: var(--tinta-tenue); font-weight: 400; }
 /* Vendedor asignado, arriba del titulo (vista del lider). */

@@ -263,6 +263,25 @@ function fechaCorta(clave) {
   return clave.slice(8, 10) + '/' + clave.slice(5, 7) + '/' + clave.slice(2, 4);
 }
 
+// Toda accion DEBE llevar fecha compromiso (regla de Vale, 31 ago 2026):
+// el formulario ya no deja guardar sin ella, y a las acciones viejas que
+// quedaron sin fecha se les asigna una AL AZAR (2 a 10 dias despues de la
+// creacion de la accion). Si la de la accion vigente cae ya vencida,
+// registrarAtrasos anota su atraso en la misma pasada — flujo normal.
+async function asignarCompromisosFaltantes(ventas) {
+  for (const v of ventas) {
+    let cambio = false;
+    for (const e of (v.historial || [])) {
+      if (e.tipo !== 'estatus' || esCreacionLegada(e) || e.compromiso) continue;
+      const base = new Date((e.fecha || fechaClave()) + 'T12:00:00');
+      base.setDate(base.getDate() + 2 + Math.floor(Math.random() * 9));
+      e.compromiso = fechaClave(base);
+      cambio = true;
+    }
+    if (cambio) await db.ventaGuardar(v);
+  }
+}
+
 // Un ATRASO automatico por cada fecha compromiso vencida sin accion nueva.
 async function registrarAtrasos(ventas) {
   const hoy = fechaClave();
@@ -539,7 +558,11 @@ function hojaNuevaAccion(v, contactos, globales) {
             onclick: () => {
               const texto = cTexto.querySelector('input').value.trim();
               if (!texto) { aviso('Describe la accion.', 'error'); return; }
-              cerrar({ texto, fecha: cFecha.querySelector('input').value || '', contacto: sel.contacto });
+              // Sin fecha compromiso NO se registra la accion (regla de
+              // Vale): de esa fecha viven el semaforo y los atrasos.
+              const fecha = cFecha.querySelector('input').value;
+              if (!fecha) { aviso('Elige la fecha compromiso.', 'error'); return; }
+              cerrar({ texto, fecha, contacto: sel.contacto });
             },
           }, 'Guardar'))
       );
@@ -694,10 +717,14 @@ function hojaEditarAccion(e) {
           onclick: () => {
             const texto = cTexto.querySelector('input').value.trim();
             if (!texto) { aviso('El texto no puede quedar vacio.', 'error'); return; }
+            // Editar tampoco puede dejar la accion sin fecha compromiso
+            // (regla de Vale: toda accion lleva la suya).
+            const compromiso = cFecha.querySelector('input').value;
+            if (!compromiso) { aviso('Elige la fecha compromiso.', 'error'); return; }
             cerrar({
               texto,
               contacto: cContacto.querySelector('input').value.trim(),
-              compromiso: cFecha.querySelector('input').value || '',
+              compromiso,
             });
           },
         }, 'Guardar')));
@@ -762,16 +789,18 @@ function hojaEditarAnotacion(n) {
 /* ---------------------------------------------------------------- */
 
 async function hojaDetalle(v, permisos, alCambiar) {
-  // En la CABECERA de la hoja van el TITULO de la oportunidad (con su
-  // efecto) y la calificacion (solo el %) junto a la ✕. El header lo
-  // construye hoja(), asi que se ajusta tras el montaje (microtask) y
-  // pinta() lo mantiene al dia (p. ej. si el lider edita el titulo).
-  const calEl = h('span.venta-cal-solo');
+  // En la CABECERA de la hoja va el TITULO de la oportunidad (con su
+  // efecto); el % ya no vive junto a la ✕: baja a la fila F1 del cuerpo,
+  // que esta CALCADA de la tarjeta del tablero (pedido de Vale). El
+  // header lo construye hoja(), asi que se ajusta tras el montaje
+  // (microtask) y pinta() lo mantiene al dia (si el lider edita).
+  // Misma regla que la tarjeta: el vendedor solo se muestra en la vista
+  // que ve TODAS las cajas (lider/admin).
+  const veTodas = veTodasLasVentas(await quienSoy());
   let tituloCabEl = null;
   queueMicrotask(() => {
     const cab = [...document.querySelectorAll('.hoja .hoja__titulo')].pop();
     if (!cab) return;
-    cab.insertBefore(calEl, cab.querySelector('.icono-btn'));
     tituloCabEl = cab.querySelector('h2');
     if (tituloCabEl) tituloCabEl.classList.add('venta-titulo--detalle');
   });
@@ -786,10 +815,10 @@ async function hojaDetalle(v, permisos, alCambiar) {
         ? { crear: false, accionar: false, gestionar: false }
         : permisos;
       const cal = calificacion(v);
-      calEl.textContent = cal + '%';
-      calEl.classList.remove('venta-cal-solo--verde', 'venta-cal-solo--ambar', 'venta-cal-solo--rojo');
-      calEl.classList.add(claseCal(cal));
       if (tituloCabEl) tituloCabEl.textContent = v.titulo;
+      // El chip de estatus usa la MISMA logica que la tarjeta: compromiso
+      // vigente, y en cerradas congelado al dia del cierre.
+      const comp = compromisoVigente(v);
       const acciones = (v.historial || []).filter(e => e.tipo === 'estatus' && !esCreacionLegada(e));
       const vigente = acciones[acciones.length - 1] || null;
       // Las anteriores van aparte, bajo HISTORIAL; la vigente encabeza
@@ -801,8 +830,8 @@ async function hojaDetalle(v, permisos, alCambiar) {
           // EDITAR para el lider; borrar acciones ya no existe).
           onclick: () => hojaDetalleAccion(e, esVigente, v, pv, () => { pinta(); alCambiar(); }),
         },
-          // Semaforo SOLO en la accion vigente (la ACCION ACTUAL).
-          esVigente && e.compromiso && !v.cerrada ? chipEstadoCompromiso(e.compromiso) : null,
+          // El semaforo del compromiso vive en la cabecera (F2, como en
+          // la tarjeta): los cuadros van limpios.
           h('p.venta-evento__cuerpo', e.texto,
             e.contacto ? h('span.venta-evento__contacto', '👤 ' + e.contacto) : null),
           h('div.venta-evento__fechas',
@@ -811,12 +840,26 @@ async function hojaDetalle(v, permisos, alCambiar) {
       // OJO: append(null) pinta el texto "null" (h() si filtra nulos);
       // aqui los condicionales entregan null, se filtran antes de anexar.
       const partes = [
-        // Cliente (izq) y fecha de creacion (der) en la MISMA fila.
-        h('div.venta-linea-cliente',
-          h('p.venta-titulo', v.cliente + (v.sede ? ' · ' + v.sede : '')),
-          h('p.venta-meta',
-            prioridadValida(v.prioridad) ? h('span.venta-prio.venta-prio--' + v.prioridad[0].toLowerCase(), v.prioridad) : null,
-            (prioridadValida(v.prioridad) ? ' · ' : '') + '📅 Creada: ' + fechaDeTs(v.creado) + (v.cerrada ? ' · CERRADA' + (v.cerrado ? ' el ' + fechaDeTs(v.cerrado) : '') : ''))),
+        // Cabecera CALCADA de la tarjeta del tablero (pedido de Vale):
+        // F1 vendedor | prioridad | % (misma rejilla, prioridad al centro
+        // exacto) y F2 cliente + chip de estatus, con la misma logica
+        // (sede bonita, chip congelado al cierre). La fecha de creacion
+        // vive SOLO aqui, en su propia linea.
+        h('div.venta-detalle-cab',
+          h('div.venta-carta__f1',
+            veTodas && v.dueno
+              ? h('p.venta-dueno', avatarVendedor(v.dueno), h('span.venta-dueno__nombre', sinApellido(v.dueno)))
+              : h('span'),
+            prioridadValida(v.prioridad)
+              ? h('span.venta-prio-badge.venta-prio-badge--' + COLOR_PRIO[v.prioridad[0]], v.prioridad)
+              : h('span'),
+            h('span.venta-cal-solo.' + claseCal(cal), cal + '%')),
+          h('div.venta-carta__f2',
+            h('span.venta-carta__cliente', v.cliente + (sedeBonita(v.sede) ? ' ' + sedeBonita(v.sede) : '')),
+            comp && (!v.cerrada || v.cerrado)
+              ? chipEstadoCompromiso(comp, v.cerrada ? fechaClave(new Date(v.cerrado)) : '')
+              : null),
+          h('p.venta-meta', '📅 Creada: ' + fechaDeTs(v.creado) + (v.cerrada ? ' · CERRADA' + (v.cerrado ? ' el ' + fechaDeTs(v.cerrado) : '') : ''))),
         pv.gestionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
           type: 'button',
           onclick: async () => {
@@ -834,11 +877,14 @@ async function hojaDetalle(v, permisos, alCambiar) {
         // Solo ACCIONES: ni los atrasos (su presentacion esta por definirse
         // con Vale) ni el "Oportunidad creada" legado se listan aqui —
         // ambos siguen contando para la calificacion segun sus reglas.
-        h('h3.venta-h3.venta-h3--centrado', 'ACCION ACTUAL'),
+        // Titulos de seccion con el MISMO formato de grupo del tablero
+        // (venta-grupo: emoji + dato a la derecha, pedido de Vale).
+        h('h3.venta-grupo', '⚡ ACCION ACTUAL'),
         vigente
           ? h('div.venta-historial', eventoEl(vigente, true))
           : h('p.pista', 'Aun no hay acciones. Agrega la primera.'),
-        anteriores.length ? h('h3.venta-h3.venta-h3--centrado', 'HISTORIAL DE ACCIONES') : null,
+        anteriores.length ? h('h3.venta-grupo', '📜 HISTORIAL DE ACCIONES',
+          h('span.sem-dato', anteriores.length + (anteriores.length === 1 ? ' anterior' : ' anteriores'))) : null,
         anteriores.length ? h('div.venta-historial', ...anteriores.map(e => eventoEl(e, false))) : null,
         pv.accionar ? h('button.btn.btn--primario.venta-btn', {
           type: 'button',
@@ -852,10 +898,11 @@ async function hojaDetalle(v, permisos, alCambiar) {
           },
         }, '✚  AGREGAR ACCION') : null,
 
-        // Divisor grueso: acciones y anotaciones son DOS cosas distintas.
-        h('hr.venta-divisor'),
-
-        h('h3.venta-h3', '💡 ANOTACIONES'),
+        // Acciones y anotaciones son DOS cosas distintas: el subrayado
+        // del titulo de grupo (como en el tablero) marca la frontera.
+        h('h3.venta-grupo', '💡 ANOTACIONES',
+          (v.anotaciones || []).length ? h('span.sem-dato',
+            v.anotaciones.length + (v.anotaciones.length === 1 ? ' anotacion' : ' anotaciones')) : null),
         (v.anotaciones || []).length
           ? h('div.venta-notas',
             (v.anotaciones || []).slice().reverse().map(n =>
@@ -1186,7 +1233,7 @@ async function renderDirectorio(contenedor) {
 //       el calendarito hasta la derecha, alineados ON BOTTOM.
 // El contacto y la fecha de creacion viven SOLO en el detalle.
 // Colores de prioridad (regla de Vale, 31 ago 2026): A=verde, B=amarillo,
-// C=rojo claro — tambien en las pastillas del detalle (venta-prio--a/b/c).
+// C=rojo claro — el mismo hexagono en tarjeta y en la cabecera del detalle.
 const COLOR_PRIO = { A: 'verde', B: 'ambar', C: 'rojo' };
 
 // La sede solo se muestra cuando dice algo: vacia o "N/A" no aparece
@@ -1283,8 +1330,11 @@ async function renderHistorial(contenedor) {
   const pintar = async () => {
     vaciar(cont);
     // Misma caja cerrada del tablero: el vendedor solo ve SU historial;
-    // la mas recientemente cerrada va primero.
-    const cerradas = (await db.ventasTodas())
+    // la mas recientemente cerrada va primero. (Y la misma migracion de
+    // fechas compromiso, por si se recarga directo en el historial.)
+    const todas = await db.ventasTodas();
+    await asignarCompromisosFaltantes(todas);
+    const cerradas = todas
       .filter(v => v.cerrada && (veTodas || (yo && v.duenoId === yo.id)))
       .sort((a, b) => (b.cerrado || b.creado || 0) - (a.cerrado || a.creado || 0));
 
@@ -1367,6 +1417,7 @@ export async function render(contenedor, refrescar, params = {}) {
 
   const pintar = async () => {
     const todasLasVentas = await db.ventasTodas();
+    await asignarCompromisosFaltantes(todasLasVentas);
     await registrarAtrasos(todasLasVentas);
     vaciar(cont);
 
