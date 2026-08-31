@@ -167,6 +167,9 @@ button { font-family: inherit; font-size: inherit; }
 }
 
 .cabecera__fila { display: flex; align-items: center; gap: .5rem; min-height: 44px; }
+/* Boton de accion al extremo derecho de la cabecera (p. ej. DIRECTORIO
+   en Ventas), alineado con la flecha y el titulo. */
+.cabecera__accion { margin-left: auto; flex: 0 0 auto; }
 
 /* La marca: nombre en fuente tecnologica (Orbitron, empacada en fonts/). */
 @font-face {
@@ -758,6 +761,27 @@ button { font-family: inherit; font-size: inherit; }
 .venta-carta__der .venta-estado-chip { position: static; }
 .venta-carta__accion { margin: 0 0 .3rem; font-size: .9rem; overflow-wrap: break-word; }
 .venta-carta__accion--vacia { color: var(--tinta-tenue); font-style: italic; }
+/* Calendarito de la ULTIMA FECHA COMPROMISO: banda con el mes arriba y
+   el dia grande abajo, con el corte diagonal de la casa. */
+.venta-compromiso__titulo { margin-top: .15rem; letter-spacing: .07em; text-transform: uppercase; }
+.venta-calendario {
+  display: inline-flex; flex-direction: column; align-items: stretch;
+  min-width: 46px; margin-top: .25rem;
+  border: 1px solid var(--primario-borde, var(--borde-fuerte));
+  background: var(--superficie-2);
+  clip-path: polygon(6px 0, 100% 0, 100% 100%, 0 100%, 0 6px);
+}
+.venta-calendario__mes {
+  text-align: center; font-size: .62rem; font-weight: 800; letter-spacing: .12em;
+  padding: .12rem .4rem .1rem;
+  background: var(--primario); color: var(--primario-tinta);
+}
+.venta-calendario__dia {
+  text-align: center; font-size: 1.2rem; font-weight: 800; line-height: 1.2;
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  padding: .05rem .4rem .1rem; color: var(--tinta);
+}
 .venta-prio {
   padding: .1rem .45rem; border-radius: 99px;
   font-size: .66rem; font-weight: 800; letter-spacing: .05em;
@@ -913,6 +937,10 @@ button { font-family: inherit; font-size: inherit; }
   white-space: nowrap;
 }
 .venta-agrupar input { width: 1.15rem; height: 1.15rem; flex: none; accent-color: var(--primario); }
+/* Fila de filtros por estado: cada etiqueta toma su ancho natural y la
+   letra baja tantito para que "cerca de vencer" quepa hasta en 360px. */
+.venta-controles--filtros { justify-content: space-between; gap: .5rem; }
+.venta-controles--filtros .venta-agrupar { flex: 0 1 auto; font-size: .76rem; }
 .venta-ordenar {
   flex: 1 1 0; min-width: 0;
   display: flex; align-items: center; gap: .4rem;

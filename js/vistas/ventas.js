@@ -230,15 +230,30 @@ function claseCal(cal) {
   return cal > 90 ? 'venta-cal-solo--verde' : cal >= 50 ? 'venta-cal-solo--ambar' : 'venta-cal-solo--rojo';
 }
 
+// Dias que faltan para una fecha clave (negativos = ya vencio). Es el
+// MISMO umbral del chip y de los filtros "solo vencidas"/"cerca de vencer".
+function diasPara(comp) {
+  return Math.round((new Date(comp + 'T12:00:00') - new Date(fechaClave() + 'T12:00:00')) / 86400000);
+}
+
 function chipEstadoCompromiso(comp) {
-  const hoy = fechaClave();
-  const dias = Math.round((new Date(comp + 'T12:00:00') - new Date(hoy + 'T12:00:00')) / 86400000);
+  const dias = diasPara(comp);
   if (dias < 0) {
     const x = -dias;
     return h('span.venta-estado-chip.venta-estado-chip--rojo', '⚠ Vencida por ' + x + (x === 1 ? ' dia' : ' dias'));
   }
   if (dias < 3) return h('span.venta-estado-chip.venta-estado-chip--ambar', '⏳ Cerca de vencer');
   return h('span.venta-estado-chip.venta-estado-chip--verde', '✓ En tiempo');
+}
+
+// Calendarito de la fecha compromiso (pedido de Vale): el MES como banda
+// arriba y el DIA grande abajo, como icono de calendario de telefono.
+const MESES_CORTOS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+function calendarioFecha(clave) {
+  const d = new Date(clave + 'T12:00:00');
+  return h('span.venta-calendario',
+    h('span.venta-calendario__mes', MESES_CORTOS[d.getMonth()]),
+    h('span.venta-calendario__dia', String(d.getDate())));
 }
 
 // Un ATRASO automatico por cada fecha compromiso vencida sin accion nueva.
@@ -762,7 +777,7 @@ async function hojaDetalle(v, permisos, alCambiar) {
           h('p.venta-titulo', v.cliente + (v.sede ? ' · ' + v.sede : '')),
           h('p.venta-meta',
             prioridadValida(v.prioridad) ? h('span.venta-prio.venta-prio--' + v.prioridad[0].toLowerCase(), v.prioridad) : null,
-            (prioridadValida(v.prioridad) ? ' · ' : '') + '📅 Creada: ' + fechaDeTs(v.creado) + (v.cerrada ? ' · CERRADA' : ''))),
+            (prioridadValida(v.prioridad) ? ' · ' : '') + '📅 Creada: ' + fechaDeTs(v.creado) + (v.cerrada ? ' · CERRADA' + (v.cerrado ? ' el ' + fechaDeTs(v.cerrado) : '') : ''))),
         permisos.gestionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
           type: 'button',
           onclick: async () => {
@@ -847,6 +862,7 @@ async function hojaDetalle(v, permisos, alCambiar) {
           onclick: async () => {
             if (!(await confirmar('¿Cerrar la oportunidad "' + v.titulo + '"? Su calificacion queda en ' + calificacion(v) + '%.', { textoOk: 'Cerrar', peligro: false }))) return;
             v.cerrada = true;
+            v.cerrado = db.marcaDeTiempo();   // para ordenar el historial
             await db.ventaGuardar(v);
             pinta();
             alCambiar();
@@ -931,11 +947,94 @@ async function renderDirectorio(contenedor) {
 }
 
 /* ---------------------------------------------------------------- */
+/* Tarjeta de oportunidad (compartida por tablero e historial)       */
+/* ---------------------------------------------------------------- */
+
+// Izquierda: vendedor (solo vista del lider), titulo, accion actual y la
+// ULTIMA FECHA COMPROMISO como calendarito (mes y dia). El contacto y la
+// fecha de creacion viven SOLO en el detalle (pedido de Vale).
+// Derecha: calificacion con su chip de estatus debajo.
+function tarjetaVenta(v, veTodas, permisos, alCambiar) {
+  const comp = compromisoVigente(v);
+  // La ACCION ACTUAL (misma regla que el detalle): ultima accion real.
+  const acciones = (v.historial || []).filter(e => e.tipo === 'estatus' && !esCreacionLegada(e));
+  const vigente = acciones[acciones.length - 1] || null;
+  const cal = calificacion(v);
+  return h('button.venta-carta' + (v.cerrada ? '.venta-carta--cerrada' : ''), {
+    type: 'button',
+    onclick: () => hojaDetalle(v, permisos, alCambiar),
+  },
+    h('div.venta-carta__cols',
+      h('div.venta-carta__izq',
+        veTodas && v.dueno ? h('p.venta-dueno', '👤 ' + v.dueno) : null,
+        h('div.venta-carta__fila',
+          prioridadValida(v.prioridad) ? h('span.venta-prio.venta-prio--' + v.prioridad[0].toLowerCase(), v.prioridad) : null,
+          h('span.venta-cliente', v.titulo)),
+        vigente
+          ? h('p.venta-carta__accion', vigente.texto)
+          : h('p.venta-carta__accion.venta-carta__accion--vacia', 'Sin acciones aun'),
+        h('p.venta-meta.venta-compromiso__titulo', 'Ultima fecha compromiso'),
+        comp ? calendarioFecha(comp) : h('p.venta-meta', 'Sin fecha aun')),
+      h('div.venta-carta__der',
+        h('span.venta-cal-solo.' + claseCal(cal), cal + '%'),
+        !v.cerrada && comp ? chipEstadoCompromiso(comp) : null)));
+}
+
+/* ---------------------------------------------------------------- */
+/* Historial de ventas (las oportunidades cerradas)                  */
+/* ---------------------------------------------------------------- */
+
+async function renderHistorial(contenedor) {
+  const yo = await quienSoy();
+  const permisos = {
+    crear: puedeCrearVentas(yo),
+    accionar: puedeAccionarVentas(yo),
+    gestionar: puedeGestionarVentas(yo),
+  };
+  const veTodas = veTodasLasVentas(yo);
+
+  contenedor.append(h('header.cabecera',
+    h('div.cabecera__fila',
+      h('button.icono-btn', { type: 'button', 'aria-label': 'Volver', onclick: () => history.back() }, '←'),
+      h('h1', '🗃 Historial de ventas'),
+    )));
+  const cont = h('div.contenido.diario');
+  contenedor.append(cont);
+
+  if (!veTablero(yo)) {
+    cont.append(h('div.diario-carta', h('p.pista',
+      'Las oportunidades de venta solo las ve el equipo de Ventas. El estatus del depto esta en 🏢 Organizacion.')));
+    return;
+  }
+
+  const pintar = async () => {
+    vaciar(cont);
+    // Misma caja cerrada del tablero: el vendedor solo ve SU historial;
+    // la mas recientemente cerrada va primero.
+    const cerradas = (await db.ventasTodas())
+      .filter(v => v.cerrada && (veTodas || (yo && v.duenoId === yo.id)))
+      .sort((a, b) => (b.cerrado || b.creado || 0) - (a.cerrado || a.creado || 0));
+
+    if (!cerradas.length) {
+      cont.append(h('div.diario-carta', h('p.pista',
+        'Aun no hay oportunidades cerradas. Cuando se cierre una, aqui queda guardada.')));
+      return;
+    }
+
+    const prom = Math.round(cerradas.reduce((s, v) => s + calificacion(v), 0) / cerradas.length);
+    cont.append(h('p.sem-total', cerradas.length + ' cerrada' + (cerradas.length === 1 ? '' : 's') + ' · calificacion promedio ' + prom + '%'));
+    for (const v of cerradas) cont.append(tarjetaVenta(v, veTodas, permisos, pintar));
+  };
+  await pintar();
+}
+
+/* ---------------------------------------------------------------- */
 /* Tablero                                                           */
 /* ---------------------------------------------------------------- */
 
 export async function render(contenedor, refrescar, params = {}) {
   if (params.sub === 'dir') return renderDirectorio(contenedor);
+  if (params.sub === 'hist') return renderHistorial(contenedor);
 
   const yo = await quienSoy();
   const permisos = {
@@ -951,7 +1050,11 @@ export async function render(contenedor, refrescar, params = {}) {
     h('div.cabecera__fila',
       h('button.icono-btn', { type: 'button', 'aria-label': 'Volver', onclick: () => history.back() }, '←'),
       h('h1', '💼 Ventas'),
-      h('span.diario-fecha', veTodas ? 'todas las cajas' : 'mi caja de ventas')
+      // El directorio vive en la cabecera (pedido de Vale); el letrero de
+      // "cajas" se fue — el filtro por vendedor ya cuenta esa historia.
+      veDirectorio(yo) ? h('button.btn.btn--fantasma.btn--pequeno.cabecera__accion', {
+        type: 'button', onclick: () => { location.hash = '#/d/ventas/dir'; },
+      }, '📇  DIRECTORIO') : null
     )));
   const cont = h('div.contenido.diario');
   contenedor.append(cont);
@@ -970,6 +1073,10 @@ export async function render(contenedor, refrescar, params = {}) {
   // y orden elegible; el orden de las opciones tambien es dictado.
   let agruparPorVendedor = true;
   let ordenarPor = 'prioridad';
+  // Filtros por estado del compromiso (checkboxes): prendidos los dos
+  // se ven ambas (vencidas + cerca de vencer).
+  let soloVencidas = false;
+  let soloPorVencer = false;
   const ORDENES = [
     ['prioridad', 'Prioridad'],
     ['compromiso', 'Fecha compromiso'],
@@ -984,8 +1091,11 @@ export async function render(contenedor, refrescar, params = {}) {
 
     // Filtrado de caja: lo visible para quien mira.
     const ventas = todasLasVentas.filter(v => veTodas || (yo && v.duenoId === yo.id));
+    // El tablero lista SOLO abiertas; las cerradas viven en el HISTORIAL
+    // (boton al pie), asi que filtros y conteos salen de las abiertas.
+    const abiertas = ventas.filter(v => !v.cerrada);
 
-    const clientes = [...new Set(ventas.map(v => v.cliente))].sort((a, b) => a.localeCompare(b));
+    const clientes = [...new Set(abiertas.map(v => v.cliente))].sort((a, b) => a.localeCompare(b));
 
     // Filtro por cliente + alta (solo lider/admin)
     const selFiltro = h('select.org-select.venta-filtro',
@@ -1020,8 +1130,8 @@ export async function render(contenedor, refrescar, params = {}) {
 
     // Filtro por VENDEDOR (solo la vista del lider ve todas las cajas).
     if (veTodas) {
-      const duenos = [...new Set(ventas.map(v => v.dueno).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
-      const haySinDueno = ventas.some(v => !v.dueno);
+      const duenos = [...new Set(abiertas.map(v => v.dueno).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+      const haySinDueno = abiertas.some(v => !v.dueno);
       const selVendedor = h('select.org-select.venta-filtro',
         h('option', { value: '' }, 'Todos los vendedores'),
         ...duenos.map(d => h('option', { value: d, selected: filtroVendedor === d }, d)),
@@ -1039,23 +1149,40 @@ export async function render(contenedor, refrescar, params = {}) {
       cont.append(h('div.venta-controles',
         h('label.venta-agrupar', chkAgrupar, 'Agrupar por vendedor'),
         h('label.venta-ordenar', 'Ordenar por', selOrden)));
+
+      // Fila de filtros por estado (mismos umbrales que el chip).
+      const chkVencidas = h('input', { type: 'checkbox' });
+      chkVencidas.checked = soloVencidas;
+      chkVencidas.onchange = () => { soloVencidas = chkVencidas.checked; pintar(); };
+      const chkPorVencer = h('input', { type: 'checkbox' });
+      chkPorVencer.checked = soloPorVencer;
+      chkPorVencer.onchange = () => { soloPorVencer = chkPorVencer.checked; pintar(); };
+      cont.append(h('div.venta-controles.venta-controles--filtros',
+        h('label.venta-agrupar', chkVencidas, 'Ver solo vencidas'),
+        h('label.venta-agrupar', chkPorVencer, 'Ver solo cerca de vencer')));
     }
 
-    cont.append(h('button.btn.btn--fantasma.venta-abrir', {
-      type: 'button', onclick: () => { location.hash = '#/d/ventas/dir'; },
-    }, '📇  DIRECTORIO DE CLIENTES'));
-
-    let lista = ventas.filter(v => !filtroCliente || v.cliente === filtroCliente);
+    let lista = abiertas.filter(v => !filtroCliente || v.cliente === filtroCliente);
     if (veTodas && filtroVendedor) {
       lista = lista.filter(v => filtroVendedor === '__sin__' ? !v.dueno : v.dueno === filtroVendedor);
     }
+    // Checkboxes del lider: dejar solo lo vencido y/o lo cerca de vencer
+    // (sin fecha compromiso no entra en ninguno de los dos).
+    if (soloVencidas || soloPorVencer) {
+      lista = lista.filter(v => {
+        const comp = compromisoVigente(v);
+        if (!comp) return false;
+        const dias = diasPara(comp);
+        return (soloVencidas && dias < 0) || (soloPorVencer && dias >= 0 && dias < 3);
+      });
+    }
+
     // Orden segun el criterio elegido (lider); los vendedores conservan
-    // el clasico: fecha compromiso y luego prioridad. Cerradas al final.
-    const hoyClave = fechaClave();
+    // el clasico: fecha compromiso y luego prioridad.
     const diasAtraso = (v) => {
       const comp = compromisoVigente(v);
-      if (!comp || v.cerrada || comp >= hoyClave) return -1;
-      return Math.round((new Date(hoyClave + 'T12:00:00') - new Date(comp + 'T12:00:00')) / 86400000);
+      const dias = comp ? diasPara(comp) : 0;
+      return dias < 0 ? -dias : -1;
     };
     const criterio = veTodas ? ordenarPor : 'compromiso';
     const porCompromiso = (a, b) => {
@@ -1068,82 +1195,56 @@ export async function render(contenedor, refrescar, params = {}) {
       return pa < pb ? -1 : pa > pb ? 1 : 0;
     };
     lista.sort((a, b) => {
-      if (!!a.cerrada !== !!b.cerrada) return a.cerrada ? 1 : -1;
       if (criterio === 'prioridad') return porPrioridad(a, b) || porCompromiso(a, b);
       if (criterio === 'atraso') return (diasAtraso(b) - diasAtraso(a)) || porCompromiso(a, b);
       if (criterio === 'creacion') return (b.creado || 0) - (a.creado || 0);
       return porCompromiso(a, b) || porPrioridad(a, b);
     });
 
-    const abiertas = lista.filter(v => !v.cerrada);
-    if (abiertas.length) {
-      const prom = Math.round(abiertas.reduce((s, v) => s + calificacion(v), 0) / abiertas.length);
-      cont.append(h('p.sem-total', abiertas.length + ' abierta' + (abiertas.length === 1 ? '' : 's') + ' · calificacion promedio ' + prom + '%'));
-    }
+    // El HISTORIAL (cerradas) siempre al pie, haya lo que haya arriba.
+    const btnHistorial = h('button.btn.btn--fantasma.venta-abrir', {
+      type: 'button', onclick: () => { location.hash = '#/d/ventas/hist'; },
+    }, '🗃  HISTORIAL DE VENTAS');
 
     if (!lista.length) {
-      cont.append(h('div.diario-carta', h('p.pista', filtroCliente
-        ? 'Sin oportunidades de este cliente.'
-        : (permisos.crear
-          ? 'Aun no hay oportunidades de venta. Crea la primera con ✚ NUEVA.'
-          : 'Aun no hay oportunidades de venta. Las crea el lider de Ventas.'))));
+      const hayFiltro = filtroCliente || filtroVendedor || soloVencidas || soloPorVencer;
+      cont.append(h('div.diario-carta', h('p.pista', hayFiltro
+        ? 'Sin oportunidades abiertas con estos filtros.'
+        : (ventas.length
+          ? 'Sin oportunidades abiertas; las cerradas viven en el historial.'
+          : (permisos.crear
+            ? 'Aun no hay oportunidades de venta. Crea la primera con ✚ NUEVA.'
+            : 'Aun no hay oportunidades de venta. Las crea el lider de Ventas.')))));
+      cont.append(btnHistorial);
       return;
     }
 
-    const tarjeta = (v) => {
-      const comp = compromisoVigente(v);
-      // La ACCION ACTUAL (misma regla que el detalle): ultima accion real.
-      const acciones = (v.historial || []).filter(e => e.tipo === 'estatus' && !esCreacionLegada(e));
-      const vigente = acciones[acciones.length - 1] || null;
-      const cal = calificacion(v);
-      return h('button.venta-carta' + (v.cerrada ? '.venta-carta--cerrada' : ''), {
-        type: 'button',
-        onclick: () => hojaDetalle(v, permisos, pintar),
-      },
-        // Izquierda: vendedor (solo vista del lider), titulo, accion
-        // actual, fecha y contacto en su propia linea.
-        // Derecha: calificacion con su chip de estatus debajo.
-        h('div.venta-carta__cols',
-          h('div.venta-carta__izq',
-            veTodas && v.dueno ? h('p.venta-dueno', '👤 ' + v.dueno) : null,
-            h('div.venta-carta__fila',
-              prioridadValida(v.prioridad) ? h('span.venta-prio.venta-prio--' + v.prioridad[0].toLowerCase(), v.prioridad) : null,
-              h('span.venta-cliente', v.titulo)),
-            vigente
-              ? h('p.venta-carta__accion', vigente.texto)
-              : h('p.venta-carta__accion.venta-carta__accion--vacia', 'Sin acciones aun'),
-            h('p.venta-meta', '📅 Creada: ' + fechaDeTs(v.creado) + (v.cerrada ? ' · CERRADA' : '')),
-            vigente && vigente.contacto ? h('p.venta-meta', '👤 ' + vigente.contacto) : null),
-          h('div.venta-carta__der',
-            h('span.venta-cal-solo.' + claseCal(cal), cal + '%'),
-            !v.cerrada && comp ? chipEstadoCompromiso(comp) : null)));
-    };
+    const prom = Math.round(lista.reduce((s, v) => s + calificacion(v), 0) / lista.length);
+    cont.append(h('p.sem-total', lista.length + ' abierta' + (lista.length === 1 ? '' : 's') + ' · calificacion promedio ' + prom + '%'));
 
     // Sin agrupar (vendedor, o lider con el checkbox apagado): lista corrida.
     if (!veTodas || !agruparPorVendedor) {
-      for (const v of lista) cont.append(tarjeta(v));
-      return;
+      for (const v of lista) cont.append(tarjetaVenta(v, veTodas, permisos, pintar));
+    } else {
+      // Vista del lider: AGRUPADAS por vendedor (sin dueño al final).
+      const grupos = new Map();
+      for (const v of lista) {
+        const clave = v.dueno || 'Sin vendedor';
+        if (!grupos.has(clave)) grupos.set(clave, []);
+        grupos.get(clave).push(v);
+      }
+      const nombres = [...grupos.keys()].sort((a, b) =>
+        (a === 'Sin vendedor') - (b === 'Sin vendedor') || a.localeCompare(b, 'es'));
+      for (const nombre of nombres) {
+        const suyas = grupos.get(nombre);
+        const promG = Math.round(suyas.reduce((s, v) => s + calificacion(v), 0) / suyas.length);
+        cont.append(h('h3.venta-grupo', '🧑‍🔧 ' + nombre,
+          h('span.sem-dato', suyas.length + ' abierta' + (suyas.length === 1 ? '' : 's') + ' · ' + promG + '%')));
+        for (const v of suyas) cont.append(tarjetaVenta(v, veTodas, permisos, pintar));
+      }
     }
 
-    // Vista del lider: AGRUPADAS por vendedor (sin dueño al final).
-    const grupos = new Map();
-    for (const v of lista) {
-      const clave = v.dueno || 'Sin vendedor';
-      if (!grupos.has(clave)) grupos.set(clave, []);
-      grupos.get(clave).push(v);
-    }
-    const nombres = [...grupos.keys()].sort((a, b) =>
-      (a === 'Sin vendedor') - (b === 'Sin vendedor') || a.localeCompare(b, 'es'));
-    for (const nombre of nombres) {
-      const suyas = grupos.get(nombre);
-      const abiertasG = suyas.filter(v => !v.cerrada);
-      const promG = abiertasG.length
-        ? Math.round(abiertasG.reduce((s, v) => s + calificacion(v), 0) / abiertasG.length)
-        : null;
-      cont.append(h('h3.venta-grupo', '🧑‍🔧 ' + nombre,
-        h('span.sem-dato', abiertasG.length + ' abierta' + (abiertasG.length === 1 ? '' : 's') + (promG !== null ? ' · ' + promG + '%' : ''))));
-      for (const v of suyas) cont.append(tarjeta(v));
-    }
+    cont.append(btnHistorial);
   };
 
   await pintar();

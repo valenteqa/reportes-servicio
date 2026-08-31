@@ -29,6 +29,7 @@ function analizarRuta() {
   if (p[0] === 't') return { vista: 'servicios', params: {} };
   // #/d mi dia · #/d/org organizacion · #/d/depto mi depto ·
   // #/d/u/<id> miembro · #/d/ventas tablero · #/d/ventas/dir directorio
+  // · #/d/ventas/hist historial de cerradas
   if (p[0] === 'd' && p[1] === 'ventas') return { vista: 'ventas', params: { sub: p[2] || '' } };
   if (p[0] === 'd') return { vista: 'diario', params: { sub: p[1] || '', id: p[2] || '' } };
   if (p[0] === 's' && p[1]) {
