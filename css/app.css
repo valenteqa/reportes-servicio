@@ -898,22 +898,28 @@ button { font-family: inherit; font-size: inherit; }
 .prio-num { flex: none; min-width: 2.1rem; font-weight: 800; color: var(--primario-vivo, var(--primario)); font-variant-numeric: tabular-nums; }
 .prio-tit { flex: 1; min-width: 0; overflow-wrap: break-word; }
 .prio-dueno { display: block; font-size: .72rem; color: var(--tinta-tenue); }
-/* Controles del lider bajo el filtro de vendedores: checkbox de agrupar
-   al extremo izquierdo, "Ordenar por" al derecho. */
+/* Controles del lider bajo el filtro de vendedores: MITAD y MITAD —
+   agrupar ocupa de su borde izquierdo al centro y ordenar del derecho
+   al centro; etiquetas en UNA linea y el select encoge aunque corte
+   el texto (reglas de Vale). */
 .venta-controles {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center;
   gap: .8rem; margin: .15rem 0 .55rem;
 }
 .venta-agrupar {
+  flex: 1 1 0; min-width: 0;
   display: flex; align-items: center; gap: .4rem;
-  font-size: .84rem; color: var(--tinta-suave);
+  font-size: .8rem; color: var(--tinta-suave);
+  white-space: nowrap;
 }
-.venta-agrupar input { width: 1.15rem; height: 1.15rem; accent-color: var(--primario); }
+.venta-agrupar input { width: 1.15rem; height: 1.15rem; flex: none; accent-color: var(--primario); }
 .venta-ordenar {
-  display: flex; align-items: center; gap: .4rem; flex: none;
-  font-size: .84rem; color: var(--tinta-suave);
+  flex: 1 1 0; min-width: 0;
+  display: flex; align-items: center; gap: .4rem;
+  font-size: .8rem; color: var(--tinta-suave);
+  white-space: nowrap;
 }
-.venta-ordenar .org-select { width: auto; }
+.venta-ordenar .org-select { flex: 1 1 0; min-width: 0; width: auto; }
 .prio-asa { flex: none; color: var(--tinta-tenue); font-size: 1.15rem; }
 .venta-evento:has(.venta-estado-chip) .venta-evento__cuerpo { padding-right: 9rem; }
 .venta-evento:has(.venta-evento__tools) .venta-evento__cuerpo { padding-right: 4.4rem; }
