@@ -1,2 +1,5 @@
-Cameos-fuente/
-Goofy sounds/
+# Archivos de la empresa NUNCA entran al repo (es PUBLICO): los Excel
+# viven en OneDrive y ahi se trabajan (regla de Vale, 1 sep 2026).
+*.xlsx
+*.xlsm
+Excel/
