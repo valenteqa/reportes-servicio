@@ -359,6 +359,9 @@ button { font-family: inherit; font-size: inherit; }
 .rama-flotante .venta-avatar {
   display: inline-grid; width: 1.35rem; height: 1.35rem; font-size: .55rem;
 }
+/* Gafete DENTRO de una hoja (detalle de la oportunidad): la hoja-fondo
+   vive en z60, el gafete debe flotar encima. */
+.rama-flotante--hoja { z-index: 70; }
 
 /* Cameos "Toasty!": el invitado se asoma desde abajo por una esquina,
    saluda y se vuelve a meter. Encima de todo, sin estorbar los toques. */
@@ -823,10 +826,10 @@ button { font-family: inherit; font-size: inherit; }
    respiro entre filas lo pone el gap .75rem de la tarjeta. */
 .venta-carta__f2 { display: flex; align-items: center; gap: .5rem; }
 .venta-carta__f2 .venta-estado-chip { position: static; flex: none; }
-/* En la tarjeta y en la cabecera del detalle el chip de estatus va al
-   tamano de la accion actual (pedido de Vale); en la hoja de detalle
-   de una accion conserva su tamano compacto. */
-.venta-carta .venta-estado-chip, .venta-detalle-cab .venta-estado-chip { font-size: .9rem; }
+/* En la tarjeta y en los titulos de seccion del detalle el chip de
+   estatus va al tamano de la accion actual (pedido de Vale); en los
+   cuadros y datos conserva su tamano compacto. */
+.venta-carta .venta-estado-chip, .venta-grupo .venta-estado-chip { font-size: .9rem; }
 .venta-carta__accion {
   margin: 0; font-size: .9rem; overflow-wrap: break-word;
   /* Maximo dos renglones, pero SIN reservar el segundo si no se usa
@@ -918,9 +921,14 @@ button { font-family: inherit; font-size: inherit; }
   margin: 0;
   color: var(--primario-vivo, var(--primario));
 }
-/* La fila del header es alta (la ✕ manda): su margen va corto para que
-   el hueco visto desde el titulo hasta la cabecera empareje. */
+/* La fila del header es alta: su margen va corto para que el hueco
+   visto desde el titulo hasta la cabecera empareje. */
 .hoja__titulo:has(.venta-titulo--detalle) { margin-bottom: .1rem; }
+/* El CLIENTE en la cabecera de la hoja, donde estaba la ✕ (pedido de
+   Vale — la hoja se cierra con el atras del telefono): mismo estilo y
+   tamano de la tarjeta (venta-carta__cliente), sin robarle espacio al
+   titulo y con su elipsis. */
+.venta-cliente-cab { flex: 0 1 auto; max-width: 48%; }
 /* Cabecera del detalle CALCADA de la tarjeta del tablero (pedido de
    Vale): F1 vendedor | prioridad | % y F2 cliente + chip de estatus,
    con el MISMO ritmo entre filas de la tarjeta (.75rem); debajo, la
@@ -929,6 +937,10 @@ button { font-family: inherit; font-size: inherit; }
   display: flex; flex-direction: column; gap: .75rem;
   margin: .3rem 0 0;
 }
+/* El calendarito de la fecha de creacion sube MENOS que en el pie de la
+   tarjeta: arriba tiene al % (un elemento con caja, no texto) y pegado
+   se veia encimado. */
+.venta-detalle-cab .venta-calmini { margin-top: -.35rem; }
 /* Respiro extra entre la cabecera y el boton EDITAR del lider (los
    titulos de grupo ya traen su propio margen). */
 .venta-detalle-cab + .venta-btn-mini { margin-top: .8rem; }
@@ -973,6 +985,14 @@ button { font-family: inherit; font-size: inherit; }
 .venta-estado-chip--verde { background: #5cbd8d4d; color: #2f7a58; border: 1px solid #2f7a5888; }
 .venta-estado-chip--ambar { background: #e2c15955; color: #8a7524; border: 1px solid #8a752488; }
 .venta-estado-chip--rojo  { background: #e26e6e4d; color: #b04a4a; border: 1px solid #b04a4a88; }
+/* El chip tambien vive EN LINEA (titulos de grupo del detalle, linea del
+   contacto y datos de la hoja de accion): ahi va en flujo, no absoluto. */
+.venta-grupo .venta-estado-chip,
+.venta-evento__fechas .venta-estado-chip,
+.venta-accion-dato .venta-estado-chip { position: static; flex: none; }
+/* El % en un titulo de grupo (historial: acciones completadas a tiempo)
+   va COMPACTO para que el titulo no doble renglon. */
+.venta-grupo .venta-cal-solo { width: 2.9rem; height: 1.5rem; font-size: .9rem; flex: none; }
 
 /* Prioridades A1/B2/C3: chip por LETRA (regla de Vale, 31 ago 2026:
    A = verde, B = amarillo, C = rojo claro). */

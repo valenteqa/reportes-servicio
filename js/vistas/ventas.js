@@ -237,14 +237,26 @@ function diasPara(comp, refClave) {
   return Math.round((new Date(comp + 'T12:00:00') - new Date((refClave || fechaClave()) + 'T12:00:00')) / 86400000);
 }
 
-function chipEstadoCompromiso(comp, refClave) {
+// El color del semaforo a partir de los dias (mismo umbral en chips,
+// filtros y el numero de "Dias para vencimiento" del detalle).
+function colorPorDias(dias) {
+  return dias < 0 ? 'rojo' : dias < 3 ? 'ambar' : 'verde';
+}
+
+// corto: sin el "por X dias" (en el detalle los dias van aparte, en su
+// propia linea "Dias para vencimiento" — regla de Vale).
+function chipEstadoCompromiso(comp, refClave, corto) {
   const dias = diasPara(comp, refClave);
-  if (dias < 0) {
-    const x = -dias;
-    return h('span.venta-estado-chip.venta-estado-chip--rojo', '⚠ Vencida por ' + x + (x === 1 ? ' dia' : ' dias'));
-  }
-  if (dias < 3) return h('span.venta-estado-chip.venta-estado-chip--ambar', '⏳ Cerca de vencer');
-  return h('span.venta-estado-chip.venta-estado-chip--verde', '✓ En tiempo');
+  const color = colorPorDias(dias);
+  const texto = color === 'rojo'
+    ? (corto ? '⚠ Vencida' : '⚠ Vencida por ' + (-dias) + (dias === -1 ? ' dia' : ' dias'))
+    : color === 'ambar' ? '⏳ Cerca de vencer' : '✓ En tiempo';
+  return h('span.venta-estado-chip.venta-estado-chip--' + color, texto);
+}
+
+// Numero de dias que faltan (negativo = ya vencio) como chip de color.
+function chipDias(dias) {
+  return h('span.venta-estado-chip.venta-estado-chip--' + colorPorDias(dias), String(dias));
 }
 
 // Calendarito estilo emoji 📅 pero con DATOS REALES (pedido de Vale):
@@ -739,11 +751,16 @@ function hojaDetalleAccion(e, esVigente, v, permisos, alCambiar) {
     const cuerpo = h('div');
     const pinta = () => {
       cuerpo.replaceChildren(...[
-        esVigente && e.compromiso && !v.cerrada ? h('p.venta-accion-chip', chipEstadoCompromiso(e.compromiso)) : null,
+        // Mismo patron del detalle (regla de Vale): estatus SIN dias y
+        // los dias para vencimiento aparte, como chip de color.
+        esVigente && e.compromiso && !v.cerrada ? h('p.venta-accion-chip', chipEstadoCompromiso(e.compromiso, '', true)) : null,
         h('p.venta-accion-texto', e.texto),
         e.contacto ? h('p.venta-accion-dato', '👤 Contacto: ' + e.contacto) : null,
         h('p.venta-accion-dato', '📅 Fecha de creacion: ' + fechaBonita(e.fecha)),
         e.compromiso ? h('p.venta-accion-dato', '📅 Fecha compromiso: ' + fechaBonita(e.compromiso)) : null,
+        esVigente && e.compromiso && !v.cerrada
+          ? h('p.venta-accion-dato', 'Dias para vencimiento: ', chipDias(diasPara(e.compromiso)))
+          : null,
         permisos.gestionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
           type: 'button',
           onclick: async () => {
@@ -789,20 +806,36 @@ function hojaEditarAnotacion(n) {
 /* ---------------------------------------------------------------- */
 
 async function hojaDetalle(v, permisos, alCambiar) {
-  // En la CABECERA de la hoja va el TITULO de la oportunidad (con su
-  // efecto); el % ya no vive junto a la ✕: baja a la fila F1 del cuerpo,
-  // que esta CALCADA de la tarjeta del tablero (pedido de Vale). El
-  // header lo construye hoja(), asi que se ajusta tras el montaje
-  // (microtask) y pinta() lo mantiene al dia (si el lider edita).
+  // En la CABECERA de la hoja van el TITULO (con su efecto) y el CLIENTE
+  // en lugar de la ✕ (pedido de Vale): la hoja se cierra con el atras
+  // del telefono, como todas las capas. El header lo construye hoja(),
+  // asi que se ajusta tras el montaje (microtask); pintaCab() mantiene
+  // los textos al dia (si el lider edita). Ahi mismo se monta el GAFETE
+  // flotante de seccion (ACCION ACTUAL / HISTORIAL / ANOTACIONES).
   // Misma regla que la tarjeta: el vendedor solo se muestra en la vista
   // que ve TODAS las cajas (lider/admin).
   const veTodas = veTodasLasVentas(await quienSoy());
   let tituloCabEl = null;
+  let clienteCabEl = null;
+  let actualizarGafete = () => {};
+  const pintaCab = () => {
+    if (tituloCabEl) tituloCabEl.textContent = v.titulo;
+    if (clienteCabEl) clienteCabEl.textContent = v.cliente + (sedeBonita(v.sede) ? ' ' + sedeBonita(v.sede) : '');
+  };
   queueMicrotask(() => {
     const cab = [...document.querySelectorAll('.hoja .hoja__titulo')].pop();
     if (!cab) return;
+    const equis = cab.querySelector('.icono-btn');
+    if (equis) equis.remove();
+    clienteCabEl = h('span.venta-carta__cliente.venta-cliente-cab');
+    cab.append(clienteCabEl);
     tituloCabEl = cab.querySelector('h2');
     if (tituloCabEl) tituloCabEl.classList.add('venta-titulo--detalle');
+    const panel = cab.closest('.hoja');
+    const cuerpoHoja = panel ? panel.querySelector('.hoja__cuerpo') : null;
+    if (panel && cuerpoHoja) actualizarGafete = montarGafete(panel, cuerpoHoja, true);
+    pintaCab();
+    actualizarGafete();
   });
 
   await hoja(v.titulo, (cerrar) => {
@@ -815,36 +848,56 @@ async function hojaDetalle(v, permisos, alCambiar) {
         ? { crear: false, accionar: false, gestionar: false }
         : permisos;
       const cal = calificacion(v);
-      if (tituloCabEl) tituloCabEl.textContent = v.titulo;
-      // El chip de estatus usa la MISMA logica que la tarjeta: compromiso
-      // vigente, y en cerradas congelado al dia del cierre.
-      const comp = compromisoVigente(v);
+      pintaCab();
+      // Semaforo y dias: contra HOY en abiertas; en cerradas CONGELADOS
+      // al dia del cierre (null = cerrada legada sin fecha: sin semaforo).
+      const refCierre = v.cerrada ? (v.cerrado ? fechaClave(new Date(v.cerrado)) : null) : '';
       const acciones = (v.historial || []).filter(e => e.tipo === 'estatus' && !esCreacionLegada(e));
       const vigente = acciones[acciones.length - 1] || null;
+      // Estado con que TERMINO cada accion anterior (regla de Vale, sin
+      // importar por cuantos dias): A TIEMPO si su siguiente accion llego
+      // en o antes del compromiso, VENCIDA si llego despues, NO COMPLETADA
+      // si no se puede saber (datos legados sin fechas).
+      const estadoDe = (e, sig) => (!e.compromiso || !sig || !sig.fecha)
+        ? { clase: 'rojo', texto: '✕ No completada', aTiempo: false }
+        : (sig.fecha <= e.compromiso
+          ? { clase: 'verde', texto: '✓ A tiempo', aTiempo: true }
+          : { clase: 'rojo', texto: '⚠ Vencida', aTiempo: false });
       // Las anteriores van aparte, bajo HISTORIAL; la vigente encabeza
       // su propia seccion ACCION ACTUAL. Mas nueva primero, como siempre.
-      const anteriores = acciones.slice(0, -1).reverse();
-      const eventoEl = (e, esVigente) =>
+      const anteriores = acciones.slice(0, -1)
+        .map((e, i) => ({ e, estado: estadoDe(e, acciones[i + 1]) }))
+        .reverse();
+      const aTiempo = anteriores.filter(x => x.estado.aTiempo).length;
+      const pctATiempo = anteriores.length ? Math.round(100 * aTiempo / anteriores.length) : 0;
+      // datoDer: lo que va a la DERECHA en la linea del contacto, arriba
+      // de la fecha compromiso — la vigente lleva sus dias para vencer;
+      // las anteriores, el estado con que terminaron.
+      const eventoEl = (e, esVigente, datoDer) =>
         h('div.venta-evento', {
           // Toque en el cuadro = ver el detalle completo (ahi vive
           // EDITAR para el lider; borrar acciones ya no existe).
           onclick: () => hojaDetalleAccion(e, esVigente, v, pv, () => { pinta(); alCambiar(); }),
         },
-          // El semaforo del compromiso vive en la cabecera (F2, como en
-          // la tarjeta): los cuadros van limpios.
-          h('p.venta-evento__cuerpo', e.texto,
-            e.contacto ? h('span.venta-evento__contacto', '👤 ' + e.contacto) : null),
+          h('p.venta-evento__cuerpo', e.texto),
+          (e.contacto || datoDer) ? h('div.venta-evento__fechas',
+            h('span.venta-evento__contacto', e.contacto ? '👤 ' + e.contacto : ''),
+            datoDer) : null,
           h('div.venta-evento__fechas',
             h('span', 'Fecha de creacion: ' + fechaBonita(e.fecha)),
             e.compromiso ? h('span', 'Fecha compromiso: ' + fechaBonita(e.compromiso)) : null));
+      const hayEstatus = vigente && vigente.compromiso && refCierre !== null;
+      const datoDias = hayEstatus
+        ? h('span', 'Dias para vencimiento: ', chipDias(diasPara(vigente.compromiso, refCierre)))
+        : null;
       // OJO: append(null) pinta el texto "null" (h() si filtra nulos);
       // aqui los condicionales entregan null, se filtran antes de anexar.
+      const claveCreada = fechaClave(new Date(v.creado));
       const partes = [
         // Cabecera CALCADA de la tarjeta del tablero (pedido de Vale):
         // F1 vendedor | prioridad | % (misma rejilla, prioridad al centro
-        // exacto) y F2 cliente + chip de estatus, con la misma logica
-        // (sede bonita, chip congelado al cierre). La fecha de creacion
-        // vive SOLO aqui, en su propia linea.
+        // exacto); F2 la fecha de creacion con su calendarito REAL (el
+        // cliente subio a la cabecera de la hoja, junto al titulo).
         h('div.venta-detalle-cab',
           h('div.venta-carta__f1',
             veTodas && v.dueno
@@ -854,12 +907,12 @@ async function hojaDetalle(v, permisos, alCambiar) {
               ? h('span.venta-prio-badge.venta-prio-badge--' + COLOR_PRIO[v.prioridad[0]], v.prioridad)
               : h('span'),
             h('span.venta-cal-solo.' + claseCal(cal), cal + '%')),
-          h('div.venta-carta__f2',
-            h('span.venta-carta__cliente', v.cliente + (sedeBonita(v.sede) ? ' ' + sedeBonita(v.sede) : '')),
-            comp && (!v.cerrada || v.cerrado)
-              ? chipEstadoCompromiso(comp, v.cerrada ? fechaClave(new Date(v.cerrado)) : '')
-              : null),
-          h('p.venta-meta', '📅 Creada: ' + fechaDeTs(v.creado) + (v.cerrada ? ' · CERRADA' + (v.cerrado ? ' el ' + fechaDeTs(v.cerrado) : '') : ''))),
+          h('div.venta-carta__pie',
+            h('span.venta-carta__pie-texto',
+              h('span.venta-carta__etiqueta', 'Fecha de creacion: '),
+              h('span.venta-carta__pie-fecha', fechaCorta(claveCreada))),
+            calendarioMini(claveCreada)),
+          v.cerrada ? h('p.venta-meta', 'CERRADA' + (v.cerrado ? ' el ' + fechaDeTs(v.cerrado) : '')) : null),
         pv.gestionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
           type: 'button',
           onclick: async () => {
@@ -877,15 +930,20 @@ async function hojaDetalle(v, permisos, alCambiar) {
         // Solo ACCIONES: ni los atrasos (su presentacion esta por definirse
         // con Vale) ni el "Oportunidad creada" legado se listan aqui —
         // ambos siguen contando para la calificacion segun sus reglas.
-        // Titulos de seccion con el MISMO formato de grupo del tablero
-        // (venta-grupo: emoji + dato a la derecha, pedido de Vale).
-        h('h3.venta-grupo', '⚡ ACCION ACTUAL'),
+        // Titulos de seccion con el MISMO formato de grupo del tablero.
+        // ACCION ACTUAL lleva su ESTATUS a la derecha (sin los dias: esos
+        // van aparte, en "Dias para vencimiento" — regla de Vale).
+        h('h3.venta-grupo', '⚡ ACCION ACTUAL',
+          hayEstatus ? chipEstadoCompromiso(vigente.compromiso, refCierre, true) : null),
         vigente
-          ? h('div.venta-historial', eventoEl(vigente, true))
+          ? h('div.venta-historial', eventoEl(vigente, true, datoDias))
           : h('p.pista', 'Aun no hay acciones. Agrega la primera.'),
+        // El HISTORIAL lleva el % de acciones completadas A TIEMPO con
+        // los colores del semaforo (pedido de Vale).
         anteriores.length ? h('h3.venta-grupo', '📜 HISTORIAL DE ACCIONES',
-          h('span.sem-dato', anteriores.length + (anteriores.length === 1 ? ' anterior' : ' anteriores'))) : null,
-        anteriores.length ? h('div.venta-historial', ...anteriores.map(e => eventoEl(e, false))) : null,
+          h('span.venta-cal-solo.' + claseCal(pctATiempo), pctATiempo + '%')) : null,
+        anteriores.length ? h('div.venta-historial', ...anteriores.map(x =>
+          eventoEl(x.e, false, h('span.venta-estado-chip.venta-estado-chip--' + x.estado.clase, x.estado.texto)))) : null,
         pv.accionar ? h('button.btn.btn--primario.venta-btn', {
           type: 'button',
           onclick: async () => {
@@ -976,6 +1034,7 @@ async function hojaDetalle(v, permisos, alCambiar) {
         }, '↺  REACTIVAR OPORTUNIDAD') : null,
       ];
       vaciar(cuerpo).append(...partes.filter(Boolean));
+      actualizarGafete();
     };
     pinta();
     return cuerpo;
@@ -1023,11 +1082,13 @@ async function directorioClientes() {
 // GAFETE flotante de grupo (mismo mecanismo que el arbol de Servicio):
 // al scrollear una lista agrupada larga, una pastilla bajo la cabecera
 // dice en QUE grupo vas cuando su titulo ya no esta a la vista. Lo usan
-// el tablero (vendedor con su avatar, cliente, prioridad) y el directorio.
-function montarGafete(contenedor, cont) {
-  const gafete = h('div.rama-flotante.rama-flotante--ventas', { style: { display: 'none' } });
+// el tablero (vendedor con su avatar, cliente, prioridad), el directorio
+// y el detalle de la oportunidad (enHoja: cabecera y z-index de la hoja).
+function montarGafete(contenedor, cont, enHoja) {
+  const gafete = h('div.rama-flotante.rama-flotante--ventas' + (enHoja ? '.rama-flotante--hoja' : ''),
+    { style: { display: 'none' } });
   contenedor.append(gafete);
-  const cabeceraEl = contenedor.querySelector('header.cabecera');
+  const cabeceraEl = contenedor.querySelector(enHoja ? 'header.hoja__titulo' : 'header.cabecera');
   const actualizar = () => {
     const limite = cabeceraEl.getBoundingClientRect().bottom;
     let actual = null;
@@ -1043,8 +1104,8 @@ function montarGafete(contenedor, cont) {
     const partes = (actual.dataset.tipo === 'vendedor' && actual.dataset.grupo)
       ? [avatarVendedor(actual.dataset.grupo), h('strong', actual.dataset.grupo)]
       : [h('strong', actual.childNodes[0].textContent)];
-    gafete.replaceChildren(...partes,
-      h('span', '· ' + (actual.querySelector('.sem-dato') || { textContent: '' }).textContent));
+    const dato = (actual.querySelector('.sem-dato') || { textContent: '' }).textContent;
+    gafete.replaceChildren(...[...partes, dato ? h('span', '· ' + dato) : null].filter(Boolean));
     gafete.style.top = (limite + 6) + 'px';
     gafete.style.display = '';
   };
