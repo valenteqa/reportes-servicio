@@ -45,6 +45,40 @@ async function bannersVentas() {
   return banners;
 }
 
+// Frases de la portada (pedido de Vale, "solo por diversion"): Sun Tzu,
+// Epicteto y Bruce Lee. CAMBIA en cada apertura de la app: el indice
+// rotatorio vive en localStorage y la eleccion de ESTA sesion en
+// sessionStorage (navegar dentro de la app no la cambia).
+const FRASES = [
+  ['El supremo arte de la guerra es someter al enemigo sin luchar.', 'Sun Tzu'],
+  ['No son las cosas las que nos perturban, sino nuestra opinion sobre ellas.', 'Epicteto'],
+  ['Se agua, amigo mio.', 'Bruce Lee'],
+  ['Toda batalla se gana antes de pelearla.', 'Sun Tzu'],
+  ['Primero dite a ti mismo lo que quieres ser; luego haz lo que tengas que hacer.', 'Epicteto'],
+  ['No temo al hombre que practico diez mil patadas una vez, sino al que practico una patada diez mil veces.', 'Bruce Lee'],
+  ['En medio del caos hay tambien oportunidad.', 'Sun Tzu'],
+  ['Ningun hombre es libre si no es dueño de si mismo.', 'Epicteto'],
+  ['La simplicidad es la clave de la brillantez.', 'Bruce Lee'],
+  ['El que sabe cuando puede pelear y cuando no, sera victorioso.', 'Sun Tzu'],
+  ['La riqueza no consiste en tener grandes posesiones, sino en tener pocas necesidades.', 'Epicteto'],
+  ['El conocimiento te dara poder, pero el caracter te dara respeto.', 'Bruce Lee'],
+  ['La velocidad es la esencia de la guerra.', 'Sun Tzu'],
+  ['No pidas que las cosas sucedan como quieres: quiere que sucedan como suceden.', 'Epicteto'],
+  ['Un objetivo no siempre es para alcanzarse; muchas veces es solo algo a lo que apuntar.', 'Bruce Lee'],
+];
+
+function fraseDeLaSesion() {
+  try {
+    const ya = sessionStorage.getItem('fraseSesion');
+    if (ya !== null && FRASES[+ya]) return FRASES[+ya];
+    let i = parseInt(localStorage.getItem('fraseIdx') || '0', 10);
+    if (!(i >= 0) || i >= FRASES.length) i = 0;
+    sessionStorage.setItem('fraseSesion', String(i));
+    localStorage.setItem('fraseIdx', String((i + 1) % FRASES.length));
+    return FRASES[i];
+  } catch (e) { return FRASES[0]; }
+}
+
 function boton(icono, texto, alPulsar, chip) {
   return h('button.menu__boton', { type: 'button', onclick: alPulsar },
     h('span.menu__icono', icono),
@@ -70,6 +104,12 @@ export async function render(contenedor, refrescar) {
         ev.currentTarget.textContent = nuevo === 'claro' ? '🌙' : '☀️';
       }
     }, temaActual() === 'claro' ? '🌙' : '☀️'),
+    (() => {
+      const [texto, autor] = fraseDeLaSesion();
+      return h('div.menu__frase',
+        h('p.menu__frase-texto', '“' + texto + '”'),
+        h('p.menu__frase-autor', '— ' + autor));
+    })(),
     h('div.menu__marca',
       logo,
       titulo,

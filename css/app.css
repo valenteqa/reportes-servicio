@@ -1245,8 +1245,8 @@ html.sin-desborde-vuelo, html.sin-desborde-vuelo body { overflow: hidden !import
   /* Gaps y paddings ELASTICOS (clamp con vh): en pantallas cortas se
      comprimen hasta que todo quepa sin scroll; en las normales quedan
      en su tamano de siempre. */
-  gap: clamp(1rem, 2.6vh, 1.9rem);
-  padding: calc(var(--sup) + clamp(.9rem, 2vh, 1.5rem)) 1.2rem clamp(1.1rem, 2.4vh, 2.2rem);
+  gap: clamp(.8rem, 2.2vh, 1.6rem);
+  padding: calc(var(--sup) + clamp(.9rem, 2vh, 1.5rem)) 1.2rem clamp(.9rem, 2vh, 1.8rem);
   overflow-y: auto;
 }
 .menu > :last-child { margin-bottom: auto; }
@@ -1266,10 +1266,27 @@ html.sin-desborde-vuelo, html.sin-desborde-vuelo body { overflow: hidden !import
 /* Con banner presente la portada se COMPRIME para seguir sin scroll
    (regla de Vale): ceden el logo, los gaps y el padding. */
 .menu:has(.banner) {
-  gap: clamp(.75rem, 1.9vh, 1.4rem);
-  padding-bottom: clamp(.8rem, 1.6vh, 1.6rem);
+  gap: clamp(.55rem, 1.4vh, 1rem);
+  padding-bottom: clamp(.6rem, 1.2vh, 1.2rem);
 }
-.menu:has(.banner) .menu__logo { max-height: clamp(92px, 16vh, 150px); }
+.menu:has(.banner) .menu__logo { max-height: clamp(84px, 11vh, 120px); }
+.menu:has(.banner) .banner { padding: .55rem .8rem; margin-bottom: .3rem; }
+.menu:has(.banner) .menu__frase-texto { font-size: .8rem; }
+/* Banner de FRASES (pedido de Vale, "solo por diversion"): entre los
+   botones de arriba y el logo; cambia en cada apertura de la app. */
+.menu__frase {
+  width: 100%; max-width: 430px;
+  margin-top: 2.2rem;   /* libra los botones absolutos de tema/respaldo */
+  text-align: center;
+  color: var(--tinta-suave);
+}
+/* Si hay banner de avisos arriba, el libraje ya lo puso el banner. */
+.menu .banner ~ .menu__frase { margin-top: 0; }
+.menu__frase-texto { font-size: .84rem; font-style: italic; line-height: 1.4; }
+.menu__frase-autor {
+  font-size: .74rem; margin-top: .2rem;
+  color: var(--tinta-tenue); font-weight: 600; letter-spacing: .04em;
+}
 /* margin-top:auto + el margin-bottom:auto del ultimo hijo = bloque
    centrado (lo que antes hacia justify-content, que con overflow
    cortaria el inicio si algo no cupiera). */
@@ -1280,8 +1297,9 @@ html.sin-desborde-vuelo, html.sin-desborde-vuelo body { overflow: hidden !import
 }
 .menu__logo {
   width: min(44vw, 180px); height: auto; cursor: pointer;
-  /* En pantallas cortas el logo cede un poco antes que los botones. */
-  max-height: clamp(120px, 25vh, 185px); object-fit: contain;
+  /* En pantallas cortas el logo cede un poco antes que los botones
+     (y un poco siempre: la frase de la portada necesita su lugar). */
+  max-height: clamp(100px, 20vh, 168px); object-fit: contain;
 }
 .menu__titulo { font-size: 1.5rem; font-weight: 800; letter-spacing: .12em; text-align: center; }
 .menu__botones { width: 100%; max-width: 430px; display: flex; flex-direction: column; gap: .7rem; }
