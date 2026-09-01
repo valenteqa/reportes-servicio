@@ -1067,14 +1067,15 @@ function mostrarCandadoVentas(v, alTerminar) {
     if (alTerminar) alTerminar();
     revisarCandadoVentas();   // por si hay OTRA venta pendiente
   };
+  // Primero el MENSAJE (pedido de Vale: le dice al vendedor que le
+  // falto); la pagina de la oportunidad se abre hasta tocar el boton.
   cuerpo.append(
     h('div.candado-tarjeta',
       h('div.candado-icono', '💲'),
       h('h2', 'Falta la siguiente accion'),
-      h('p.pista', 'Cerraste la accion vigente de "' + v.titulo + '" (' + v.cliente + ') sin dejar la siguiente. Revisa la oportunidad y resuelve: registra la siguiente accion o marca la venta como completada.'),
+      h('p.pista', 'Cerraste la accion vigente de "' + v.titulo + '" (' + v.cliente + ') sin dejar la siguiente. Registrala — o marca la venta como completada — para seguir usando la app.'),
       h('button.btn.btn--primario.candado-btn', { type: 'button', onclick: resolver },
-        '📋  ABRIR LA OPORTUNIDAD Y RESOLVER')));
-  resolver();   // se abre sola de una vez
+        '✚  REGISTRAR SIGUIENTE ACCION')));
 }
 
 export function instalarCandadoVentas(alTerminar) {
