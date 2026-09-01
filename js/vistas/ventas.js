@@ -263,9 +263,10 @@ function chipDias(dias) {
 // banda roja con el mes y el dia en cuerpo claro, igual en ambos temas
 // (colores fijos, como un emoji).
 const MESES_CORTOS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
-function calendarioMini(clave) {
+// chico: version tamano emoji (la linea de creacion del detalle).
+function calendarioMini(clave, chico) {
   const d = new Date(clave + 'T12:00:00');
-  return h('span.venta-calmini',
+  return h('span.venta-calmini' + (chico ? '.venta-calmini--chico' : ''),
     h('span.venta-calmini__mes', MESES_CORTOS[d.getMonth()]),
     h('span.venta-calmini__dia', String(d.getDate())));
 }
@@ -907,11 +908,10 @@ async function hojaDetalle(v, permisos, alCambiar) {
               ? h('span.venta-prio-badge.venta-prio-badge--' + COLOR_PRIO[v.prioridad[0]], v.prioridad)
               : h('span'),
             h('span.venta-cal-solo.' + claseCal(cal), cal + '%')),
-          h('div.venta-carta__pie',
-            h('span.venta-carta__pie-texto',
-              h('span.venta-carta__etiqueta', 'Fecha de creacion: '),
-              h('span.venta-carta__pie-fecha', fechaCorta(claveCreada))),
-            calendarioMini(claveCreada)),
+          h('p.venta-linea-creada',
+            calendarioMini(claveCreada, true),
+            h('span.venta-carta__etiqueta', 'Fecha de creacion: '),
+            h('span.venta-carta__pie-fecha', fechaCorta(claveCreada))),
           v.cerrada ? h('p.venta-meta', 'CERRADA' + (v.cerrado ? ' el ' + fechaDeTs(v.cerrado) : '')) : null),
         pv.gestionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
           type: 'button',

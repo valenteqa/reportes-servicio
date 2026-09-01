@@ -826,10 +826,11 @@ button { font-family: inherit; font-size: inherit; }
    respiro entre filas lo pone el gap .75rem de la tarjeta. */
 .venta-carta__f2 { display: flex; align-items: center; gap: .5rem; }
 .venta-carta__f2 .venta-estado-chip { position: static; flex: none; }
-/* En la tarjeta y en los titulos de seccion del detalle el chip de
-   estatus va al tamano de la accion actual (pedido de Vale); en los
-   cuadros y datos conserva su tamano compacto. */
-.venta-carta .venta-estado-chip, .venta-grupo .venta-estado-chip { font-size: .9rem; }
+/* En la tarjeta, los titulos de seccion y los cuadros del detalle el
+   chip de estatus va al tamano de la accion actual (pedido de Vale:
+   tipografia pareja al .9rem). */
+.venta-carta .venta-estado-chip, .venta-grupo .venta-estado-chip,
+.venta-evento__fechas .venta-estado-chip, .venta-accion-dato .venta-estado-chip { font-size: .9rem; }
 .venta-carta__accion {
   margin: 0; font-size: .9rem; overflow-wrap: break-word;
   /* Maximo dos renglones, pero SIN reservar el segundo si no se usa
@@ -925,10 +926,10 @@ button { font-family: inherit; font-size: inherit; }
    visto desde el titulo hasta la cabecera empareje. */
 .hoja__titulo:has(.venta-titulo--detalle) { margin-bottom: .1rem; }
 /* El CLIENTE en la cabecera de la hoja, donde estaba la ✕ (pedido de
-   Vale — la hoja se cierra con el atras del telefono): mismo estilo y
-   tamano de la tarjeta (venta-carta__cliente), sin robarle espacio al
-   titulo y con su elipsis. */
-.venta-cliente-cab { flex: 0 1 auto; max-width: 48%; }
+   Vale — la hoja se cierra con el atras del telefono): estilo de la
+   tarjeta pero al MISMO tamano que el titulo de la oportunidad, sin
+   robarle espacio y con su elipsis. */
+.venta-cliente-cab { flex: 0 1 auto; max-width: 48%; font-size: 1.08rem; }
 /* Cabecera del detalle CALCADA de la tarjeta del tablero (pedido de
    Vale): F1 vendedor | prioridad | % y F2 cliente + chip de estatus,
    con el MISMO ritmo entre filas de la tarjeta (.75rem); debajo, la
@@ -937,10 +938,16 @@ button { font-family: inherit; font-size: inherit; }
   display: flex; flex-direction: column; gap: .75rem;
   margin: .3rem 0 0;
 }
-/* El calendarito de la fecha de creacion sube MENOS que en el pie de la
-   tarjeta: arriba tiene al % (un elemento con caja, no texto) y pegado
-   se veia encimado. */
-.venta-detalle-cab .venta-calmini { margin-top: -.35rem; }
+/* Linea de la fecha de creacion: el calendarito REAL en version
+   chiquita (tamano emoji, pedido de Vale) al INICIO de la linea, en el
+   lugar del 📅 que habia antes; el texto al .9rem parejo. */
+.venta-linea-creada {
+  display: flex; align-items: center; gap: .45rem;
+  margin: 0; font-size: .9rem; color: var(--tinta-suave);
+}
+.venta-calmini--chico { width: 32px; border-radius: 4px; }
+.venta-calmini--chico .venta-calmini__mes { font-size: .5rem; padding: .06rem .12rem .04rem; letter-spacing: .04em; }
+.venta-calmini--chico .venta-calmini__dia { font-size: .8rem; line-height: 1.15; padding: 0 .12rem .05rem; }
 /* Respiro extra entre la cabecera y el boton EDITAR del lider (los
    titulos de grupo ya traen su propio margen). */
 .venta-detalle-cab + .venta-btn-mini { margin-top: .8rem; }
@@ -964,14 +971,17 @@ button { font-family: inherit; font-size: inherit; }
    renglon (en el cuadro es absoluto, arriba a la derecha). */
 .venta-accion-chip { margin: 0 0 .5rem; }
 .venta-accion-chip .venta-estado-chip { position: static; }
-.venta-accion-texto { margin: 0 0 .6rem; font-size: .95rem; white-space: pre-wrap; overflow-wrap: break-word; }
-.venta-accion-dato { margin: 0 0 .3rem; font-size: .85rem; color: var(--tinta-suave); }
+.venta-accion-texto { margin: 0 0 .6rem; font-size: .9rem; white-space: pre-wrap; overflow-wrap: break-word; }
+.venta-accion-dato { margin: 0 0 .3rem; font-size: .9rem; color: var(--tinta-suave); }
+/* TIPOGRAFIA PAREJA en los cuadros del detalle (pedido de Vale): texto,
+   contacto, fechas y anotaciones al .9rem de la "Accion Actual" de la
+   tarjeta del tablero. */
 .venta-evento__fechas {
   display: flex; justify-content: space-between; align-items: baseline;
   gap: .6rem; flex-wrap: wrap;
-  font-size: .72rem; color: var(--tinta-tenue); font-variant-numeric: tabular-nums;
+  font-size: .9rem; color: var(--tinta-tenue); font-variant-numeric: tabular-nums;
 }
-.venta-evento__cuerpo { margin: 0 0 .25rem; }
+.venta-evento__cuerpo { margin: 0 0 .25rem; font-size: .9rem; }
 /* Semaforo de la accion vigente (arriba a la derecha del renglon). */
 .venta-estado-chip {
   position: absolute; top: .5rem; right: .6rem;
@@ -1066,7 +1076,7 @@ button { font-family: inherit; font-size: inherit; }
 .venta-btn-mini { width: 100%; margin-top: .5rem; font-size: .8rem; padding: .45rem; }
 /* Divisor grueso entre acciones y anotaciones (mismo lenguaje visual que
    los separadores de grupo de las tablas). */
-.venta-evento__contacto { display: block; font-size: .78rem; color: var(--tinta-tenue); margin-top: .1rem; }
+.venta-evento__contacto { display: block; font-size: .9rem; color: var(--tinta-tenue); margin-top: .1rem; }
 .venta-op__seña { display: block; font-size: .72rem; color: var(--tinta-tenue); font-weight: 400; }
 /* Vendedor asignado, arriba del titulo (vista del lider). */
 /* Mismo tamano que la accion actual (.9rem) — pedido de Vale: vendedor,
@@ -1086,7 +1096,7 @@ button { font-family: inherit; font-size: inherit; }
   font-size: .85rem; letter-spacing: .04em;
 }
 .venta-evento__tools { flex: none; display: flex; gap: .2rem; align-self: flex-start; }
-.venta-nota { display: flex; gap: .6rem; padding: .4rem 0; border-bottom: 1px dashed var(--borde); font-size: .88rem; }
+.venta-nota { display: flex; gap: .6rem; padding: .4rem 0; border-bottom: 1px dashed var(--borde); font-size: .9rem; }
 .venta-nota__texto { white-space: pre-wrap; overflow-wrap: break-word; min-width: 0; }
 
 /* Barra superior del Test Mode: fija arriba; toda la interfaz baja para
