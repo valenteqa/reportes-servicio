@@ -259,6 +259,21 @@ function calificacion(v) {
   return Math.round(100 / n);
 }
 
+// Estado con que TERMINO una accion anterior (regla de Vale, sin
+// importar por cuantos dias): CANCELADA = no completada; completada
+// (o legada con siguiente) = A TIEMPO si llego en o antes del
+// compromiso, VENCIDA si despues; sin datos = NO COMPLETADA.
+function estadoDe(e, sig) {
+  if (e.cierre && e.cierre.tipo === 'cancelada') {
+    return { clase: 'rojo', texto: '✕ No completada', aTiempo: false };
+  }
+  const ref = (e.cierre && e.cierre.fecha) || (sig && sig.fecha) || '';
+  if (!e.compromiso || !ref) return { clase: 'rojo', texto: '✕ No completada', aTiempo: false };
+  return ref <= e.compromiso
+    ? { clase: 'verde', texto: '✓ A tiempo', aTiempo: true }
+    : { clase: 'rojo', texto: '⚠ Vencida', aTiempo: false };
+}
+
 function estatusActual(v) {
   const hist = (v.historial || []).filter(e => !esCreacionLegada(e));
   return hist.length ? hist[hist.length - 1].texto : '';
@@ -1433,6 +1448,75 @@ async function hojaDetalleAccion(e, esVigente, v, permisos, alCambiar) {
   }, { altura: 'completa' });
 }
 
+// Cuadro de una accion (lo comparten el detalle y la hoja de historial):
+// toque = detalle completo de la accion (ahi vive EDITAR para el lider).
+// datoDer: lo que va a la DERECHA en la linea del contacto — la vigente
+// lleva sus dias para vencer; las anteriores, el estado con que terminaron.
+function eventoAccionEl(e, esVigente, datoDer, v, pv, alCambiar) {
+  return h('div.venta-evento', {
+    onclick: () => hojaDetalleAccion(e, esVigente, v, pv, alCambiar),
+  },
+    h('p.venta-evento__cuerpo', h('span.venta-carta__etiqueta', 'Descripcion: '), e.texto),
+    (e.contacto || datoDer) ? h('div.venta-evento__fechas',
+      h('span.venta-evento__contacto', e.contacto ? '👤 ' + e.contacto : ''),
+      datoDer) : null,
+    h('div.venta-evento__fechas',
+      h('span', 'Fecha de creacion: ' + fechaBonita(e.fecha)),
+      // La ACCION ACTUAL lleva su calendarito real (pedido de Vale).
+      e.compromiso ? h('span' + (esVigente ? '.venta-fecha-cal' : ''),
+        esVigente ? calendarioMini(e.compromiso, true) : null,
+        'Fecha compromiso: ' + fechaBonita(e.compromiso)) : null));
+}
+
+// Historial de ESTATUS en su propia hoja (pedido de Vale, 1 sep 2026:
+// los historiales van en botones para no saturar la pagina del detalle).
+function hojaHistorialEstatus(v) {
+  return hoja('📜  Historial de estatus', () => {
+    const resueltos = estatusResueltos(v).slice().reverse();
+    return h('div',
+      h('p.pista', migaEntidad(v) + ' · ' + v.titulo),
+      h('div.venta-historial', ...resueltos.map(s => h('div.venta-evento.venta-evento--plano',
+        h('p.venta-evento__cuerpo', h('span.venta-carta__etiqueta', 'Estatus: '), s.resultado.texto),
+        h('div.venta-evento__fechas',
+          h('span', 'Revision del ' + fechaBonita(s.fechaRevision)),
+          s.resultado.tipo === 'completado'
+            ? h('span.venta-estado-chip.venta-estado-chip--verde', '✔ Objetivo completado')
+            : h('span.venta-estado-chip.venta-estado-chip--rojo', '✕ Sin completar')),
+        h('div.venta-evento__fechas',
+          h('span', 'Resuelta el ' + fechaBonita(s.resultado.fecha) +
+            (s.resultado.por ? ' por ' + s.resultado.por : '')))))));
+  }, { altura: 'completa' });
+}
+
+// Historial de ACCIONES en su propia hoja, con su % de completadas a
+// tiempo (la misma cuenta de siempre, solo que ahora vive aqui).
+function hojaHistorialAcciones(v, pv, alCambiar) {
+  return hoja('📜  Historial de acciones', () => {
+    const cuerpo = h('div');
+    const pinta = () => {
+      const acciones = (v.historial || []).filter(e => e.tipo === 'estatus' && !esCreacionLegada(e));
+      const anteriores = acciones.slice(0, -1)
+        .map((e, i) => ({ e, estado: estadoDe(e, acciones[i + 1]) }))
+        .reverse();
+      const aTiempo = anteriores.filter(x => x.estado.aTiempo).length;
+      const pctATiempo = anteriores.length ? Math.round(100 * aTiempo / anteriores.length) : 0;
+      vaciar(cuerpo).append(...[
+        h('p.pista', migaEntidad(v) + ' · ' + v.titulo),
+        anteriores.length
+          ? h('p.sem-total', anteriores.length + (anteriores.length === 1 ? ' accion' : ' acciones') + ' · completadas a tiempo: ',
+            h('span.venta-cal-solo.' + claseCal(pctATiempo), pctATiempo + '%'))
+          : h('p.pista', 'Sin acciones anteriores.'),
+        h('div.venta-historial', ...anteriores.map(x =>
+          eventoAccionEl(x.e, false,
+            h('span.venta-estado-chip.venta-estado-chip--' + x.estado.clase, x.estado.texto),
+            v, pv, () => { pinta(); alCambiar(); }))),
+      ].filter(Boolean));
+    };
+    pinta();
+    return cuerpo;
+  }, { altura: 'completa' });
+}
+
 function hojaEditarAnotacion(n) {
   return hoja('✎  Editar anotacion', (cerrar) => {
     const cTexto = campoArea('Anotacion', { maxLength: 400 });
@@ -1543,46 +1627,11 @@ async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
       const refCierre = v.cerrada ? (v.cerrado ? fechaClave(new Date(v.cerrado)) : null) : '';
       const acciones = (v.historial || []).filter(e => e.tipo === 'estatus' && !esCreacionLegada(e));
       const vigente = acciones[acciones.length - 1] || null;
-      // Estado con que TERMINO cada accion anterior (regla de Vale, sin
-      // importar por cuantos dias): CANCELADA = no completada; completada
-      // (o legada con siguiente) = A TIEMPO si llego en o antes del
-      // compromiso, VENCIDA si despues; sin datos = NO COMPLETADA.
-      const estadoDe = (e, sig) => {
-        if (e.cierre && e.cierre.tipo === 'cancelada') {
-          return { clase: 'rojo', texto: '✕ No completada', aTiempo: false };
-        }
-        const ref = (e.cierre && e.cierre.fecha) || (sig && sig.fecha) || '';
-        if (!e.compromiso || !ref) return { clase: 'rojo', texto: '✕ No completada', aTiempo: false };
-        return ref <= e.compromiso
-          ? { clase: 'verde', texto: '✓ A tiempo', aTiempo: true }
-          : { clase: 'rojo', texto: '⚠ Vencida', aTiempo: false };
-      };
-      // Las anteriores van aparte, bajo HISTORIAL; la vigente encabeza
-      // su propia seccion ACCION ACTUAL. Mas nueva primero, como siempre.
-      const anteriores = acciones.slice(0, -1)
-        .map((e, i) => ({ e, estado: estadoDe(e, acciones[i + 1]) }))
-        .reverse();
-      const aTiempo = anteriores.filter(x => x.estado.aTiempo).length;
-      const pctATiempo = anteriores.length ? Math.round(100 * aTiempo / anteriores.length) : 0;
-      // datoDer: lo que va a la DERECHA en la linea del contacto, arriba
-      // de la fecha compromiso — la vigente lleva sus dias para vencer;
-      // las anteriores, el estado con que terminaron.
+      // Las anteriores viven en SU HOJA (boton HISTORIAL DE ACCIONES);
+      // aqui solo se cuentan para el letrero del boton.
+      const anteriores = acciones.slice(0, -1);
       const eventoEl = (e, esVigente, datoDer) =>
-        h('div.venta-evento', {
-          // Toque en el cuadro = ver el detalle completo (ahi vive
-          // EDITAR para el lider; borrar acciones ya no existe).
-          onclick: () => hojaDetalleAccion(e, esVigente, v, pv, () => { pinta(); alCambiar(); }),
-        },
-          h('p.venta-evento__cuerpo', h('span.venta-carta__etiqueta', 'Descripcion: '), e.texto),
-          (e.contacto || datoDer) ? h('div.venta-evento__fechas',
-            h('span.venta-evento__contacto', e.contacto ? '👤 ' + e.contacto : ''),
-            datoDer) : null,
-          h('div.venta-evento__fechas',
-            h('span', 'Fecha de creacion: ' + fechaBonita(e.fecha)),
-            // La ACCION ACTUAL lleva su calendarito real (pedido de Vale).
-            e.compromiso ? h('span' + (esVigente ? '.venta-fecha-cal' : ''),
-              esVigente ? calendarioMini(e.compromiso, true) : null,
-              'Fecha compromiso: ' + fechaBonita(e.compromiso)) : null));
+        eventoAccionEl(e, esVigente, datoDer, v, pv, () => { pinta(); alCambiar(); });
       // Vigente ya CERRADA (esperando su siguiente): el chip del cierre
       // sustituye al semaforo y a los dias.
       const cierreVig = vigente && vigente.cierre;
@@ -1621,7 +1670,7 @@ async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
             v.objetivo || h('span.venta-carta__alerta', 'SIN OBJETIVO')),
           v.objetivoCompromiso ? h('p.venta-linea-creada',
             calendarioMini(v.objetivoCompromiso, true),
-            h('span.venta-carta__etiqueta', 'Compromiso del objetivo: '),
+            h('span.venta-carta__etiqueta', 'Fecha compromiso: '),
             h('span.venta-carta__pie-fecha', fechaCorta(v.objetivoCompromiso))) : null,
           v.cerrada ? h('p.venta-meta', 'CERRADA' + (v.cerrado ? ' el ' + fechaDeTs(v.cerrado) : '')) : null,
           enRevision(v) ? h('p.venta-meta.venta-meta--revision', '🔔 CONCLUIDA — EN REVISION DEL LIDER') : null),
@@ -1705,10 +1754,9 @@ async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
         // ESTATUS del objetivo (regla de Vale, 1 sep 2026): revisiones en
         // fechas FIJAS que resuelve SOLO el lider — el % de arriba sale
         // de aqui (formula del jefe). La pendiente muestra sus dias con
-        // el semaforo de la casa; las resueltas, su chip de resultado.
-        h('h3.venta-grupo', '📈 ESTATUS',
-          resueltos.length ? h('span.sem-dato',
-            resueltos.length + (resueltos.length === 1 ? ' revision' : ' revisiones')) : null),
+        // el semaforo de la casa; las resueltas viven en su hoja (boton
+        // HISTORIAL, pedido de Vale: no saturar la pagina).
+        h('h3.venta-grupo', '📈 ESTATUS'),
         pendiente ? h('div.venta-evento.venta-evento--plano',
           h('p.venta-evento__cuerpo',
             h('span.venta-carta__etiqueta', 'Proxima revision: '),
@@ -1741,17 +1789,10 @@ async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
             alCambiar();
           },
         }, '🗓  AGENDAR REVISION DE ESTATUS') : null,
-        ...resueltos.slice().reverse().map(s => h('div.venta-evento.venta-evento--plano',
-          h('p.venta-evento__cuerpo',
-            h('span.venta-carta__etiqueta', 'Estatus: '), s.resultado.texto),
-          h('div.venta-evento__fechas',
-            h('span', 'Revision del ' + fechaBonita(s.fechaRevision)),
-            s.resultado.tipo === 'completado'
-              ? h('span.venta-estado-chip.venta-estado-chip--verde', '✔ Objetivo completado')
-              : h('span.venta-estado-chip.venta-estado-chip--rojo', '✕ Sin completar')),
-          h('div.venta-evento__fechas',
-            h('span', 'Resuelta el ' + fechaBonita(s.resultado.fecha) +
-              (s.resultado.por ? ' por ' + s.resultado.por : ''))))),
+        resueltos.length ? h('button.btn.btn--fantasma.venta-btn', {
+          type: 'button',
+          onclick: () => hojaHistorialEstatus(v),
+        }, '📜  HISTORIAL DE ESTATUS (' + resueltos.length + ')') : null,
 
         // Solo ACCIONES: ni los atrasos (su presentacion esta por definirse
         // con Vale) ni el "Oportunidad creada" legado se listan aqui —
@@ -1765,12 +1806,6 @@ async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
         vigente
           ? h('div.venta-historial', eventoEl(vigente, true, datoDias))
           : h('p.pista', 'Aun no hay acciones. Agrega la primera.'),
-        // El HISTORIAL lleva el % de acciones completadas A TIEMPO con
-        // los colores del semaforo (pedido de Vale).
-        anteriores.length ? h('h3.venta-grupo', '📜 HISTORIAL DE ACCIONES',
-          h('span.venta-cal-solo.' + claseCal(pctATiempo), pctATiempo + '%')) : null,
-        anteriores.length ? h('div.venta-historial', ...anteriores.map(x =>
-          eventoEl(x.e, false, h('span.venta-estado-chip.venta-estado-chip--' + x.estado.clase, x.estado.texto)))) : null,
         pv.accionar ? h('button.btn.btn--primario.venta-btn', {
           type: 'button',
           onclick: async () => {
@@ -1782,6 +1817,12 @@ async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
             alCambiar();
           },
         }, '✚  AGREGAR ACCION') : null,
+        // El historial de acciones (con su % a tiempo) vive en su hoja
+        // (boton, pedido de Vale: no saturar la pagina del detalle).
+        anteriores.length ? h('button.btn.btn--fantasma.venta-btn', {
+          type: 'button',
+          onclick: () => hojaHistorialAcciones(v, pv, () => { pinta(); alCambiar(); }),
+        }, '📜  HISTORIAL DE ACCIONES (' + anteriores.length + ')') : null,
 
         // Acciones y anotaciones son DOS cosas distintas: el subrayado
         // del titulo de grupo (como en el tablero) marca la frontera.
