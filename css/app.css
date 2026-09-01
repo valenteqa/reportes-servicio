@@ -955,6 +955,29 @@ button { font-family: inherit; font-size: inherit; }
 .venta-calmini--chico { width: 32px; border-radius: 4px; }
 .venta-calmini--chico .venta-calmini__mes { font-size: .5rem; padding: .06rem .12rem .04rem; letter-spacing: .04em; }
 .venta-calmini--chico .venta-calmini__dia { font-size: .8rem; line-height: 1.15; padding: 0 .12rem .05rem; }
+/* Fecha compromiso de la ACCION ACTUAL con su calendarito chico al lado. */
+.venta-fecha-cal { display: inline-flex; align-items: center; gap: .35rem; }
+/* Candado de VENTAS: misma capa del diario pero BAJO las hojas (z50):
+   las hojas del propio flujo (z60) se abren encima, y el back las
+   cierra pero nunca brinca la capa. */
+.candado-diario--ventas { z-index: 50; }
+/* Cuadro NO clickeable (hoja del detalle de la accion). */
+.venta-evento--plano { cursor: default; }
+.venta-evento--plano:active { background: var(--superficie); }
+/* COMPLETADO / CANCELADO lado a lado. */
+.venta-cierre-fila { display: flex; gap: .5rem; margin-top: .7rem; }
+.venta-cierre-fila .btn { flex: 1; }
+/* Evidencia de la venta completada: rejilla de miniaturas (tocar una
+   abre la foto grande) — minis chicas, regla de fotos de la casa. */
+.venta-evidencia { margin-top: .2rem; }
+.venta-evidencia__fotos { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .45rem; }
+.venta-evi-foto {
+  width: 104px; height: 104px; object-fit: cover; cursor: pointer;
+  border: 1px solid var(--borde-fuerte); border-radius: var(--r-ch);
+  background: var(--superficie-2);
+}
+.venta-evi-grande { width: 100%; height: auto; }
+.venta-meta--revision { color: var(--aviso, #a3760a); font-weight: 700; }
 /* Respiro extra entre la cabecera y el boton EDITAR del lider (los
    titulos de grupo ya traen su propio margen). */
 .venta-detalle-cab + .venta-btn-mini { margin-top: .8rem; }

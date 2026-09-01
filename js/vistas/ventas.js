@@ -10,8 +10,9 @@
 // El DIRECTORIO de clientes lo ven Ventas, Administracion y el admin.
 // Los porcentajes del depto siguen siendo publicos en Organizacion.
 
-import { h, aviso, vaciar, confirmar, hoja, campo, campoArea } from '../ui.js';
+import { h, aviso, vaciar, confirmar, hoja, campo, campoArea, ocupado, libre } from '../ui.js';
 import * as db from '../db.js';
+import * as media from '../media.js';
 import { organizacion, quienSoy, puedeCrearVentas, puedeAccionarVentas, puedeGestionarVentas, veTodasLasVentas, puedeEditarContactos, fechaSimulada } from '../organizacion.js';
 import { clientesConocidos } from './servicios.js';
 
@@ -257,6 +258,19 @@ function chipEstadoCompromiso(comp, refClave, corto) {
 // Numero de dias que faltan (negativo = ya vencio) como chip de color.
 function chipDias(dias) {
   return h('span.venta-estado-chip.venta-estado-chip--' + colorPorDias(dias), String(dias));
+}
+
+// Una venta CONCLUIDA por el vendedor (con evidencia) espera la REVISION
+// del lider: mientras tanto se congela como el historial.
+function enRevision(v) {
+  return !!(v.conclusion && !v.conclusion.revisada);
+}
+
+// Chip del cierre de una accion (completada / cancelada, regla de Vale).
+function chipCierre(cierre) {
+  return cierre.tipo === 'cancelada'
+    ? h('span.venta-estado-chip.venta-estado-chip--rojo', '✕ Cancelada')
+    : h('span.venta-estado-chip.venta-estado-chip--verde', '✔ Completada');
 }
 
 // Calendarito estilo emoji 📅 pero con DATOS REALES (pedido de Vale):
@@ -847,24 +861,209 @@ function hojaEditarAccion(e) {
   });
 }
 
-// Detalle COMPLETO de una accion (toque en su cuadro). Aqui vive el
-// boton EDITAR (solo lider/admin) — los cuadros van limpios y borrar
-// acciones ya no existe (regla de Vale).
-function hojaDetalleAccion(e, esVigente, v, permisos, alCambiar) {
-  return hoja('📄  Detalle de la accion', () => {
+// Texto OBLIGATORIO al cerrar una accion: el resultado (completada) o el
+// motivo (cancelada) — regla de Vale.
+function hojaMotivo(titulo, etiqueta) {
+  return hoja(titulo, (cerrar) => {
+    const cTexto = campoArea(etiqueta, { maxLength: 400 });
+    return h('div',
+      cTexto,
+      h('div.hoja__acciones',
+        h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+        h('button.btn.btn--primario', {
+          type: 'button',
+          onclick: () => {
+            const texto = cTexto.querySelector('textarea, input').value.trim();
+            if (!texto) { aviso('Este dato es obligatorio.', 'error'); return; }
+            cerrar(texto);
+          },
+        }, 'Guardar')));
+  });
+}
+
+// VENTA COMPLETADA (regla de Vale): solo con EVIDENCIA — foto de la
+// orden de compra, la hoja de entrega o el reporte — queda marcada, y el
+// lider la encuentra en "CONCLUIDAS POR REVISAR" en el tablero.
+async function flujoVentaCompletada(v) {
+  const TIPOS = [['🧾', 'Orden de compra'], ['📄', 'Hoja de entrega'], ['📋', 'Reporte']];
+  const tipo = await hoja('💰  Venta completada', (cerrar) => h('div',
+    h('p.pista', 'Para confirmarla se adjunta la evidencia. ¿Que vas a fotografiar?'),
+    ...TIPOS.map(([ico, t]) => h('button.btn.btn--fantasma.venta-btn', {
+      type: 'button', onclick: () => cerrar(t),
+    }, ico + '  ' + t.toUpperCase())),
+    h('div.hoja__acciones',
+      h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'))));
+  if (!tipo) return null;
+
+  const modo = await hoja('📎  Evidencia: ' + tipo, (cerrar) => h('div',
+    h('button.btn.btn--primario.venta-btn', { type: 'button', onclick: () => cerrar('camara') }, '📷  TOMAR FOTO'),
+    h('button.btn.btn--fantasma.venta-btn', { type: 'button', onclick: () => cerrar('galeria') }, '🖼  DE LA GALERIA'),
+    h('div.hoja__acciones',
+      h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'))));
+  if (!modo) return null;
+
+  const archivos = await media.elegirImagenes({
+    camara: modo === 'camara',
+    multiple: modo === 'galeria',
+    alRegresar: () => ocupado('Procesando la evidencia...'),
+  });
+  if (!archivos.length) { libre(); aviso('Sin evidencia no se puede confirmar la venta.', 'error'); return null; }
+  ocupado('Procesando la evidencia...');
+  const ids = [];
+  try {
+    for (const archivo of archivos) {
+      try {
+        const { _ms, ...procesada } = await media.procesarImagen(archivo);
+        const fotoId = db.nuevoId();
+        await db.fotoGuardar(Object.assign({ id: fotoId }, procesada));
+        ids.push(fotoId);
+      } catch (e) { aviso('No se pudo procesar una foto: ' + e.message, 'error'); }
+    }
+  } finally { libre(); }
+  if (!ids.length) { aviso('Sin evidencia no se puede confirmar la venta.', 'error'); return null; }
+
+  const yo = await quienSoy();
+  v.conclusion = {
+    ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo,
+    porId: yo ? yo.id : '', por: yo ? yo.nombre : '',
+    evidencias: ids, revisada: false,
+  };
+  delete v.pendienteAccion;
+  await db.ventaGuardar(v);
+  aviso('Venta marcada como COMPLETADA: el lider revisara la evidencia.', 'ok');
+  return true;
+}
+
+// Tras COMPLETAR o CANCELAR la accion vigente es OBLIGATORIO dejar la
+// siguiente accion (o concluir la venta con evidencia): este menu se
+// repite hasta resolverse (regla de Vale); si el usuario se sale de la
+// app, el CANDADO lo trae de vuelta aqui al volver a entrar.
+async function resolverPendiente(v) {
+  for (;;) {
+    const opcion = await hoja('⏭  ¿Que sigue?', (cerrar) => h('div',
+      h('p.pista', 'La accion vigente de "' + v.titulo + '" (' + v.cliente + ') quedo cerrada: registra la SIGUIENTE accion, o marca la venta como completada con su evidencia.'),
+      h('button.btn.btn--primario.venta-btn', { type: 'button', onclick: () => cerrar('accion') }, '✚  REGISTRAR SIGUIENTE ACCION'),
+      h('button.btn.btn--fantasma.venta-btn', { type: 'button', onclick: () => cerrar('venta') }, '💰  VENTA COMPLETADA')));
+    if (opcion === 'accion') {
+      const accion = await hojaNuevaAccion(v, await contactosDe(v.cliente, v.sede), await contactosGlobales());
+      if (!accion) continue;
+      v.historial.push({ ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo: 'estatus', texto: accion.texto, contacto: accion.contacto || '', compromiso: accion.fecha || '' });
+      delete v.pendienteAccion;
+      await db.ventaGuardar(v);
+      aviso('Siguiente accion registrada.', 'ok');
+      return true;
+    }
+    if (opcion === 'venta') {
+      if (await flujoVentaCompletada(v)) return true;
+    }
+  }
+}
+
+/* ---------------------------------------------------------------- */
+/* Candado de ventas: siguiente accion pendiente                     */
+/* ---------------------------------------------------------------- */
+
+// Calco del candado del Diario: si quedo una accion cerrada SIN su
+// siguiente (v.pendienteAccion), la app se BLOQUEA para el implicado
+// (quien la cerro, o el dueño de la venta) hasta resolverla. La capa va
+// BAJO las hojas (z50): las del propio flujo se abren encima, y el back
+// las cierra pero NUNCA brinca la capa.
+let capaCandadoVentas = null;
+let _revisarCandadoVentas = null;
+
+function mostrarCandadoVentas(v, alTerminar) {
+  const cuerpo = h('div.candado-cuerpo');
+  capaCandadoVentas = h('div.candado-diario.candado-diario--ventas', cuerpo);
+  document.body.appendChild(capaCandadoVentas);
+  cuerpo.append(
+    h('div.candado-tarjeta',
+      h('div.candado-icono', '💲'),
+      h('h2', 'Falta la siguiente accion'),
+      h('p.pista', 'Cerraste la accion vigente de "' + v.titulo + '" (' + v.cliente + ') sin dejar la siguiente. Registrala — o marca la venta como completada — para seguir usando la app.'),
+      h('button.btn.btn--primario.candado-btn', {
+        type: 'button',
+        onclick: async () => {
+          await resolverPendiente(v);
+          if (capaCandadoVentas) { capaCandadoVentas.remove(); capaCandadoVentas = null; }
+          if (alTerminar) alTerminar();
+          revisarCandadoVentas();   // por si hay OTRA venta pendiente
+        },
+      }, '⏭  RESOLVER AHORA')));
+}
+
+export function instalarCandadoVentas(alTerminar) {
+  const revisar = async () => {
+    try {
+      const yo = await quienSoy();
+      if (!yo) return;
+      const pend = (await db.ventasTodas()).find(x => !x.cerrada && x.pendienteAccion &&
+        (x.pendienteAccion.porId === yo.id || x.duenoId === yo.id));
+      if (capaCandadoVentas) {
+        // Test Mode puede cambiar de usuario: si ya no aplica, se quita.
+        if (!pend) { capaCandadoVentas.remove(); capaCandadoVentas = null; }
+        return;
+      }
+      if (pend) mostrarCandadoVentas(pend, alTerminar);
+    } catch (e) { /* sin datos aun */ }
+  };
+  _revisarCandadoVentas = revisar;
+  revisar();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') revisar();
+  });
+}
+
+// Para el Test Mode (cambio de usuario al momento) y los flujos vivos.
+export function revisarCandadoVentas() {
+  if (_revisarCandadoVentas) _revisarCandadoVentas();
+}
+
+// Detalle COMPLETO de una accion: PANTALLA COMPLETA con el estilo de la
+// casa (pedido de Vale). Aqui viven COMPLETADO / CANCELADO — cierran la
+// accion vigente con su texto obligatorio y piden la siguiente — y el
+// boton EDITAR (solo lider/admin); borrar acciones no existe.
+async function hojaDetalleAccion(e, esVigente, v, permisos, alCambiar) {
+  const yo = await quienSoy();
+  await hoja('📄  Detalle de la accion', () => {
     const cuerpo = h('div');
     const pinta = () => {
+      const viva = esVigente && !v.cerrada && !enRevision(v) && !e.cierre;
+      // COMPLETADO / CANCELADO: texto obligatorio, se guarda el cierre y
+      // queda PENDIENTE la siguiente accion (candado si se sale sin ella).
+      const cerrarAccion = async (tipo) => {
+        const texto = await hojaMotivo(
+          tipo === 'completada' ? '✔  Accion completada' : '✕  Accion cancelada',
+          tipo === 'completada' ? 'Resultado de la accion' : 'Motivo de cancelacion');
+        if (!texto) return;
+        e.cierre = { tipo, texto, fecha: fechaClave(), ts: db.marcaDeTiempo(), porId: yo ? yo.id : '', por: yo ? yo.nombre : '' };
+        v.pendienteAccion = { ts: db.marcaDeTiempo(), porId: yo ? yo.id : '' };
+        await db.ventaGuardar(v);
+        pinta();
+        alCambiar();
+        await resolverPendiente(v);
+        pinta();
+        alCambiar();
+      };
       cuerpo.replaceChildren(...[
-        // Mismo patron del detalle (regla de Vale): estatus SIN dias y
-        // los dias para vencimiento aparte, como chip de color.
-        esVigente && e.compromiso && !v.cerrada ? h('p.venta-accion-chip', chipEstadoCompromiso(e.compromiso, '', true)) : null,
-        h('p.venta-accion-texto', h('span.venta-carta__etiqueta', 'Descripcion: '), e.texto),
-        e.contacto ? h('p.venta-accion-dato', '👤 Contacto: ' + e.contacto) : null,
-        h('p.venta-accion-dato', '📅 Fecha de creacion: ' + fechaBonita(e.fecha)),
-        e.compromiso ? h('p.venta-accion-dato', '📅 Fecha compromiso: ' + fechaBonita(e.compromiso)) : null,
-        esVigente && e.compromiso && !v.cerrada
-          ? h('p.venta-accion-dato', 'Dias para vencimiento: ', chipDias(diasPara(e.compromiso)))
-          : null,
+        h('h3.venta-grupo', '⚡ LA ACCION',
+          viva && e.compromiso ? chipEstadoCompromiso(e.compromiso, '', true) : null,
+          e.cierre ? chipCierre(e.cierre) : null),
+        h('div.venta-evento.venta-evento--plano',
+          h('p.venta-evento__cuerpo', h('span.venta-carta__etiqueta', 'Descripcion: '), e.texto),
+          (e.contacto || (viva && e.compromiso)) ? h('div.venta-evento__fechas',
+            h('span.venta-evento__contacto', e.contacto ? '👤 ' + e.contacto : ''),
+            viva && e.compromiso ? h('span', 'Dias para vencimiento: ', chipDias(diasPara(e.compromiso))) : null) : null,
+          h('div.venta-evento__fechas',
+            h('span', 'Fecha de creacion: ' + fechaBonita(e.fecha)),
+            e.compromiso ? h('span.venta-fecha-cal', calendarioMini(e.compromiso, true), 'Fecha compromiso: ' + fechaBonita(e.compromiso)) : null)),
+        e.cierre ? h('h3.venta-grupo', e.cierre.tipo === 'cancelada' ? '✕ MOTIVO DE CANCELACION' : '✔ RESULTADO DE LA ACCION') : null,
+        e.cierre ? h('div.venta-evento.venta-evento--plano',
+          h('p.venta-evento__cuerpo', e.cierre.texto),
+          h('div.venta-evento__fechas',
+            h('span', 'Cerrada el ' + fechaBonita(e.cierre.fecha) + (e.cierre.por ? ' por ' + e.cierre.por : '')))) : null,
+        viva && permisos.accionar ? h('div.venta-cierre-fila',
+          h('button.btn.btn--primario', { type: 'button', onclick: () => cerrarAccion('completada') }, '✔  COMPLETADO'),
+          h('button.btn.btn--peligro', { type: 'button', onclick: () => cerrarAccion('cancelada') }, '✕  CANCELADO')) : null,
         permisos.gestionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
           type: 'button',
           onclick: async () => {
@@ -882,7 +1081,7 @@ function hojaDetalleAccion(e, esVigente, v, permisos, alCambiar) {
     };
     pinta();
     return cuerpo;
-  });
+  }, { altura: 'completa' });
 }
 
 function hojaEditarAnotacion(n) {
@@ -908,6 +1107,28 @@ function hojaEditarAnotacion(n) {
 /* ---------------------------------------------------------------- */
 /* Detalle de una oportunidad                                        */
 /* ---------------------------------------------------------------- */
+
+// Rejilla de la EVIDENCIA de venta (miniaturas del store de fotos, como
+// las rejillas del modulo Tecnico); tocar una abre la foto grande.
+function seccionEvidencia(v) {
+  const rejilla = h('div.venta-evidencia__fotos');
+  (async () => {
+    for (const id of (v.conclusion.evidencias || [])) {
+      try {
+        const f = await db.fotoLeer(id);
+        if (!f) continue;
+        const img = h('img.venta-evi-foto', { src: media.urlDe(f.mini || f.blob), alt: v.conclusion.tipo });
+        img.onclick = () => hoja('📎  ' + v.conclusion.tipo, () =>
+          h('img.venta-evi-grande', { src: media.urlDe(f.blob) }), { altura: 'completa' });
+        rejilla.append(img);
+      } catch (e) { /* foto perdida */ }
+    }
+    if (!rejilla.children.length) rejilla.append(h('p.pista', 'La evidencia no esta en este telefono.'));
+  })();
+  return h('div.venta-evidencia',
+    h('p.venta-meta', 'Marcada como completada por ' + (v.conclusion.por || '—') + ' el ' + fechaBonita(v.conclusion.fecha)),
+    rejilla);
+}
 
 async function hojaDetalle(v, permisos, alCambiar) {
   // En la CABECERA de la hoja van el TITULO (con su efecto) y el CLIENTE
@@ -948,7 +1169,8 @@ async function hojaDetalle(v, permisos, alCambiar) {
       // En el HISTORIAL (cerradas) TODO es de solo lectura: estos
       // permisos "de vista" apagan editar/agregar; lo unico vivo es
       // REACTIVAR, que usa los permisos reales (regla de Vale).
-      const pv = v.cerrada
+      // Cerrada O en revision del lider: solo lectura (permisos de vista).
+      const pv = (v.cerrada || enRevision(v))
         ? { crear: false, accionar: false, gestionar: false }
         : permisos;
       const cal = calificacion(v);
@@ -959,14 +1181,19 @@ async function hojaDetalle(v, permisos, alCambiar) {
       const acciones = (v.historial || []).filter(e => e.tipo === 'estatus' && !esCreacionLegada(e));
       const vigente = acciones[acciones.length - 1] || null;
       // Estado con que TERMINO cada accion anterior (regla de Vale, sin
-      // importar por cuantos dias): A TIEMPO si su siguiente accion llego
-      // en o antes del compromiso, VENCIDA si llego despues, NO COMPLETADA
-      // si no se puede saber (datos legados sin fechas).
-      const estadoDe = (e, sig) => (!e.compromiso || !sig || !sig.fecha)
-        ? { clase: 'rojo', texto: '✕ No completada', aTiempo: false }
-        : (sig.fecha <= e.compromiso
+      // importar por cuantos dias): CANCELADA = no completada; completada
+      // (o legada con siguiente) = A TIEMPO si llego en o antes del
+      // compromiso, VENCIDA si despues; sin datos = NO COMPLETADA.
+      const estadoDe = (e, sig) => {
+        if (e.cierre && e.cierre.tipo === 'cancelada') {
+          return { clase: 'rojo', texto: '✕ No completada', aTiempo: false };
+        }
+        const ref = (e.cierre && e.cierre.fecha) || (sig && sig.fecha) || '';
+        if (!e.compromiso || !ref) return { clase: 'rojo', texto: '✕ No completada', aTiempo: false };
+        return ref <= e.compromiso
           ? { clase: 'verde', texto: '✓ A tiempo', aTiempo: true }
-          : { clase: 'rojo', texto: '⚠ Vencida', aTiempo: false });
+          : { clase: 'rojo', texto: '⚠ Vencida', aTiempo: false };
+      };
       // Las anteriores van aparte, bajo HISTORIAL; la vigente encabeza
       // su propia seccion ACCION ACTUAL. Mas nueva primero, como siempre.
       const anteriores = acciones.slice(0, -1)
@@ -989,11 +1216,17 @@ async function hojaDetalle(v, permisos, alCambiar) {
             datoDer) : null,
           h('div.venta-evento__fechas',
             h('span', 'Fecha de creacion: ' + fechaBonita(e.fecha)),
-            e.compromiso ? h('span', 'Fecha compromiso: ' + fechaBonita(e.compromiso)) : null));
-      const hayEstatus = vigente && vigente.compromiso && refCierre !== null;
+            // La ACCION ACTUAL lleva su calendarito real (pedido de Vale).
+            e.compromiso ? h('span' + (esVigente ? '.venta-fecha-cal' : ''),
+              esVigente ? calendarioMini(e.compromiso, true) : null,
+              'Fecha compromiso: ' + fechaBonita(e.compromiso)) : null));
+      // Vigente ya CERRADA (esperando su siguiente): el chip del cierre
+      // sustituye al semaforo y a los dias.
+      const cierreVig = vigente && vigente.cierre;
+      const hayEstatus = vigente && vigente.compromiso && refCierre !== null && !cierreVig;
       const datoDias = hayEstatus
         ? h('span', 'Dias para vencimiento: ', chipDias(diasPara(vigente.compromiso, refCierre)))
-        : null;
+        : (cierreVig ? chipCierre(vigente.cierre) : null);
       // OJO: append(null) pinta el texto "null" (h() si filtra nulos);
       // aqui los condicionales entregan null, se filtran antes de anexar.
       const claveCreada = fechaClave(new Date(v.creado));
@@ -1015,7 +1248,8 @@ async function hojaDetalle(v, permisos, alCambiar) {
             calendarioMini(claveCreada, true),
             h('span.venta-carta__etiqueta', 'Fecha de creacion: '),
             h('span.venta-carta__pie-fecha', fechaCorta(claveCreada))),
-          v.cerrada ? h('p.venta-meta', 'CERRADA' + (v.cerrado ? ' el ' + fechaDeTs(v.cerrado) : '')) : null),
+          v.cerrada ? h('p.venta-meta', 'CERRADA' + (v.cerrado ? ' el ' + fechaDeTs(v.cerrado) : '')) : null,
+          enRevision(v) ? h('p.venta-meta.venta-meta--revision', '🔔 CONCLUIDA — EN REVISION DEL LIDER') : null),
         pv.gestionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
           type: 'button',
           onclick: async () => {
@@ -1030,6 +1264,35 @@ async function hojaDetalle(v, permisos, alCambiar) {
           },
         }, '✎  EDITAR OPORTUNIDAD') : null,
 
+        // EVIDENCIA de la venta completada (arriba: es lo que el lider
+        // viene a revisar); tras aprobarse queda visible en el historial.
+        v.conclusion ? h('h3.venta-grupo', '📎 EVIDENCIA DE VENTA',
+          h('span.sem-dato', v.conclusion.tipo)) : null,
+        v.conclusion ? seccionEvidencia(v) : null,
+        enRevision(v) && permisos.gestionar ? h('button.btn.btn--primario.venta-btn', {
+          type: 'button',
+          onclick: async () => {
+            if (!(await confirmar('¿Aprobar la venta "' + v.titulo + '"? Se cierra con calificacion ' + calificacion(v) + '% y pasa al historial.', { textoOk: 'Aprobar', peligro: false }))) return;
+            v.conclusion.revisada = true;
+            v.cerrada = true;
+            v.cerrado = db.marcaDeTiempo();
+            await db.ventaGuardar(v);
+            pinta();
+            alCambiar();
+          },
+        }, '✔  APROBAR Y CERRAR VENTA') : null,
+        enRevision(v) && permisos.gestionar ? h('button.btn.btn--fantasma.venta-btn', {
+          type: 'button',
+          onclick: async () => {
+            if (!(await confirmar('¿Devolver "' + v.titulo + '" al vendedor? La conclusion se descarta y debera registrar la siguiente accion.', { textoOk: 'Devolver', peligro: true }))) return;
+            delete v.conclusion;
+            v.pendienteAccion = { ts: db.marcaDeTiempo(), porId: v.duenoId || '' };
+            await db.ventaGuardar(v);
+            pinta();
+            alCambiar();
+          },
+        }, '↩  DEVOLVER AL VENDEDOR') : null,
+
         // Solo ACCIONES: ni los atrasos (su presentacion esta por definirse
         // con Vale) ni el "Oportunidad creada" legado se listan aqui —
         // ambos siguen contando para la calificacion segun sus reglas.
@@ -1037,7 +1300,8 @@ async function hojaDetalle(v, permisos, alCambiar) {
         // ACCION ACTUAL lleva su ESTATUS a la derecha (sin los dias: esos
         // van aparte, en "Dias para vencimiento" — regla de Vale).
         h('h3.venta-grupo', '⚡ ACCION ACTUAL',
-          hayEstatus ? chipEstadoCompromiso(vigente.compromiso, refCierre, true) : null),
+          hayEstatus ? chipEstadoCompromiso(vigente.compromiso, refCierre, true) : null,
+          cierreVig ? chipCierre(vigente.cierre) : null),
         vigente
           ? h('div.venta-historial', eventoEl(vigente, true, datoDias))
           : h('p.pista', 'Aun no hay acciones. Agrega la primera.'),
@@ -1103,8 +1367,9 @@ async function hojaDetalle(v, permisos, alCambiar) {
           },
         }, '💡  AGREGAR ANOTACION') : null,
         // Cerrar (modificar) es SOLO del lider o el admin; los vendedores
-        // agregan pero no tocan lo ya registrado.
-        permisos.gestionar && !v.cerrada ? h('button.btn.btn--fantasma.venta-btn', {
+        // agregan pero no tocan lo ya registrado. En revision no aparece:
+        // ahi el cierre es APROBAR (arriba, junto a la evidencia).
+        permisos.gestionar && !v.cerrada && !enRevision(v) ? h('button.btn.btn--fantasma.venta-btn', {
           type: 'button',
           onclick: async () => {
             if (!(await confirmar('¿Cerrar la oportunidad "' + v.titulo + '"? Su calificacion queda en ' + calificacion(v) + '%.', { textoOk: 'Cerrar', peligro: false }))) return;
@@ -1557,6 +1822,8 @@ export async function render(contenedor, refrescar, params = {}) {
 
   let filtroCliente = '';
   let filtroVendedor = '';
+  // El aviso de "concluidas por revisar" (lider) suena UNA vez por visita.
+  let avisoRevision = false;
   // Controles del lider (regla de Vale): AGRUPAR elegible (vendedor,
   // cliente, prioridad o nada) y orden elegible.
   let agruparPor = 'vendedor';
@@ -1669,7 +1936,23 @@ export async function render(contenedor, refrescar, params = {}) {
         h('label.venta-agrupar', chkPorVencer, 'Ver solo cerca de vencer')));
     }
 
-    let lista = abiertas.filter(v => !filtroCliente || v.cliente === filtroCliente);
+    // CONCLUIDAS POR REVISAR (pedido de Vale): el vendedor marco la venta
+    // como completada con evidencia y el LIDER debe revisarla. Van en su
+    // seccion aparte (sin filtros: es una bandeja de pendientes) y no
+    // cuentan en la lista ni en el promedio.
+    const porRevisar = abiertas.filter(v => enRevision(v));
+    if (porRevisar.length) {
+      cont.append(h('h3.venta-grupo', '🔔 CONCLUIDAS POR REVISAR',
+        h('span.sem-dato', porRevisar.length + (porRevisar.length === 1 ? ' venta' : ' ventas'))));
+      for (const v of porRevisar) cont.append(tarjetaVenta(v, veTodas, permisos, pintar));
+      // La "notificacion" del lider: un aviso al entrar al tablero.
+      if (permisos.gestionar && !avisoRevision) {
+        avisoRevision = true;
+        aviso('🔔 ' + (porRevisar.length === 1 ? 'Hay una venta concluida' : 'Hay ' + porRevisar.length + ' ventas concluidas') + ' por revisar.');
+      }
+    }
+
+    let lista = abiertas.filter(v => !enRevision(v) && (!filtroCliente || v.cliente === filtroCliente));
     if (veTodas && filtroVendedor) {
       lista = lista.filter(v => filtroVendedor === '__sin__' ? !v.dueno : v.dueno === filtroVendedor);
     }

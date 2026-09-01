@@ -102,6 +102,7 @@ async function pintarBarraTest() {
       const dv = await import('./vistas/diario.js');
       window.dispatchEvent(new Event('hashchange'));
       dv.revisarCandado();
+      vistaVentas.revisarCandadoVentas();
     };
 
     const inpFecha = h('input.barra-test__campo', { type: 'date', value: est.fecha || '' });
@@ -110,6 +111,7 @@ async function pintarBarraTest() {
       const dv = await import('./vistas/diario.js');
       window.dispatchEvent(new Event('hashchange'));
       dv.revisarCandado();
+      vistaVentas.revisarCandadoVentas();
     };
 
     barra.replaceChildren(
@@ -218,6 +220,9 @@ cargarModoPrueba().catch(() => {}).finally(() => {
   // Candado del Diario: un dia anterior con actividades sin evaluar
   // bloquea la app hasta marcarlas (revisa al abrir y al volver a verse).
   vistaDiario.instalarCandado(pintar);
+  // Candado de Ventas: una accion cerrada sin su SIGUIENTE bloquea al
+  // implicado hasta registrarla (o concluir la venta con evidencia).
+  vistaVentas.instalarCandadoVentas(pintar);
 });
 protegerDatos();
 registrarServiceWorker();
