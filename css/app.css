@@ -1153,18 +1153,46 @@ html.sin-desborde-vuelo, html.sin-desborde-vuelo body { overflow: hidden !import
 /* Menu principal (portada)                                          */
 /* ---------------------------------------------------------------- */
 
+/* La portada es ESTATICA (pedido de Vale): flex:1 dentro de #app = el
+   alto visible exacto (NUNCA min-height:100vh — con el zoom de interfaz
+   100vh rinde 110-150% de pantalla y toda la portada scrolleaba). El
+   centrado lo hacen los margenes auto de la marca y del ultimo elemento;
+   overflow-y:auto queda solo de valvula (zoom 150 en pantalla chica),
+   y aun asi tema/respaldo no viajan: van anclados a #app, no al menu. */
 .menu {
-  position: relative;
-  min-height: 100vh;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 1.9rem;
-  padding: calc(var(--sup) + 1.5rem) 1.2rem 2.2rem;
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column; align-items: center;
+  /* Gaps y paddings ELASTICOS (clamp con vh): en pantallas cortas se
+     comprimen hasta que todo quepa sin scroll; en las normales quedan
+     en su tamano de siempre. */
+  gap: clamp(1rem, 2.6vh, 1.9rem);
+  padding: calc(var(--sup) + clamp(.9rem, 2vh, 1.5rem)) 1.2rem clamp(1.1rem, 2.4vh, 2.2rem);
+  overflow-y: auto;
 }
-.menu__tema { position: absolute; top: calc(var(--sup) + .55rem); right: .8rem; }
-.menu__respaldo { position: absolute; top: calc(var(--sup) + .55rem); left: .8rem; }
+.menu > :last-child { margin-bottom: auto; }
+/* Tema y respaldo GRANDES (pedido de Vale): bien visibles y de dedo.
+   Doble clase: .icono-btn viene despues en el CSS y con una sola
+   clase empataba especificidad y estos tamanos perdian. */
+.icono-btn.menu__tema, .icono-btn.menu__respaldo {
+  position: absolute; top: calc(var(--sup) + .55rem);
+  width: 56px; height: 56px; font-size: 1.7rem;
+}
+.menu__tema { right: .8rem; }
+.menu__respaldo { left: .8rem; }
 .menu .banner { width: 100%; max-width: 430px; }
-.menu__marca { display: flex; flex-direction: column; align-items: center; gap: .9rem; }
-.menu__logo { width: min(44vw, 180px); height: auto; cursor: pointer; }
+/* margin-top:auto + el margin-bottom:auto del ultimo hijo = bloque
+   centrado (lo que antes hacia justify-content, que con overflow
+   cortaria el inicio si algo no cupiera). */
+.menu__marca {
+  display: flex; flex-direction: column; align-items: center;
+  gap: clamp(.45rem, 1.2vh, .9rem);
+  margin-top: auto;
+}
+.menu__logo {
+  width: min(44vw, 180px); height: auto; cursor: pointer;
+  /* En pantallas cortas el logo cede un poco antes que los botones. */
+  max-height: clamp(120px, 25vh, 185px); object-fit: contain;
+}
 .menu__titulo { font-size: 1.5rem; font-weight: 800; letter-spacing: .12em; text-align: center; }
 .menu__botones { width: 100%; max-width: 430px; display: flex; flex-direction: column; gap: .7rem; }
 .menu__boton {
@@ -2290,6 +2318,10 @@ p.titulo-tabla--ver {
    foto queda 1:1 para no alterar los gestos finos de recorte y formas.
    Los avisos escalan por tamaño de letra (no con zoom: su ancho en vw se
    descentra y se corta). */
+/* OJO: dentro de un subtree con zoom, los PORCENTAJES de alto se
+   re-resuelven bien (100% llena exacto), pero los vh NO se compensan:
+   100vh renderiza 110/125/150% de la pantalla. Por eso la portada usa
+   flex:1 (nunca min-height:100vh, que era lo que la hacia scrollear). */
 :root[data-zoomui="110"] #app,
 :root[data-zoomui="110"] .hoja-fondo,
 :root[data-zoomui="110"] .editor-previa,
