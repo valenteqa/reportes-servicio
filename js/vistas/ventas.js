@@ -1925,12 +1925,62 @@ async function renderHistorial(contenedor) {
 }
 
 /* ---------------------------------------------------------------- */
+/* Revision de concluidas (vista dedicada del lider)                 */
+/* ---------------------------------------------------------------- */
+
+// SOLO las concluidas por revisar (pedido de Vale): sin filtros, sin
+// directorio, sin historial, sin nada mas — como la vista del candado
+// del vendedor, pero aqui la navegacion es normal (el atras del celular
+// regresa al menu).
+async function renderRevision(contenedor) {
+  const yo = await quienSoy();
+  const permisos = {
+    crear: puedeCrearVentas(yo),
+    accionar: puedeAccionarVentas(yo),
+    gestionar: puedeGestionarVentas(yo),
+  };
+  const veTodas = veTodasLasVentas(yo);
+
+  contenedor.append(h('header.cabecera',
+    h('div.cabecera__fila',
+      h('h1', '🔔 Concluidas por revisar'),
+    )));
+  const cont = h('div.contenido.diario');
+  contenedor.append(cont);
+
+  if (!veTablero(yo)) {
+    cont.append(h('div.diario-carta', h('p.pista',
+      'Las oportunidades de venta solo las ve el equipo de Ventas.')));
+    return;
+  }
+
+  const pintar = async () => {
+    vaciar(cont);
+    const lista = (await db.ventasTodas())
+      .filter(v => enRevision(v) && (veTodas || (yo && v.duenoId === yo.id)))
+      .sort((a, b) => ((b.conclusion && b.conclusion.ts) || 0) - ((a.conclusion && a.conclusion.ts) || 0));
+    if (!lista.length) {
+      cont.append(h('div.diario-carta', h('p.pista',
+        'No hay ventas concluidas por revisar. ¡Al dia!')));
+      return;
+    }
+    const caja = h('div.venta-revisar',
+      h('h3.venta-grupo', '🔔 CONCLUIDAS POR REVISAR',
+        h('span.sem-dato', lista.length + (lista.length === 1 ? ' venta' : ' ventas'))));
+    for (const v of lista) caja.append(tarjetaVenta(v, veTodas, permisos, pintar));
+    cont.append(caja);
+  };
+  await pintar();
+}
+
+/* ---------------------------------------------------------------- */
 /* Tablero                                                           */
 /* ---------------------------------------------------------------- */
 
 export async function render(contenedor, refrescar, params = {}) {
   if (params.sub === 'dir') return renderDirectorio(contenedor);
   if (params.sub === 'hist') return renderHistorial(contenedor);
+  if (params.sub === 'rev') return renderRevision(contenedor);
 
   const yo = await quienSoy();
   const permisos = {

@@ -18,15 +18,16 @@ async function bannersVentas() {
     if (!yo) return banners;
     const ventas = await db.ventasTodas();
     const irVentas = h('button.btn', {
-      type: 'button', onclick: () => { location.hash = '#/d/ventas'; },
+      type: 'button', onclick: () => { location.hash = '#/d/ventas/rev'; },
     }, 'REVISAR');
     if (puedeGestionarVentas(yo)) {
       const n = ventas.filter(v => !v.cerrada && v.conclusion && !v.conclusion.revisada).length;
       if (n) {
-        banners.push(h('div.banner.banner--aviso',
+        // VERDE (buena noticia) y a UNA linea (pedido de Vale); lleva a
+        // la vista dedicada de revision.
+        banners.push(h('div.banner.banner--exito',
           h('div',
-            h('strong', '🔔 ' + (n === 1 ? 'Una venta concluida' : n + ' ventas concluidas') + ' por revisar'),
-            h('p', 'Marcadas como completadas: revisa su evidencia.')),
+            h('strong', '🔔 ' + (n === 1 ? 'Una venta concluida' : n + ' ventas concluidas') + ' por revisar')),
           irVentas));
       }
     }
