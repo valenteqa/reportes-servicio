@@ -1235,8 +1235,11 @@ html.sin-desborde-vuelo, html.sin-desborde-vuelo body { overflow: hidden !import
 
 /* La portada es ESTATICA (pedido de Vale): flex:1 dentro de #app = el
    alto visible exacto (NUNCA min-height:100vh — con el zoom de interfaz
-   100vh rinde 110-150% de pantalla y toda la portada scrolleaba). El
-   centrado lo hacen los margenes auto de la marca y del ultimo elemento;
+   100vh rinde 110-150% de pantalla y toda la portada scrolleaba).
+   Botonera y version van PEGADAS al borde inferior (pedido de Vale) y el
+   espacio sobrante se reparte en TRES resortes iguales (margenes auto):
+   iconos→frase, frase→marca y marca→botones; en pantalla corta los
+   resortes colapsan a 0 y quedan solo los minimos fijos.
    overflow-y:auto queda solo de valvula (zoom 150 en pantalla chica),
    y aun asi tema/respaldo no viajan: van anclados a #app, no al menu. */
 .menu {
@@ -1246,10 +1249,9 @@ html.sin-desborde-vuelo, html.sin-desborde-vuelo body { overflow: hidden !import
      comprimen hasta que todo quepa sin scroll; en las normales quedan
      en su tamano de siempre. */
   gap: clamp(.8rem, 2.2vh, 1.6rem);
-  padding: calc(var(--sup) + clamp(.9rem, 2vh, 1.5rem)) 1.2rem clamp(.9rem, 2vh, 1.8rem);
+  padding: calc(var(--sup) + clamp(.9rem, 2vh, 1.5rem)) 1.2rem calc(var(--inf) + clamp(.9rem, 2vh, 1.8rem));
   overflow-y: auto;
 }
-.menu > :last-child { margin-bottom: auto; }
 /* Tema y respaldo GRANDES (pedido de Vale): bien visibles y de dedo.
    Doble clase: .icono-btn viene despues en el CSS y con una sola
    clase empataba especificidad y estos tamanos perdian. */
@@ -1273,33 +1275,38 @@ html.sin-desborde-vuelo, html.sin-desborde-vuelo body { overflow: hidden !import
 .menu:has(.banner) .banner { padding: .55rem .8rem; margin-bottom: .3rem; }
 .menu:has(.banner) .menu__frase-texto { font-size: .8rem; }
 /* Banner de FRASES (pedido de Vale, "solo por diversion"): entre los
-   botones de arriba y el logo; cambia en cada apertura de la app. */
+   botones de arriba y el logo; cambia en cada apertura de la app.
+   margin-top:auto = primer resorte del reparto; el padding-top fijo es
+   el MINIMO que libra los botones absolutos de tema/respaldo cuando el
+   resorte colapsa en pantalla corta. */
 .menu__frase {
   width: 100%; max-width: 430px;
-  margin-top: 2.2rem;   /* libra los botones absolutos de tema/respaldo */
+  margin-top: auto;
+  padding-top: 2.2rem;
   text-align: center;
   color: var(--tinta-suave);
 }
 /* Si hay banner de avisos arriba, el libraje ya lo puso el banner. */
-.menu .banner ~ .menu__frase { margin-top: 0; }
+.menu .banner ~ .menu__frase { padding-top: 0; }
 .menu__frase-texto { font-size: .84rem; font-style: italic; line-height: 1.4; }
 .menu__frase-autor {
   font-size: .74rem; margin-top: .2rem;
   color: var(--tinta-tenue); font-weight: 600; letter-spacing: .04em;
 }
-/* margin-top:auto + el margin-bottom:auto del ultimo hijo = bloque
-   centrado (lo que antes hacia justify-content, que con overflow
-   cortaria el inicio si algo no cupiera). */
+/* Resortes segundo y tercero del reparto: la marca flota a la mitad
+   exacta entre la frase y la botonera (que vive pegada abajo). */
 .menu__marca {
   display: flex; flex-direction: column; align-items: center;
   gap: clamp(.45rem, 1.2vh, .9rem);
   margin-top: auto;
+  margin-bottom: auto;
 }
 .menu__logo {
-  width: min(44vw, 180px); height: auto; cursor: pointer;
-  /* En pantallas cortas el logo cede un poco antes que los botones
-     (y un poco siempre: la frase de la portada necesita su lugar). */
-  max-height: clamp(100px, 20vh, 168px); object-fit: contain;
+  width: min(58vw, 240px); height: auto; cursor: pointer;
+  /* En pantallas cortas el logo cede ANTES que los botones: pendiente
+     40vh con offset para que en un telefono normal (~900px de alto)
+     ande por los ~230px pero en 640px baje a ~125px. */
+  max-height: clamp(100px, calc(40vh - 130px), 235px); object-fit: contain;
 }
 .menu__titulo { font-size: 1.5rem; font-weight: 800; letter-spacing: .12em; text-align: center; }
 .menu__botones { width: 100%; max-width: 430px; display: flex; flex-direction: column; gap: .7rem; }
