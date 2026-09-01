@@ -930,6 +930,13 @@ button { font-family: inherit; font-size: inherit; }
    tarjeta pero al MISMO tamano que el titulo de la oportunidad, sin
    robarle espacio y con su elipsis. */
 .venta-cliente-cab { flex: 0 1 auto; max-width: 48%; font-size: 1.08rem; }
+/* Boton "Cliente y sede" de EDITAR: vestido de select (org-select), el
+   valor con elipsis y la flechita — abre el submenu de cuadriculas. */
+.venta-edit-clisede {
+  display: flex; align-items: center; gap: .5rem;
+  width: 100%; text-align: left; font-weight: 700; cursor: pointer;
+}
+.venta-edit-clisede .crece { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Cabecera del detalle CALCADA de la tarjeta del tablero (pedido de
    Vale): F1 vendedor | prioridad | % y F2 cliente + chip de estatus,
    con el MISMO ritmo entre filas de la tarjeta (.75rem); debajo, la

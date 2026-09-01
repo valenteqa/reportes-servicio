@@ -591,14 +591,116 @@ function hojaNuevaAccion(v, contactos, globales) {
 /* Edicion (SOLO lider de Ventas o admin: "poder cambiar todo")      */
 /* ---------------------------------------------------------------- */
 
+// Submenu de cliente y sede para EDITAR (regla de Vale: nada de teclear
+// cliente ni sede a mano) — CALCO de los pasos 1 y 2 del asistente de
+// nueva oportunidad: mismas cuadriculas, "＋ Agregar" y N/A / Omitir.
+function hojaElegirClienteSede(clientes) {
+  return hoja('🏢  Cliente y sede', (cerrar) => {
+    const sel = { cliente: '' };
+    let sedes = [];
+    let i = 0;
+    const TOTAL = 2;
+    const cont = h('div.asistente');
+    const poner = (...nodos) => cont.replaceChildren(...nodos.filter(Boolean));
+
+    const cabeza = (titulo) => h('div.asistente__cab',
+      h('div.asistente__fila',
+        i > 0 ? h('button.icono-btn', { type: 'button', 'aria-label': 'Paso anterior',
+          onclick: () => { i = 0; pintarPaso(); } }, '←') : null,
+        h('div.crece',
+          h('p.asistente__paso', 'PASO ' + (i + 1) + ' / ' + TOTAL),
+          h('h3.asistente__titulo', titulo)
+        )
+      ),
+      i > 0 ? h('p.asistente__miga', sel.cliente) : null
+    );
+
+    const elegirCliente = async (nombre) => {
+      sel.cliente = nombre;
+      sedes = await sedesDe(nombre);
+      i = 1;
+      pintarPaso();
+    };
+    const terminar = (sede) => cerrar({ cliente: sel.cliente, sede });
+
+    function pintarEntrada(titulo, placeholder, opciones, alContinuar, omitible) {
+      const entrada = h('input.campo__entrada', { type: 'text', placeholder });
+      poner(
+        cabeza(titulo),
+        entrada,
+        h('div.hoja__acciones',
+          opciones.length
+            ? h('button.btn.btn--fantasma', { type: 'button', onclick: () => pintarPaso() }, 'Ver opciones')
+            : h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+          h('button.btn.btn--primario', {
+            type: 'button',
+            onclick: () => {
+              const t = entrada.value.trim();
+              if (!t && !omitible) return;
+              alContinuar(t);
+            }
+          }, 'Continuar')
+        )
+      );
+    }
+
+    function pintarPaso() {
+      if (i === 0) {
+        if (!clientes.length) return pintarEntrada('Cliente', 'Cliente', clientes, (t) => { if (t) elegirCliente(t); }, false);
+        poner(
+          cabeza('Cliente'),
+          h('button.asistente__nuevo', {
+            type: 'button',
+            onclick: () => pintarEntrada('Cliente', 'Cliente', clientes, (t) => { if (t) elegirCliente(t); }, false)
+          }, '＋  Agregar cliente'),
+          h('div.asistente__rejilla',
+            clientes.map(o => h('button.asistente__op', { type: 'button', onclick: () => elegirCliente(o) }, o)))
+        );
+        return;
+      }
+      poner(
+        cabeza('Sede'),
+        h('button.asistente__nuevo', {
+          type: 'button',
+          onclick: () => pintarEntrada('Sede', 'Sede / planta del cliente', ['N/A', ...sedes], terminar, true)
+        }, '＋  Agregar sede'),
+        h('div.asistente__rejilla',
+          h('button.asistente__op', { type: 'button', onclick: () => terminar('N/A') }, 'N/A'),
+          sedes.map(o => h('button.asistente__op', { type: 'button', onclick: () => terminar(o) }, o))),
+        h('button.asistente__omitir', {
+          type: 'button',
+          onclick: () => terminar('')
+        }, 'Omitir este paso →')
+      );
+    }
+
+    pintarPaso();
+    return cont;
+  });
+}
+
 async function hojaEditarOportunidad(v) {
   // El lider tambien puede REASIGNAR la oportunidad a otro vendedor.
   const org = await organizacion();
   const equipoVentas = org.usuarios.filter(u => u.depto === 'Ventas');
+  const clientes = await clientesGlobales();
 
   return hoja('✎  Editar oportunidad', (cerrar) => {
-    const cCliente = campo('Cliente', { maxLength: 80, value: v.cliente || '' });
-    const cSede = campo('Sede', { maxLength: 80, value: v.sede || '' });
+    // Cliente y sede NO se teclean a mano (regla de Vale): el boton con
+    // vestido de select abre su submenu de cuadriculas.
+    const sel = { cliente: v.cliente || '', sede: v.sede || '' };
+    const textoCliSede = () => (sel.cliente + (sedeBonita(sel.sede) ? ' ' + sedeBonita(sel.sede) : '')).toUpperCase();
+    const valorCliSede = h('span.crece', textoCliSede());
+    const btnCliSede = h('button.org-select.venta-edit-clisede', {
+      type: 'button',
+      onclick: async () => {
+        const r = await hojaElegirClienteSede(clientes);
+        if (!r) return;
+        sel.cliente = r.cliente;
+        sel.sede = r.sede;
+        valorCliSede.textContent = textoCliSede();
+      },
+    }, valorCliSede, h('span', '▾'));
     const cTitulo = campo('Oportunidad', { maxLength: 160, value: v.titulo || '' });
     const letraActual = prioridadValida(v.prioridad) ? v.prioridad[0] : '';
     const botonesPrio = botoneraPrioridad(letraActual);
@@ -606,7 +708,10 @@ async function hojaEditarOportunidad(v) {
       h('option', { value: '' }, 'Sin vendedor'),
       ...equipoVentas.map(u => h('option', { value: u.id, selected: v.duenoId === u.id }, u.nombre)));
     return h('div',
-      cCliente, cSede, cTitulo,
+      // El VENDEDOR hasta arriba (pedido de Vale).
+      h('label.campo', h('span.campo__etiqueta', 'Vendedor asignado'), selVendedor),
+      h('label.campo', h('span.campo__etiqueta', 'Cliente y sede'), btnCliSede),
+      cTitulo,
       h('label.campo', h('span.campo__etiqueta', 'Prioridad' + (prioridadValida(v.prioridad) ? ' (actual: ' + v.prioridad + ')' : '')), botonesPrio),
       // El orden dentro de la letra se cambia ARRASTRANDO en su hoja
       // (fila GLOBAL: el lider ve todas, de todos los vendedores).
@@ -614,19 +719,17 @@ async function hojaEditarOportunidad(v) {
         type: 'button',
         onclick: () => hojaPrioridades(letraActual),
       }, '⇅  ORDENAR PRIORIDADES ' + letraActual) : null,
-      h('label.campo', h('span.campo__etiqueta', 'Vendedor asignado'), selVendedor),
       h('div.hoja__acciones',
         h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
         h('button.btn.btn--primario', {
           type: 'button',
           onclick: () => {
-            const cliente = cCliente.querySelector('input').value.trim();
             const titulo = cTitulo.querySelector('input').value.trim();
-            if (!cliente || !titulo) { aviso('El cliente y la oportunidad no pueden quedar vacios.', 'error'); return; }
+            if (!sel.cliente || !titulo) { aviso('El cliente y la oportunidad no pueden quedar vacios.', 'error'); return; }
             const dueno = equipoVentas.find(u => u.id === selVendedor.value);
             cerrar({
-              cliente,
-              sede: cSede.querySelector('input').value.trim(),
+              cliente: sel.cliente,
+              sede: sel.sede,
               titulo,
               prioridadLetra: botonesPrio.valorPrio(),
               duenoId: dueno ? dueno.id : '',
@@ -755,7 +858,7 @@ function hojaDetalleAccion(e, esVigente, v, permisos, alCambiar) {
         // Mismo patron del detalle (regla de Vale): estatus SIN dias y
         // los dias para vencimiento aparte, como chip de color.
         esVigente && e.compromiso && !v.cerrada ? h('p.venta-accion-chip', chipEstadoCompromiso(e.compromiso, '', true)) : null,
-        h('p.venta-accion-texto', e.texto),
+        h('p.venta-accion-texto', h('span.venta-carta__etiqueta', 'Descripcion: '), e.texto),
         e.contacto ? h('p.venta-accion-dato', '👤 Contacto: ' + e.contacto) : null,
         h('p.venta-accion-dato', '📅 Fecha de creacion: ' + fechaBonita(e.fecha)),
         e.compromiso ? h('p.venta-accion-dato', '📅 Fecha compromiso: ' + fechaBonita(e.compromiso)) : null,
@@ -880,7 +983,7 @@ async function hojaDetalle(v, permisos, alCambiar) {
           // EDITAR para el lider; borrar acciones ya no existe).
           onclick: () => hojaDetalleAccion(e, esVigente, v, pv, () => { pinta(); alCambiar(); }),
         },
-          h('p.venta-evento__cuerpo', e.texto),
+          h('p.venta-evento__cuerpo', h('span.venta-carta__etiqueta', 'Descripcion: '), e.texto),
           (e.contacto || datoDer) ? h('div.venta-evento__fechas',
             h('span.venta-evento__contacto', e.contacto ? '👤 ' + e.contacto : ''),
             datoDer) : null,
