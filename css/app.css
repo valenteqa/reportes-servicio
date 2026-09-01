@@ -956,7 +956,11 @@ button { font-family: inherit; font-size: inherit; }
 /* Cada accion en su CUADRO: blanco con borde negro (pedido de Vale).
    Los tokens invierten bien en oscuro (superficie oscura, borde claro). */
 .venta-evento {
-  position: relative; display: block;
+  position: relative;
+  /* Pila con RITMO VERTICAL PAREJO (pedido de Vale): la misma distancia
+     entre texto → contacto/dias → fecha de creacion → fecha compromiso
+     la pone el gap; nada de margenes sueltos entre lineas. */
+  display: flex; flex-direction: column; gap: .45rem;
   padding: .5rem .6rem;
   background: var(--superficie);
   border: 1px solid var(--tinta);
@@ -978,10 +982,12 @@ button { font-family: inherit; font-size: inherit; }
    tarjeta del tablero. */
 .venta-evento__fechas {
   display: flex; justify-content: space-between; align-items: baseline;
-  gap: .6rem; flex-wrap: wrap;
+  /* Si las dos fechas no caben y doblan, el salto vertical es el MISMO
+     .45rem del ritmo del cuadro. */
+  gap: .45rem .6rem; flex-wrap: wrap;
   font-size: .9rem; color: var(--tinta-tenue); font-variant-numeric: tabular-nums;
 }
-.venta-evento__cuerpo { margin: 0 0 .25rem; font-size: .9rem; }
+.venta-evento__cuerpo { margin: 0; font-size: .9rem; }
 /* Semaforo de la accion vigente (arriba a la derecha del renglon). */
 .venta-estado-chip {
   position: absolute; top: .5rem; right: .6rem;
@@ -1076,7 +1082,7 @@ button { font-family: inherit; font-size: inherit; }
 .venta-btn-mini { width: 100%; margin-top: .5rem; font-size: .8rem; padding: .45rem; }
 /* Divisor grueso entre acciones y anotaciones (mismo lenguaje visual que
    los separadores de grupo de las tablas). */
-.venta-evento__contacto { display: block; font-size: .9rem; color: var(--tinta-tenue); margin-top: .1rem; }
+.venta-evento__contacto { display: block; font-size: .9rem; color: var(--tinta-tenue); }
 .venta-op__seña { display: block; font-size: .72rem; color: var(--tinta-tenue); font-weight: 400; }
 /* Vendedor asignado, arriba del titulo (vista del lider). */
 /* Mismo tamano que la accion actual (.9rem) — pedido de Vale: vendedor,
