@@ -1,5 +1,7 @@
 # Archivos de la empresa NUNCA entran al repo (es PUBLICO): los Excel
-# viven en OneDrive y ahi se trabajan (regla de Vale, 1 sep 2026).
+# viven en OneDrive y ahi se trabajan; los Word de referencia se quedan
+# solo en el disco local (regla de Vale, 1 sep 2026).
 *.xlsx
 *.xlsm
+*.docx
 Excel/
