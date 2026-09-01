@@ -605,6 +605,64 @@ function hojaNuevaAccion(v, contactos, globales) {
 /* Edicion (SOLO lider de Ventas o admin: "poder cambiar todo")      */
 /* ---------------------------------------------------------------- */
 
+// Submenu de CONTACTO para EDITAR una accion (regla de Vale: el contacto
+// tampoco se teclea a mano) — CALCO del paso de contacto del asistente de
+// nueva accion: cuadricula del cliente y sede, lista GLOBAL y "＋ Agregar".
+// Devuelve { contacto } ('' = sin contacto) o null si se cancela.
+function hojaElegirContacto(v, contactos, globales) {
+  return hoja('👤  Contacto', (cerrar) => {
+    let modoGlobal = false;
+    const cont = h('div.asistente');
+    const poner = (...nodos) => cont.replaceChildren(...nodos.filter(Boolean));
+    const miga = () => h('p.asistente__miga', [v.cliente, v.sede].filter(Boolean).join(' · '));
+
+    function pintarEntrada() {
+      const entrada = h('input.campo__entrada', { type: 'text', placeholder: 'Contacto (a quien viste o veras)' });
+      poner(
+        miga(),
+        entrada,
+        h('div.hoja__acciones',
+          (contactos.length || globales.length)
+            ? h('button.btn.btn--fantasma', { type: 'button', onclick: () => pintar() }, 'Ver opciones')
+            : h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+          h('button.btn.btn--primario', {
+            type: 'button',
+            onclick: () => cerrar({ contacto: entrada.value.trim() })
+          }, 'Continuar')));
+    }
+
+    function pintar() {
+      if (!contactos.length && !globales.length) return pintarEntrada();
+      const rejilla = modoGlobal
+        ? globales.map(g => h('button.asistente__op', {
+          type: 'button',
+          onclick: () => cerrar({ contacto: g.nombre })
+        }, g.nombre, h('span.venta-op__seña', [g.cliente, g.sede].filter(Boolean).join(' · '))))
+        : contactos.map(o => h('button.asistente__op', {
+          type: 'button',
+          onclick: () => cerrar({ contacto: o })
+        }, o));
+      poner(
+        miga(),
+        h('button.asistente__nuevo', { type: 'button', onclick: () => pintarEntrada() },
+          '＋  Agregar contacto'),
+        rejilla.length ? h('div.asistente__rejilla', rejilla)
+          : h('p.pista', modoGlobal ? 'Aun no hay contactos en la organizacion.' : 'Sin contactos de este cliente y sede.'),
+        globales.length ? h('button.btn.btn--fantasma.venta-btn-mini', {
+          type: 'button',
+          onclick: () => { modoGlobal = !modoGlobal; pintar(); },
+        }, modoGlobal ? '👤  VER CONTACTOS DE ESTE CLIENTE' : '🌐  VER LISTA DE CONTACTOS GLOBAL') : null,
+        h('button.asistente__omitir', {
+          type: 'button',
+          onclick: () => cerrar({ contacto: '' })
+        }, 'Sin contacto →'));
+    }
+
+    pintar();
+    return cont;
+  });
+}
+
 // Submenu de cliente y sede para EDITAR (regla de Vale: nada de teclear
 // cliente ni sede a mano) — CALCO de los pasos 1 y 2 del asistente de
 // nueva oportunidad: mismas cuadriculas, "＋ Agregar" y N/A / Omitir.
@@ -705,7 +763,7 @@ async function hojaEditarOportunidad(v) {
     const sel = { cliente: v.cliente || '', sede: v.sede || '' };
     const textoCliSede = () => (sel.cliente + (sedeBonita(sel.sede) ? ' ' + sedeBonita(sel.sede) : '')).toUpperCase();
     const valorCliSede = h('span.crece', textoCliSede());
-    const btnCliSede = h('button.org-select.venta-edit-clisede', {
+    const btnCliSede = h('button.org-select.venta-edit-sel', {
       type: 'button',
       onclick: async () => {
         const r = await hojaElegirClienteSede(clientes);
@@ -833,13 +891,29 @@ function hojaPrioridades(letra) {
   });
 }
 
-function hojaEditarAccion(e) {
+async function hojaEditarAccion(e, v) {
+  // El contacto NO se teclea (regla de Vale): su boton con vestido de
+  // select abre el mismo submenu del asistente.
+  const contactos = await contactosDe(v.cliente, v.sede);
+  const globales = await contactosGlobales();
   return hoja('✎  Editar accion', (cerrar) => {
     const cTexto = campo('Texto del estatus', { maxLength: 240, value: e.texto || '' });
-    const cContacto = campo('Contacto', { maxLength: 120, value: e.contacto || '' });
+    const sel = { contacto: e.contacto || '' };
+    const valorContacto = h('span.crece', sel.contacto || 'Sin contacto');
+    const btnContacto = h('button.org-select.venta-edit-sel', {
+      type: 'button',
+      onclick: async () => {
+        const r = await hojaElegirContacto(v, contactos, globales);
+        if (!r) return;
+        sel.contacto = r.contacto;
+        valorContacto.textContent = sel.contacto || 'Sin contacto';
+      },
+    }, valorContacto, h('span', '▾'));
     const cFecha = campo('Fecha compromiso', { type: 'date', value: e.compromiso || '' });
     return h('div',
-      cTexto, cContacto, cFecha,
+      cTexto,
+      h('label.campo', h('span.campo__etiqueta', 'Contacto'), btnContacto),
+      cFecha,
       h('div.hoja__acciones',
         h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
         h('button.btn.btn--primario', {
@@ -853,7 +927,7 @@ function hojaEditarAccion(e) {
             if (!compromiso) { aviso('Elige la fecha compromiso.', 'error'); return; }
             cerrar({
               texto,
-              contacto: cContacto.querySelector('input').value.trim(),
+              contacto: sel.contacto,
               compromiso,
             });
           },
@@ -929,33 +1003,36 @@ async function flujoVentaCompletada(v) {
     evidencias: ids, revisada: false,
   };
   delete v.pendienteAccion;
+  delete v.devolucion;   // la nueva evidencia atiende la devolucion previa
   await db.ventaGuardar(v);
   aviso('Venta marcada como COMPLETADA: el lider revisara la evidencia.', 'ok');
+  return true;
+}
+
+// Abre el asistente de accion y, si se captura, la vuelve la VIGENTE y
+// borra el pendiente. false si se cancela el asistente.
+async function resolverConAccion(v) {
+  const accion = await hojaNuevaAccion(v, await contactosDe(v.cliente, v.sede), await contactosGlobales());
+  if (!accion) return false;
+  v.historial.push({ ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo: 'estatus', texto: accion.texto, contacto: accion.contacto || '', compromiso: accion.fecha || '' });
+  delete v.pendienteAccion;
+  await db.ventaGuardar(v);
+  aviso('Siguiente accion registrada.', 'ok');
   return true;
 }
 
 // Tras COMPLETAR o CANCELAR la accion vigente es OBLIGATORIO dejar la
 // siguiente accion (o concluir la venta con evidencia): este menu se
 // repite hasta resolverse (regla de Vale); si el usuario se sale de la
-// app, el CANDADO lo trae de vuelta aqui al volver a entrar.
+// app, el CANDADO lo trae de vuelta al volver a entrar.
 async function resolverPendiente(v) {
   for (;;) {
     const opcion = await hoja('⏭  ¿Que sigue?', (cerrar) => h('div',
       h('p.pista', 'La accion vigente de "' + v.titulo + '" (' + v.cliente + ') quedo cerrada: registra la SIGUIENTE accion, o marca la venta como completada con su evidencia.'),
       h('button.btn.btn--primario.venta-btn', { type: 'button', onclick: () => cerrar('accion') }, '✚  REGISTRAR SIGUIENTE ACCION'),
       h('button.btn.btn--fantasma.venta-btn', { type: 'button', onclick: () => cerrar('venta') }, '💰  VENTA COMPLETADA')));
-    if (opcion === 'accion') {
-      const accion = await hojaNuevaAccion(v, await contactosDe(v.cliente, v.sede), await contactosGlobales());
-      if (!accion) continue;
-      v.historial.push({ ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo: 'estatus', texto: accion.texto, contacto: accion.contacto || '', compromiso: accion.fecha || '' });
-      delete v.pendienteAccion;
-      await db.ventaGuardar(v);
-      aviso('Siguiente accion registrada.', 'ok');
-      return true;
-    }
-    if (opcion === 'venta') {
-      if (await flujoVentaCompletada(v)) return true;
-    }
+    if (opcion === 'accion' && await resolverConAccion(v)) return true;
+    if (opcion === 'venta' && await flujoVentaCompletada(v)) return true;
   }
 }
 
@@ -975,20 +1052,29 @@ function mostrarCandadoVentas(v, alTerminar) {
   const cuerpo = h('div.candado-cuerpo');
   capaCandadoVentas = h('div.candado-diario.candado-diario--ventas', cuerpo);
   document.body.appendChild(capaCandadoVentas);
+  // Se abre la PAGINA de la oportunidad (pedido de Vale): el vendedor
+  // revisa el contexto en solo lectura y ahi mismo resuelve — registrar
+  // la siguiente accion o marcar la venta completada. Nada mas.
+  const VISTA = { crear: false, accionar: false, gestionar: false };
+  let abriendo = false;
+  const resolver = async () => {
+    if (abriendo) return;
+    abriendo = true;
+    const r = await hojaDetalle(v, VISTA, () => {}, { candado: true });
+    abriendo = false;
+    if (r !== 'resuelto') return;   // se cerro con back: la capa sigue
+    if (capaCandadoVentas) { capaCandadoVentas.remove(); capaCandadoVentas = null; }
+    if (alTerminar) alTerminar();
+    revisarCandadoVentas();   // por si hay OTRA venta pendiente
+  };
   cuerpo.append(
     h('div.candado-tarjeta',
       h('div.candado-icono', '💲'),
       h('h2', 'Falta la siguiente accion'),
-      h('p.pista', 'Cerraste la accion vigente de "' + v.titulo + '" (' + v.cliente + ') sin dejar la siguiente. Registrala — o marca la venta como completada — para seguir usando la app.'),
-      h('button.btn.btn--primario.candado-btn', {
-        type: 'button',
-        onclick: async () => {
-          await resolverPendiente(v);
-          if (capaCandadoVentas) { capaCandadoVentas.remove(); capaCandadoVentas = null; }
-          if (alTerminar) alTerminar();
-          revisarCandadoVentas();   // por si hay OTRA venta pendiente
-        },
-      }, '⏭  RESOLVER AHORA')));
+      h('p.pista', 'Cerraste la accion vigente de "' + v.titulo + '" (' + v.cliente + ') sin dejar la siguiente. Revisa la oportunidad y resuelve: registra la siguiente accion o marca la venta como completada.'),
+      h('button.btn.btn--primario.candado-btn', { type: 'button', onclick: resolver },
+        '📋  ABRIR LA OPORTUNIDAD Y RESOLVER')));
+  resolver();   // se abre sola de una vez
 }
 
 export function instalarCandadoVentas(alTerminar) {
@@ -1067,7 +1153,7 @@ async function hojaDetalleAccion(e, esVigente, v, permisos, alCambiar) {
         permisos.gestionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
           type: 'button',
           onclick: async () => {
-            const datos = await hojaEditarAccion(e);
+            const datos = await hojaEditarAccion(e, v);
             if (!datos) return;
             e.texto = datos.texto;
             e.contacto = datos.contacto;
@@ -1130,7 +1216,11 @@ function seccionEvidencia(v) {
     rejilla);
 }
 
-async function hojaDetalle(v, permisos, alCambiar) {
+// opciones.candado: la abre el CANDADO de siguiente accion — todo en solo
+// lectura (para revisar el contexto) y SOLO los dos botones de resolucion;
+// la hoja resuelve 'resuelto' cuando se registro la accion o la venta.
+async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
+  const modoCandado = !!opciones.candado;
   // En la CABECERA de la hoja van el TITULO (con su efecto) y el CLIENTE
   // en lugar de la ✕ (pedido de Vale): la hoja se cierra con el atras
   // del telefono, como todas las capas. El header lo construye hoja(),
@@ -1139,7 +1229,8 @@ async function hojaDetalle(v, permisos, alCambiar) {
   // flotante de seccion (ACCION ACTUAL / HISTORIAL / ANOTACIONES).
   // Misma regla que la tarjeta: el vendedor solo se muestra en la vista
   // que ve TODAS las cajas (lider/admin).
-  const veTodas = veTodasLasVentas(await quienSoy());
+  const yo = await quienSoy();
+  const veTodas = veTodasLasVentas(yo);
   let tituloCabEl = null;
   let clienteCabEl = null;
   let actualizarGafete = () => {};
@@ -1163,18 +1254,25 @@ async function hojaDetalle(v, permisos, alCambiar) {
     actualizarGafete();
   });
 
-  await hoja(v.titulo, (cerrar) => {
+  return hoja(v.titulo, (cerrar) => {
     const cuerpo = h('div');
     const pinta = () => {
       // En el HISTORIAL (cerradas) TODO es de solo lectura: estos
       // permisos "de vista" apagan editar/agregar; lo unico vivo es
       // REACTIVAR, que usa los permisos reales (regla de Vale).
-      // Cerrada O en revision del lider: solo lectura (permisos de vista).
-      const pv = (v.cerrada || enRevision(v))
+      // Cerrada, en revision del lider o abierta por el CANDADO: solo
+      // lectura (permisos de vista).
+      const pv = (v.cerrada || enRevision(v) || modoCandado)
         ? { crear: false, accionar: false, gestionar: false }
         : permisos;
       const cal = calificacion(v);
       pintaCab();
+      // El dueño ya VIO la devolucion al abrir el detalle: el aviso de
+      // la portada y del tablero dejan de sonar.
+      if (v.devolucion && !v.devolucion.vista && yo && v.duenoId === yo.id) {
+        v.devolucion.vista = true;
+        db.ventaGuardar(v);
+      }
       // Semaforo y dias: contra HOY en abiertas; en cerradas CONGELADOS
       // al dia del cierre (null = cerrada legada sin fecha: sin semaforo).
       const refCierre = v.cerrada ? (v.cerrado ? fechaClave(new Date(v.cerrado)) : null) : '';
@@ -1264,6 +1362,18 @@ async function hojaDetalle(v, permisos, alCambiar) {
           },
         }, '✎  EDITAR OPORTUNIDAD') : null,
 
+        // Modo CANDADO: SOLO estas dos salidas (regla de Vale) — el resto
+        // de la hoja es consulta de contexto.
+        modoCandado ? h('p.pista', 'Esta venta espera su SIGUIENTE accion: revisa el contexto y resuelve aqui.') : null,
+        modoCandado ? h('button.btn.btn--primario.venta-btn', {
+          type: 'button',
+          onclick: async () => { if (await resolverConAccion(v)) cerrar('resuelto'); },
+        }, '✚  REGISTRAR SIGUIENTE ACCION') : null,
+        modoCandado ? h('button.btn.btn--fantasma.venta-btn', {
+          type: 'button',
+          onclick: async () => { if (await flujoVentaCompletada(v)) cerrar('resuelto'); },
+        }, '💰  VENTA COMPLETADA') : null,
+
         // EVIDENCIA de la venta completada (arriba: es lo que el lider
         // viene a revisar); tras aprobarse queda visible en el historial.
         v.conclusion ? h('h3.venta-grupo', '📎 EVIDENCIA DE VENTA',
@@ -1276,22 +1386,44 @@ async function hojaDetalle(v, permisos, alCambiar) {
             v.conclusion.revisada = true;
             v.cerrada = true;
             v.cerrado = db.marcaDeTiempo();
+            delete v.devolucion;
             await db.ventaGuardar(v);
             pinta();
             alCambiar();
           },
         }, '✔  APROBAR Y CERRAR VENTA') : null,
+        // DEVOLVER (regla de Vale): razon OBLIGATORIA + el lider puede
+        // dejar puesta la nueva accion actual; si no la deja, el candado
+        // se la pide al vendedor. El vendedor recibe el aviso (portada,
+        // tablero y esta hoja) de que su evidencia no fue aceptada.
         enRevision(v) && permisos.gestionar ? h('button.btn.btn--fantasma.venta-btn', {
           type: 'button',
           onclick: async () => {
-            if (!(await confirmar('¿Devolver "' + v.titulo + '" al vendedor? La conclusion se descarta y debera registrar la siguiente accion.', { textoOk: 'Devolver', peligro: true }))) return;
+            const razon = await hojaMotivo('↩  Devolver al vendedor', 'Razon de la devolucion');
+            if (!razon) return;
             delete v.conclusion;
-            v.pendienteAccion = { ts: db.marcaDeTiempo(), porId: v.duenoId || '' };
+            v.devolucion = { ts: db.marcaDeTiempo(), fecha: fechaClave(), razon, porId: yo ? yo.id : '', por: yo ? yo.nombre : '' };
+            const accion = await hojaNuevaAccion(v, await contactosDe(v.cliente, v.sede), await contactosGlobales());
+            if (accion) {
+              v.historial.push({ ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo: 'estatus', texto: accion.texto, contacto: accion.contacto || '', compromiso: accion.fecha || '' });
+              delete v.pendienteAccion;
+            } else {
+              v.pendienteAccion = { ts: db.marcaDeTiempo(), porId: v.duenoId || '' };
+            }
             await db.ventaGuardar(v);
+            aviso('Devuelta al vendedor.', 'ok');
             pinta();
             alCambiar();
           },
         }, '↩  DEVOLVER AL VENDEDOR') : null,
+
+        // La DEVOLUCION vigente (evidencia no aceptada): visible hasta
+        // que el vendedor vuelva a concluir la venta.
+        v.devolucion && !v.conclusion ? h('h3.venta-grupo', '↩ EVIDENCIA DEVUELTA') : null,
+        v.devolucion && !v.conclusion ? h('div.venta-evento.venta-evento--plano',
+          h('p.venta-evento__cuerpo', h('span.venta-carta__etiqueta', 'Razon: '), v.devolucion.razon),
+          h('div.venta-evento__fechas',
+            h('span', 'Devuelta el ' + fechaBonita(v.devolucion.fecha) + (v.devolucion.por ? ' por ' + v.devolucion.por : '')))) : null,
 
         // Solo ACCIONES: ni los atrasos (su presentacion esta por definirse
         // con Vale) ni el "Oportunidad creada" legado se listan aqui —
@@ -1775,7 +1907,18 @@ async function renderHistorial(contenedor) {
 
     const prom = Math.round(cerradas.reduce((s, v) => s + calificacion(v), 0) / cerradas.length);
     cont.append(h('p.sem-total', cerradas.length + ' cerrada' + (cerradas.length === 1 ? '' : 's') + ' · calificacion promedio ' + prom + '%'));
-    for (const v of cerradas) cont.append(tarjetaVenta(v, veTodas, permisos, pintar));
+    // COMPLETADAS (cerradas con su conclusion aprobada: venta ganada con
+    // evidencia) separadas de las CANCELADAS (cerradas sin venta) —
+    // pedido de Vale.
+    const grupo = (titulo, lista) => {
+      if (!lista.length) return;
+      const promG = Math.round(lista.reduce((s, v) => s + calificacion(v), 0) / lista.length);
+      cont.append(h('h3.venta-grupo', titulo,
+        h('span.sem-dato', lista.length + (lista.length === 1 ? ' venta' : ' ventas') + ' · ' + promG + '%')));
+      for (const v of lista) cont.append(tarjetaVenta(v, veTodas, permisos, pintar));
+    };
+    grupo('💰 COMPLETADAS', cerradas.filter(v => v.conclusion));
+    grupo('✕ CANCELADAS', cerradas.filter(v => !v.conclusion));
   };
   await pintar();
 }
@@ -1942,13 +2085,26 @@ export async function render(contenedor, refrescar, params = {}) {
     // cuentan en la lista ni en el promedio.
     const porRevisar = abiertas.filter(v => enRevision(v));
     if (porRevisar.length) {
-      cont.append(h('h3.venta-grupo', '🔔 CONCLUIDAS POR REVISAR',
-        h('span.sem-dato', porRevisar.length + (porRevisar.length === 1 ? ' venta' : ' ventas'))));
-      for (const v of porRevisar) cont.append(tarjetaVenta(v, veTodas, permisos, pintar));
+      // Caja DESTACADA (pedido de Vale): ambar de atencion con el corte
+      // diagonal de la casa — que se vea especial.
+      const caja = h('div.venta-revisar',
+        h('h3.venta-grupo', '🔔 CONCLUIDAS POR REVISAR',
+          h('span.sem-dato', porRevisar.length + (porRevisar.length === 1 ? ' venta' : ' ventas'))));
+      for (const v of porRevisar) caja.append(tarjetaVenta(v, veTodas, permisos, pintar));
+      cont.append(caja);
       // La "notificacion" del lider: un aviso al entrar al tablero.
       if (permisos.gestionar && !avisoRevision) {
         avisoRevision = true;
         aviso('🔔 ' + (porRevisar.length === 1 ? 'Hay una venta concluida' : 'Hay ' + porRevisar.length + ' ventas concluidas') + ' por revisar.');
+      }
+    }
+    // Al VENDEDOR: sus devoluciones sin ver (el lider no acepto la
+    // evidencia), una vez por visita.
+    if (!avisoRevision) {
+      const devueltas = abiertas.filter(v => v.devolucion && !v.devolucion.vista && yo && v.duenoId === yo.id);
+      if (devueltas.length) {
+        avisoRevision = true;
+        aviso('↩ El lider devolvio "' + devueltas[0].titulo + '": revisa la razon en su detalle.', 'error');
       }
     }
 

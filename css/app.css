@@ -930,13 +930,14 @@ button { font-family: inherit; font-size: inherit; }
    tarjeta pero al MISMO tamano que el titulo de la oportunidad, sin
    robarle espacio y con su elipsis. */
 .venta-cliente-cab { flex: 0 1 auto; max-width: 48%; font-size: 1.08rem; }
-/* Boton "Cliente y sede" de EDITAR: vestido de select (org-select), el
-   valor con elipsis y la flechita — abre el submenu de cuadriculas. */
-.venta-edit-clisede {
+/* Botones-selector de EDITAR ("Cliente y sede", "Contacto"): vestido de
+   select (org-select), el valor con elipsis y la flechita — abren su
+   submenu de cuadriculas en vez de teclear (regla de Vale). */
+.venta-edit-sel {
   display: flex; align-items: center; gap: .5rem;
   width: 100%; text-align: left; font-weight: 700; cursor: pointer;
 }
-.venta-edit-clisede .crece { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.venta-edit-sel .crece { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Cabecera del detalle CALCADA de la tarjeta del tablero (pedido de
    Vale): F1 vendedor | prioridad | % y F2 cliente + chip de estatus,
    con el MISMO ritmo entre filas de la tarjeta (.75rem); debajo, la
@@ -978,6 +979,19 @@ button { font-family: inherit; font-size: inherit; }
 }
 .venta-evi-grande { width: 100%; height: auto; }
 .venta-meta--revision { color: var(--aviso, #a3760a); font-weight: 700; }
+/* Caja DESTACADA del tablero (pedido de Vale): las concluidas que
+   esperan la revision del lider, en ambar de atencion con el corte
+   diagonal de la casa. */
+.venta-revisar {
+  padding: .65rem .65rem .05rem;
+  margin-bottom: 1rem;
+  background: var(--aviso-bg);
+  border: 1px solid rgba(242, 182, 60, .45);
+  border-left: 4px solid var(--aviso);
+  clip-path: polygon(12px 0, 100% 0, 100% 100%, 0 100%, 0 12px);
+}
+.venta-revisar .venta-grupo { margin-top: 0; color: var(--aviso); border-bottom-color: var(--aviso); }
+.venta-revisar .sem-dato { color: var(--aviso); }
 /* Respiro extra entre la cabecera y el boton EDITAR del lider (los
    titulos de grupo ya traen su propio margen). */
 .venta-detalle-cab + .venta-btn-mini { margin-top: .8rem; }
@@ -1245,7 +1259,10 @@ html.sin-desborde-vuelo, html.sin-desborde-vuelo body { overflow: hidden !import
 }
 .menu__tema { right: .8rem; }
 .menu__respaldo { left: .8rem; }
-.menu .banner { width: 100%; max-width: 430px; }
+/* Los banners de la portada arrancan DEBAJO de los botones de tema y
+   respaldo (absolutos): sin este margen se encimaban. */
+.menu .banner { width: 100%; max-width: 430px; margin-top: 2.9rem; }
+.menu .banner + .banner { margin-top: 0; }
 /* margin-top:auto + el margin-bottom:auto del ultimo hijo = bloque
    centrado (lo que antes hacia justify-content, que con overflow
    cortaria el inicio si algo no cupiera). */
