@@ -1,9 +1,11 @@
-// Ventas: aqui NO hay diario. El tablero es GLOBAL, por cliente, SEDE y
-// oportunidad de venta, ordenado por fecha de seguimiento y prioridad.
-// Una oportunidad NACE con su primera accion (sin accion no se guarda);
-// cada nueva accion se vuelve el estatus vigente, y cada seguimiento
-// vencido registra un ATRASO automatico (uno por fecha vencida).
-// CALIFICACION de la venta = 1 / total de estatus.
+// Ventas: aqui NO hay diario. El tablero es GLOBAL, por cliente (o
+// PROYECTO interno), SEDE y oportunidad de venta.
+// Cada oportunidad lleva su OBJETIVO (con fecha compromiso FIJA, que no
+// se modifica) y sus REVISIONES DE ESTATUS en fechas agendadas: el lider
+// las resuelve (objetivo completado / sin completar) y agenda la
+// siguiente. CALIFICACION de la venta = 1 / numero de estatus resueltos
+// (la formula del Excel del jefe). Las ACCIONES son aparte: el dia a dia
+// con su propia fecha compromiso, semaforo y atrasos automaticos.
 //
 // Permisos: VER el tablero = solo depto Ventas (o admin); crear/cerrar =
 // lider de Ventas o admin; acciones y anotaciones = depto Ventas o admin.
@@ -145,16 +147,23 @@ async function sedesDe(cliente) {
   return [...vistos.values()].sort((a, b) => a.localeCompare(b, 'es'));
 }
 
-// Contactos del cliente EN ESA SEDE (los contactos dependen de la sede).
-async function contactosDe(cliente, sede) {
-  const cl = (cliente || '').trim().toLowerCase();
-  const sd = (sede || '').trim().toLowerCase();
+// Contactos de la MISMA entidad: cliente EN ESA SEDE (los contactos
+// dependen de la sede) o, si es proyecto, los de ese mismo proyecto.
+async function contactosDe(venta) {
+  const esProy = esProyecto(venta);
+  const pr = (venta.proyecto || '').trim().toLowerCase();
+  const cl = (venta.cliente || '').trim().toLowerCase();
+  const sd = (venta.sede || '').trim().toLowerCase();
   const vistos = new Map();
   const ver = (c) => { if (c && !vistos.has(c.toLowerCase())) vistos.set(c.toLowerCase(), c); };
   try {
     for (const v of await db.ventasTodas()) {
-      if ((v.cliente || '').trim().toLowerCase() !== cl) continue;
-      if (sd && (v.sede || '').trim().toLowerCase() !== sd) continue;
+      if (esProy) {
+        if ((v.proyecto || '').trim().toLowerCase() !== pr) continue;
+      } else {
+        if (esProyecto(v) || (v.cliente || '').trim().toLowerCase() !== cl) continue;
+        if (sd && (v.sede || '').trim().toLowerCase() !== sd) continue;
+      }
       ver(v.contacto);
       for (const e of (v.historial || [])) ver(e.contacto);
     }
@@ -169,10 +178,13 @@ async function contactosGlobales() {
   const vistos = new Map();
   try {
     for (const v of await db.ventasTodas()) {
+      // En la seña del contacto, los proyectos van con su emoji en el
+      // lugar del cliente.
+      const cli = esProyecto(v) ? '📁 ' + v.proyecto : (v.cliente || '');
       const ver = (c) => {
         if (!c) return;
-        const clave = c.toLowerCase() + '|' + (v.cliente || '').toLowerCase() + '|' + (v.sede || '').toLowerCase();
-        if (!vistos.has(clave)) vistos.set(clave, { nombre: c, cliente: v.cliente || '', sede: v.sede || '' });
+        const clave = c.toLowerCase() + '|' + cli.toLowerCase() + '|' + (v.sede || '').toLowerCase();
+        if (!vistos.has(clave)) vistos.set(clave, { nombre: c, cliente: cli, sede: esProyecto(v) ? '' : (v.sede || '') });
       };
       ver(v.contacto);
       for (const e of (v.historial || [])) ver(e.contacto);
@@ -191,8 +203,59 @@ function esCreacionLegada(e) {
   return e.tipo === 'estatus' && e.texto === 'Oportunidad creada';
 }
 
+// CLIENTE o PROYECTO (regla de Vale, 1 sep 2026, del Excel del jefe):
+// una oportunidad es de un cliente (con sede) O de un proyecto interno
+// sin cliente. El proyecto vive en v.proyecto (v.cliente queda vacio):
+// asi los proyectos NO entran a catalogos, directorio ni fichas.
+function esProyecto(v) { return !!v.proyecto; }
+function nombreEntidad(v) { return v.proyecto || v.cliente || ''; }
+// Etiqueta de tarjeta/cabecera: proyecto con su emoji; cliente con su
+// sede SEGUIDA sin punto, como siempre.
+function etiquetaEntidad(v) {
+  return esProyecto(v) ? '📁 ' + v.proyecto
+    : (v.cliente || '') + (sedeBonita(v.sede) ? ' ' + sedeBonita(v.sede) : '');
+}
+// Miga de asistentes y hojas (formato con puntos medios).
+function migaEntidad(v) {
+  return esProyecto(v) ? '📁 ' + v.proyecto
+    : [v.cliente, sedeBonita(v.sede)].filter(Boolean).join(' · ');
+}
+// Proyectos registrados = los usados en oportunidades NO cerradas
+// (regla de Vale: los cerrados ya no se ofrecen al elegir).
+async function proyectosAbiertos() {
+  const vistos = new Map();
+  try {
+    for (const v of await db.ventasTodas()) {
+      if (v.proyecto && !v.cerrada && !vistos.has(v.proyecto.toLowerCase())) {
+        vistos.set(v.proyecto.toLowerCase(), v.proyecto);
+      }
+    }
+  } catch (e) { /* sin ventas */ }
+  return [...vistos.values()].sort((a, b) => a.localeCompare(b, 'es'));
+}
+
+// REVISIONES DE ESTATUS del objetivo (regla de Vale, 1 sep 2026): citas
+// en fechas FIJAS (no se cambian una vez agendadas) que el LIDER resuelve
+// — objetivo completado (dispara venta completada con evidencia) o sin
+// completar (y agenda la siguiente). Viven en v.estatus = [{ts,
+// fechaRevision, por, porId, resultado?: {tipo, texto, fecha, ts, por,
+// porId}}]; a lo mas UNA pendiente: la ultima sin resultado.
+function estatusResueltos(v) {
+  return (v.estatus || []).filter(s => s.resultado);
+}
+
+function estatusPendiente(v) {
+  const lista = v.estatus || [];
+  const ult = lista[lista.length - 1];
+  return ult && !ult.resultado ? ult : null;
+}
+
+// CALIFICACION = la formula del Excel del jefe (1 / numero de estatus):
+// 100% si el objetivo salio en la primera revision, 50% en la segunda...
+// Evalua ESTATUS, ya no acciones (regla de Vale, 1 sep 2026); el % del
+// historial de acciones (a tiempo) es aparte y se queda como estaba.
 function calificacion(v) {
-  const n = (v.historial || []).filter(e => !esCreacionLegada(e)).length || 1;
+  const n = estatusResueltos(v).length || 1;
   return Math.round(100 / n);
 }
 
@@ -330,19 +393,23 @@ async function registrarAtrasos(ventas) {
 /* Formularios                                                       */
 /* ---------------------------------------------------------------- */
 
-// Asistente CALCADO del de Servicio (consistencia): paso 1 el cliente en
-// cuadricula, paso 2 la SEDE del cliente (los contactos dependen de ella),
-// paso 3 los datos de la oportunidad, con la miga de lo elegido.
+// Asistente CALCADO del de Servicio (consistencia): paso 1 CLIENTE o
+// PROYECTO (regla de Vale, 1 sep 2026), paso 2 el elegido en cuadricula,
+// paso 3 la SEDE (solo clientes: los contactos dependen de ella), paso
+// final los datos — titulo, OBJETIVO con su fecha compromiso (fija, no
+// se vuelve a cambiar), descripcion y la PRIMERA fecha de revision del
+// estatus. Con la miga de lo elegido.
 // vendedores: null para un vendedor (la oportunidad es suya), o la lista
 // [{id,nombre}] con EL PRIMERO siendo quien crea (lider/admin) para que
 // pueda ASIGNARLA a cualquiera del equipo (pedido de Vale).
-function hojaNuevaOportunidad(clientes, vendedores) {
+function hojaNuevaOportunidad(clientes, proyectos, vendedores) {
   return hoja('💲  Nueva oportunidad', (cerrar) => {
-    const sel = { cliente: '', sede: '' };
+    const sel = { tipo: '', cliente: '', sede: '', proyecto: '' };
     let vendedorElegido = vendedores ? vendedores[0] : null;
     let sedes = [];
     let i = 0;
-    const TOTAL = 3;
+    // El total de pasos depende del camino (proyecto no lleva sede).
+    const TOTAL = () => sel.tipo === 'proyecto' ? 3 : 4;
     const cont = h('div.asistente');
     const poner = (...nodos) => cont.replaceChildren(...nodos.filter(Boolean));
 
@@ -351,17 +418,28 @@ function hojaNuevaOportunidad(clientes, vendedores) {
         i > 0 ? h('button.icono-btn', { type: 'button', 'aria-label': 'Paso anterior',
           onclick: () => { i -= 1; pintarPaso(); } }, '←') : null,
         h('div.crece',
-          h('p.asistente__paso', 'PASO ' + (i + 1) + ' / ' + TOTAL),
+          h('p.asistente__paso', 'PASO ' + (i + 1) + ' / ' + TOTAL()),
           h('h3.asistente__titulo', titulo)
         )
       ),
-      i > 0 ? h('p.asistente__miga', [sel.cliente, sel.sede].filter(Boolean).join(' · ')) : null
+      i > 1 ? h('p.asistente__miga', sel.tipo === 'proyecto'
+        ? '📁 ' + sel.proyecto
+        : [sel.cliente, sel.sede].filter(Boolean).join(' · ')) : null
     );
 
     const elegirCliente = async (nombre) => {
       sel.cliente = nombre;
+      sel.proyecto = '';
       sedes = await sedesDe(nombre);
-      i = 1;
+      i = 2;
+      pintarPaso();
+    };
+
+    const elegirProyecto = (nombre) => {
+      sel.proyecto = nombre;
+      sel.cliente = '';
+      sel.sede = '';
+      i = 2;
       pintarPaso();
     };
 
@@ -390,6 +468,36 @@ function hojaNuevaOportunidad(clientes, vendedores) {
 
     function pintarPaso() {
       if (i === 0) {
+        // ¿De un CLIENTE o de un PROYECTO interno? (regla de Vale: todo
+        // dentro de Ventas, pero diferenciado.)
+        const elegirTipo = (tipo) => { sel.tipo = tipo; i = 1; pintarPaso(); };
+        poner(
+          cabeza('¿De que es la oportunidad?'),
+          h('button.btn.btn--fantasma.venta-btn', { type: 'button', onclick: () => elegirTipo('cliente') }, '🏢  DE UN CLIENTE'),
+          h('button.btn.btn--fantasma.venta-btn', { type: 'button', onclick: () => elegirTipo('proyecto') }, '📁  DE UN PROYECTO'),
+          h('div.hoja__acciones',
+            h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'))
+        );
+        return;
+      }
+
+      if (i === 1 && sel.tipo === 'proyecto') {
+        // PROYECTO: se elige de los registrados (no cerrados) o se crea
+        // uno nuevo — mismo trato que el submenu de cliente.
+        if (!proyectos.length) return pintarEntrada('Proyecto', 'Nombre del proyecto', proyectos, (v) => { if (v) elegirProyecto(v); }, false);
+        poner(
+          cabeza('Proyecto'),
+          h('button.asistente__nuevo', {
+            type: 'button',
+            onclick: () => pintarEntrada('Proyecto', 'Nombre del proyecto', proyectos, (v) => { if (v) elegirProyecto(v); }, false)
+          }, '＋  Agregar proyecto'),
+          h('div.asistente__rejilla',
+            proyectos.map(o => h('button.asistente__op', { type: 'button', onclick: () => elegirProyecto(o) }, o)))
+        );
+        return;
+      }
+
+      if (i === 1) {
         if (!clientes.length) return pintarEntrada('Cliente', 'Cliente', clientes, (v) => { if (v) elegirCliente(v); }, false);
         poner(
           cabeza('Cliente'),
@@ -403,8 +511,8 @@ function hojaNuevaOportunidad(clientes, vendedores) {
         return;
       }
 
-      if (i === 1) {
-        const continuarSede = (v) => { sel.sede = v; i = 2; pintarPaso(); };
+      if (i === 2 && sel.tipo === 'cliente') {
+        const continuarSede = (v) => { sel.sede = v; i = 3; pintarPaso(); };
         // "N/A" siempre disponible (clientes donde la sede no aplica); por
         // eso la cuadricula existe aunque no haya sedes conocidas.
         poner(
@@ -424,9 +532,15 @@ function hojaNuevaOportunidad(clientes, vendedores) {
         return;
       }
 
-      // La fecha compromiso NO es de la oportunidad: la trae cada accion
-      // (la primera se pide justo despues, obligatoria).
+      // Paso final: los datos. La fecha compromiso del OBJETIVO se fija
+      // aqui y NO se vuelve a modificar (regla del jefe); la primera
+      // fecha de revision del estatus la agenda quien crea (el lider) y
+      // tampoco se cambia. Las acciones traen su propia fecha aparte.
       const cTitulo = campo('Oportunidad', { maxLength: 160, placeholder: 'p. ej. Refacciones para H400' });
+      const cObjetivo = campo('Objetivo final', { maxLength: 240, placeholder: 'p. ej. Vender el paquete de refacciones' });
+      const cCompObj = campo('Fecha compromiso del objetivo', { type: 'date', value: '' });
+      const cDescripcion = campoArea('Descripcion (opcional)', { maxLength: 400 });
+      const cRev1 = campo('Primera fecha de revision del estatus', { type: 'date', value: '' });
       const botonesPrio = botoneraPrioridad('');
 
       // El lider (o el admin) ASIGNA la oportunidad: botones de todo el
@@ -451,6 +565,11 @@ function hojaNuevaOportunidad(clientes, vendedores) {
       poner(
         cabeza('La oportunidad'),
         cTitulo,
+        cObjetivo,
+        cCompObj,
+        h('p.pista', 'La fecha compromiso del objetivo queda FIJA: ya no se podra cambiar.'),
+        cDescripcion,
+        cRev1,
         h('label.campo', h('span.campo__etiqueta', 'Prioridad (opcional)'), botonesPrio),
         filaVendedores,
         h('div.hoja__acciones',
@@ -460,8 +579,17 @@ function hojaNuevaOportunidad(clientes, vendedores) {
             onclick: () => {
               const titulo = cTitulo.querySelector('input').value.trim();
               if (!titulo) { aviso('Describe la oportunidad.', 'error'); return; }
+              const objetivo = cObjetivo.querySelector('input').value.trim();
+              if (!objetivo) { aviso('Escribe el objetivo final.', 'error'); return; }
+              const objetivoCompromiso = cCompObj.querySelector('input').value;
+              if (!objetivoCompromiso) { aviso('Elige la fecha compromiso del objetivo.', 'error'); return; }
+              const primeraRevision = cRev1.querySelector('input').value;
+              if (!primeraRevision) { aviso('Elige la primera fecha de revision del estatus.', 'error'); return; }
               cerrar({
-                cliente: sel.cliente, sede: sel.sede, titulo,
+                cliente: sel.cliente, sede: sel.sede, proyecto: sel.proyecto, titulo,
+                objetivo, objetivoCompromiso,
+                descripcion: cDescripcion.querySelector('textarea, input').value.trim(),
+                primeraRevision,
                 prioridadLetra: botonesPrio.valorPrio(),
                 vendedor: vendedorElegido ? { id: vendedorElegido.id, nombre: vendedorElegido.nombre } : null,
               });
@@ -482,7 +610,7 @@ function hojaNuevaAnotacion(v) {
   return hoja('💡  Nueva anotacion', (cerrar) => {
     const cTexto = campoArea('Dato importante, tip, seña…', { maxLength: 400 });
     return h('div',
-      h('p.pista', v.cliente + (v.sede ? ' · ' + v.sede : '') + ' · ' + v.titulo),
+      h('p.pista', migaEntidad(v) + ' · ' + v.titulo),
       cTexto,
       h('div.hoja__acciones',
         h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
@@ -519,8 +647,8 @@ function hojaNuevaAccion(v, contactos, globales) {
         )
       ),
       i > 0
-        ? h('p.asistente__miga', [v.cliente, v.sede].filter(Boolean).join(' · ') + (sel.contacto ? ' · 👤 ' + sel.contacto : ''))
-        : h('p.asistente__miga', [v.cliente, v.sede].filter(Boolean).join(' · ') + ' · ' + v.titulo)
+        ? h('p.asistente__miga', migaEntidad(v) + (sel.contacto ? ' · 👤 ' + sel.contacto : ''))
+        : h('p.asistente__miga', migaEntidad(v) + ' · ' + v.titulo)
     );
 
     const avanzar = () => { i = 1; pintarPaso(); };
@@ -573,7 +701,9 @@ function hojaNuevaAccion(v, contactos, globales) {
         );
         return;
       }
-      const cTexto = campo('¿Que se hizo? (nuevo estatus)', { maxLength: 240 });
+      // Ya no dice "estatus": los ESTATUS ahora son las revisiones del
+      // objetivo (seccion propia); esto es una ACCION del dia a dia.
+      const cTexto = campo('¿Que se hizo?', { maxLength: 240 });
       const cFecha = campo('Fecha compromiso', { type: 'date', value: '' });
       poner(
         cabeza('La accion'),
@@ -614,7 +744,7 @@ function hojaElegirContacto(v, contactos, globales) {
     let modoGlobal = false;
     const cont = h('div.asistente');
     const poner = (...nodos) => cont.replaceChildren(...nodos.filter(Boolean));
-    const miga = () => h('p.asistente__miga', [v.cliente, v.sede].filter(Boolean).join(' · '));
+    const miga = () => h('p.asistente__miga', migaEntidad(v));
 
     function pintarEntrada() {
       const entrada = h('input.campo__entrada', { type: 'text', placeholder: 'Contacto (a quien viste o veras)' });
@@ -663,37 +793,39 @@ function hojaElegirContacto(v, contactos, globales) {
   });
 }
 
-// Submenu de cliente y sede para EDITAR (regla de Vale: nada de teclear
-// cliente ni sede a mano) — CALCO de los pasos 1 y 2 del asistente de
-// nueva oportunidad: mismas cuadriculas, "＋ Agregar" y N/A / Omitir.
-function hojaElegirClienteSede(clientes) {
-  return hoja('🏢  Cliente y sede', (cerrar) => {
-    const sel = { cliente: '' };
+// Submenu de cliente/proyecto y sede para EDITAR (regla de Vale: nada de
+// teclear a mano) — CALCO de los primeros pasos del asistente de nueva
+// oportunidad: tipo, cuadriculas, "＋ Agregar" y N/A / Omitir. Devuelve
+// { cliente, sede, proyecto } o null si se cancela.
+function hojaElegirEntidad(clientes, proyectos) {
+  return hoja('🏢  Cliente o proyecto', (cerrar) => {
+    const sel = { tipo: '', cliente: '' };
     let sedes = [];
     let i = 0;
-    const TOTAL = 2;
+    const TOTAL = () => sel.tipo === 'proyecto' ? 2 : 3;
     const cont = h('div.asistente');
     const poner = (...nodos) => cont.replaceChildren(...nodos.filter(Boolean));
 
     const cabeza = (titulo) => h('div.asistente__cab',
       h('div.asistente__fila',
         i > 0 ? h('button.icono-btn', { type: 'button', 'aria-label': 'Paso anterior',
-          onclick: () => { i = 0; pintarPaso(); } }, '←') : null,
+          onclick: () => { i -= 1; pintarPaso(); } }, '←') : null,
         h('div.crece',
-          h('p.asistente__paso', 'PASO ' + (i + 1) + ' / ' + TOTAL),
+          h('p.asistente__paso', 'PASO ' + (i + 1) + ' / ' + TOTAL()),
           h('h3.asistente__titulo', titulo)
         )
       ),
-      i > 0 ? h('p.asistente__miga', sel.cliente) : null
+      i > 1 ? h('p.asistente__miga', sel.cliente) : null
     );
 
     const elegirCliente = async (nombre) => {
       sel.cliente = nombre;
       sedes = await sedesDe(nombre);
-      i = 1;
+      i = 2;
       pintarPaso();
     };
-    const terminar = (sede) => cerrar({ cliente: sel.cliente, sede });
+    const elegirProyecto = (nombre) => cerrar({ cliente: '', sede: '', proyecto: nombre });
+    const terminar = (sede) => cerrar({ cliente: sel.cliente, sede, proyecto: '' });
 
     function pintarEntrada(titulo, placeholder, opciones, alContinuar, omitible) {
       const entrada = h('input.campo__entrada', { type: 'text', placeholder });
@@ -718,6 +850,30 @@ function hojaElegirClienteSede(clientes) {
 
     function pintarPaso() {
       if (i === 0) {
+        const elegirTipo = (tipo) => { sel.tipo = tipo; i = 1; pintarPaso(); };
+        poner(
+          cabeza('¿De que es la oportunidad?'),
+          h('button.btn.btn--fantasma.venta-btn', { type: 'button', onclick: () => elegirTipo('cliente') }, '🏢  DE UN CLIENTE'),
+          h('button.btn.btn--fantasma.venta-btn', { type: 'button', onclick: () => elegirTipo('proyecto') }, '📁  DE UN PROYECTO'),
+          h('div.hoja__acciones',
+            h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'))
+        );
+        return;
+      }
+      if (i === 1 && sel.tipo === 'proyecto') {
+        if (!proyectos.length) return pintarEntrada('Proyecto', 'Nombre del proyecto', proyectos, (t) => { if (t) elegirProyecto(t); }, false);
+        poner(
+          cabeza('Proyecto'),
+          h('button.asistente__nuevo', {
+            type: 'button',
+            onclick: () => pintarEntrada('Proyecto', 'Nombre del proyecto', proyectos, (t) => { if (t) elegirProyecto(t); }, false)
+          }, '＋  Agregar proyecto'),
+          h('div.asistente__rejilla',
+            proyectos.map(o => h('button.asistente__op', { type: 'button', onclick: () => elegirProyecto(o) }, o)))
+        );
+        return;
+      }
+      if (i === 1) {
         if (!clientes.length) return pintarEntrada('Cliente', 'Cliente', clientes, (t) => { if (t) elegirCliente(t); }, false);
         poner(
           cabeza('Cliente'),
@@ -756,24 +912,35 @@ async function hojaEditarOportunidad(v) {
   const org = await organizacion();
   const equipoVentas = org.usuarios.filter(u => u.depto === 'Ventas');
   const clientes = await clientesGlobales();
+  const proyectos = await proyectosAbiertos();
 
   return hoja('✎  Editar oportunidad', (cerrar) => {
-    // Cliente y sede NO se teclean a mano (regla de Vale): el boton con
-    // vestido de select abre su submenu de cuadriculas.
-    const sel = { cliente: v.cliente || '', sede: v.sede || '' };
-    const textoCliSede = () => (sel.cliente + (sedeBonita(sel.sede) ? ' ' + sedeBonita(sel.sede) : '')).toUpperCase();
-    const valorCliSede = h('span.crece', textoCliSede());
+    // Cliente/proyecto y sede NO se teclean a mano (regla de Vale): el
+    // boton con vestido de select abre su submenu de cuadriculas.
+    const sel = { cliente: v.cliente || '', sede: v.sede || '', proyecto: v.proyecto || '' };
+    const textoEntidad = () => etiquetaEntidad(sel).toUpperCase();
+    const valorCliSede = h('span.crece', textoEntidad());
     const btnCliSede = h('button.org-select.venta-edit-sel', {
       type: 'button',
       onclick: async () => {
-        const r = await hojaElegirClienteSede(clientes);
+        const r = await hojaElegirEntidad(clientes, proyectos);
         if (!r) return;
         sel.cliente = r.cliente;
         sel.sede = r.sede;
-        valorCliSede.textContent = textoCliSede();
+        sel.proyecto = r.proyecto;
+        valorCliSede.textContent = textoEntidad();
       },
     }, valorCliSede, h('span', '▾'));
     const cTitulo = campo('Oportunidad', { maxLength: 160, value: v.titulo || '' });
+    const cObjetivo = campo('Objetivo final', { maxLength: 240, value: v.objetivo || '' });
+    // La fecha compromiso del objetivo es FIJA (regla del jefe): si ya
+    // existe solo se muestra; si falta (oportunidad vieja) se pone aqui
+    // UNA unica vez.
+    const cCompObj = v.objetivoCompromiso
+      ? null
+      : campo('Fecha compromiso del objetivo (se fija una sola vez)', { type: 'date', value: '' });
+    const cDescripcion = campoArea('Descripcion (opcional)', { maxLength: 400 });
+    cDescripcion.querySelector('textarea, input').value = v.descripcion || '';
     const letraActual = prioridadValida(v.prioridad) ? v.prioridad[0] : '';
     const botonesPrio = botoneraPrioridad(letraActual);
     const selVendedor = h('select.org-select',
@@ -782,8 +949,13 @@ async function hojaEditarOportunidad(v) {
     return h('div',
       // El VENDEDOR hasta arriba (pedido de Vale).
       h('label.campo', h('span.campo__etiqueta', 'Vendedor asignado'), selVendedor),
-      h('label.campo', h('span.campo__etiqueta', 'Cliente y sede'), btnCliSede),
+      h('label.campo', h('span.campo__etiqueta', 'Cliente o proyecto'), btnCliSede),
       cTitulo,
+      cObjetivo,
+      v.objetivoCompromiso
+        ? h('p.pista', '🔒 Fecha compromiso del objetivo: ' + fechaBonita(v.objetivoCompromiso) + ' (fija, no se modifica).')
+        : cCompObj,
+      cDescripcion,
       h('label.campo', h('span.campo__etiqueta', 'Prioridad' + (prioridadValida(v.prioridad) ? ' (actual: ' + v.prioridad + ')' : '')), botonesPrio),
       // El orden dentro de la letra se cambia ARRASTRANDO en su hoja
       // (fila GLOBAL: el lider ve todas, de todos los vendedores).
@@ -797,16 +969,24 @@ async function hojaEditarOportunidad(v) {
           type: 'button',
           onclick: () => {
             const titulo = cTitulo.querySelector('input').value.trim();
-            if (!sel.cliente || !titulo) { aviso('El cliente y la oportunidad no pueden quedar vacios.', 'error'); return; }
+            if ((!sel.cliente && !sel.proyecto) || !titulo) { aviso('El cliente (o proyecto) y la oportunidad no pueden quedar vacios.', 'error'); return; }
             const dueno = equipoVentas.find(u => u.id === selVendedor.value);
-            cerrar({
+            const datos = {
               cliente: sel.cliente,
               sede: sel.sede,
+              proyecto: sel.proyecto,
               titulo,
+              objetivo: cObjetivo.querySelector('input').value.trim(),
+              descripcion: cDescripcion.querySelector('textarea, input').value.trim(),
               prioridadLetra: botonesPrio.valorPrio(),
               duenoId: dueno ? dueno.id : '',
               dueno: dueno ? dueno.nombre : '',
-            });
+            };
+            if (cCompObj) {
+              const f = cCompObj.querySelector('input').value;
+              if (f) datos.objetivoCompromiso = f;
+            }
+            cerrar(datos);
           },
         }, 'Guardar')));
   });
@@ -894,10 +1074,10 @@ function hojaPrioridades(letra) {
 async function hojaEditarAccion(e, v) {
   // El contacto NO se teclea (regla de Vale): su boton con vestido de
   // select abre el mismo submenu del asistente.
-  const contactos = await contactosDe(v.cliente, v.sede);
+  const contactos = await contactosDe(v);
   const globales = await contactosGlobales();
   return hoja('✎  Editar accion', (cerrar) => {
-    const cTexto = campo('Texto del estatus', { maxLength: 240, value: e.texto || '' });
+    const cTexto = campo('Texto de la accion', { maxLength: 240, value: e.texto || '' });
     const sel = { contacto: e.contacto || '' };
     const valorContacto = h('span.crece', sel.contacto || 'Sin contacto');
     const btnContacto = h('button.org-select.venta-edit-sel', {
@@ -1009,10 +1189,92 @@ async function flujoVentaCompletada(v) {
   return true;
 }
 
+/* ---------------------------------------------------------------- */
+/* Revisiones de estatus del objetivo                                */
+/* ---------------------------------------------------------------- */
+
+// SIN COMPLETAR: el texto del estatus y la SIGUIENTE fecha de revision
+// (obligatoria, y fija una vez guardada — regla del jefe).
+function hojaEstatusSinCompletar() {
+  return hoja('✕  Objetivo sin completar', (cerrar) => {
+    const cTexto = campoArea('Estatus (como va el objetivo)', { maxLength: 400 });
+    const cFecha = campo('Siguiente fecha de revision', { type: 'date', value: '' });
+    return h('div',
+      cTexto,
+      cFecha,
+      h('p.pista', 'La siguiente fecha de revision queda FIJA al guardar.'),
+      h('div.hoja__acciones',
+        h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+        h('button.btn.btn--primario', {
+          type: 'button',
+          onclick: () => {
+            const texto = cTexto.querySelector('textarea, input').value.trim();
+            if (!texto) { aviso('Escribe el estatus.', 'error'); return; }
+            const fecha = cFecha.querySelector('input').value;
+            if (!fecha) { aviso('Agenda la siguiente fecha de revision.', 'error'); return; }
+            cerrar({ texto, fecha });
+          },
+        }, 'Guardar')));
+  });
+}
+
+// Resolver la revision pendiente (SOLO lider/admin — regla de Vale, 1 sep
+// 2026; se puede adelantar o hacer tarde). OBJETIVO COMPLETADO pide el
+// texto del estatus y dispara VENTA COMPLETADA (evidencia + revision del
+// lider): si ese flujo se cancela, la revision queda pendiente como
+// estaba. SIN COMPLETAR pide el texto y agenda la siguiente revision.
+async function hojaResolverEstatus(v, pend) {
+  const opcion = await hoja('📈  Actualizar estatus', (cerrar) => h('div',
+    h('p.pista', 'Revision agendada el ' + fechaBonita(pend.fechaRevision) + ' para "' + v.titulo + '" (' + nombreEntidad(v) + '). ¿El objetivo se cumplio?'),
+    h('button.btn.btn--primario.venta-btn', { type: 'button', onclick: () => cerrar('completado') }, '✔  OBJETIVO COMPLETADO'),
+    h('button.btn.btn--fantasma.venta-btn', { type: 'button', onclick: () => cerrar('sin') }, '✕  SIN COMPLETAR'),
+    h('div.hoja__acciones',
+      h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'))));
+  if (!opcion) return false;
+  const yo = await quienSoy();
+  const firma = { fecha: fechaClave(), ts: db.marcaDeTiempo(), porId: yo ? yo.id : '', por: yo ? yo.nombre : '' };
+  if (opcion === 'completado') {
+    const texto = await hojaMotivo('✔  Objetivo completado', 'Estatus (que se logro)');
+    if (!texto) return false;
+    if (!(await flujoVentaCompletada(v))) return false;
+    pend.resultado = { tipo: 'completado', texto, ...firma };
+    await db.ventaGuardar(v);
+    return true;
+  }
+  const r = await hojaEstatusSinCompletar();
+  if (!r) return false;
+  pend.resultado = { tipo: 'sin_completar', texto: r.texto, ...firma };
+  v.estatus.push({ ts: db.marcaDeTiempo(), fechaRevision: r.fecha, porId: yo ? yo.id : '', por: yo ? yo.nombre : '' });
+  await db.ventaGuardar(v);
+  aviso('Estatus registrado; siguiente revision el ' + fechaBonita(r.fecha) + '.', 'ok');
+  return true;
+}
+
+// Ventas creadas ANTES de las revisiones de estatus: el lider les agenda
+// aqui su primera fecha (despues el flujo normal las encadena).
+function hojaAgendarRevision() {
+  return hoja('🗓  Agendar revision de estatus', (cerrar) => {
+    const cFecha = campo('Fecha de revision', { type: 'date', value: '' });
+    return h('div',
+      cFecha,
+      h('p.pista', 'La fecha de revision queda FIJA al guardar: ese dia el lider actualiza el estatus del objetivo.'),
+      h('div.hoja__acciones',
+        h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'),
+        h('button.btn.btn--primario', {
+          type: 'button',
+          onclick: () => {
+            const fecha = cFecha.querySelector('input').value;
+            if (!fecha) { aviso('Elige la fecha de revision.', 'error'); return; }
+            cerrar(fecha);
+          },
+        }, 'Agendar')));
+  });
+}
+
 // Abre el asistente de accion y, si se captura, la vuelve la VIGENTE y
 // borra el pendiente. false si se cancela el asistente.
 async function resolverConAccion(v) {
-  const accion = await hojaNuevaAccion(v, await contactosDe(v.cliente, v.sede), await contactosGlobales());
+  const accion = await hojaNuevaAccion(v, await contactosDe(v), await contactosGlobales());
   if (!accion) return false;
   v.historial.push({ ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo: 'estatus', texto: accion.texto, contacto: accion.contacto || '', compromiso: accion.fecha || '' });
   delete v.pendienteAccion;
@@ -1028,7 +1290,7 @@ async function resolverConAccion(v) {
 async function resolverPendiente(v) {
   for (;;) {
     const opcion = await hoja('⏭  ¿Que sigue?', (cerrar) => h('div',
-      h('p.pista', 'La accion vigente de "' + v.titulo + '" (' + v.cliente + ') quedo cerrada: registra la SIGUIENTE accion, o marca la venta como completada con su evidencia.'),
+      h('p.pista', 'La accion vigente de "' + v.titulo + '" (' + nombreEntidad(v) + ') quedo cerrada: registra la SIGUIENTE accion, o marca la venta como completada con su evidencia.'),
       h('button.btn.btn--primario.venta-btn', { type: 'button', onclick: () => cerrar('accion') }, '✚  REGISTRAR SIGUIENTE ACCION'),
       h('button.btn.btn--fantasma.venta-btn', { type: 'button', onclick: () => cerrar('venta') }, '💰  VENTA COMPLETADA')));
     if (opcion === 'accion' && await resolverConAccion(v)) return true;
@@ -1073,7 +1335,7 @@ function mostrarCandadoVentas(v, alTerminar) {
     h('div.candado-tarjeta',
       h('div.candado-icono', '💲'),
       h('h2', 'Falta la siguiente accion'),
-      h('p.pista', 'Cerraste la accion vigente de "' + v.titulo + '" (' + v.cliente + ') sin dejar la siguiente. Registrala — o marca la venta como completada — para seguir usando la app.'),
+      h('p.pista', 'Cerraste la accion vigente de "' + v.titulo + '" (' + nombreEntidad(v) + ') sin dejar la siguiente. Registrala — o marca la venta como completada — para seguir usando la app.'),
       h('button.btn.btn--primario.candado-btn', { type: 'button', onclick: resolver },
         '✚  REGISTRAR SIGUIENTE ACCION')));
 }
@@ -1237,7 +1499,7 @@ async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
   let actualizarGafete = () => {};
   const pintaCab = () => {
     if (tituloCabEl) tituloCabEl.textContent = v.titulo;
-    if (clienteCabEl) clienteCabEl.textContent = v.cliente + (sedeBonita(v.sede) ? ' ' + sedeBonita(v.sede) : '');
+    if (clienteCabEl) clienteCabEl.textContent = etiquetaEntidad(v);
   };
   queueMicrotask(() => {
     const cab = [...document.querySelectorAll('.hoja .hoja__titulo')].pop();
@@ -1267,6 +1529,8 @@ async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
         ? { crear: false, accionar: false, gestionar: false }
         : permisos;
       const cal = calificacion(v);
+      const resueltos = estatusResueltos(v);
+      const pendiente = estatusPendiente(v);
       pintaCab();
       // El dueño ya VIO la devolucion al abrir el detalle: el aviso de
       // la portada y del tablero dejan de sonar.
@@ -1347,6 +1611,18 @@ async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
             calendarioMini(claveCreada, true),
             h('span.venta-carta__etiqueta', 'Fecha de creacion: '),
             h('span.venta-carta__pie-fecha', fechaCorta(claveCreada))),
+          // La DESCRIPCION va debajo de la linea de creacion (pedido de
+          // Vale, 1 sep 2026); el OBJETIVO con su fecha compromiso FIJA
+          // enseguida — es la columna madre del Excel del jefe.
+          v.descripcion ? h('p.venta-linea-texto',
+            h('span.venta-carta__etiqueta', 'Descripcion: '), v.descripcion) : null,
+          h('p.venta-linea-texto',
+            h('span.venta-carta__etiqueta', '🎯 Objetivo: '),
+            v.objetivo || h('span.venta-carta__alerta', 'SIN OBJETIVO')),
+          v.objetivoCompromiso ? h('p.venta-linea-creada',
+            calendarioMini(v.objetivoCompromiso, true),
+            h('span.venta-carta__etiqueta', 'Compromiso del objetivo: '),
+            h('span.venta-carta__pie-fecha', fechaCorta(v.objetivoCompromiso))) : null,
           v.cerrada ? h('p.venta-meta', 'CERRADA' + (v.cerrado ? ' el ' + fechaDeTs(v.cerrado) : '')) : null,
           enRevision(v) ? h('p.venta-meta.venta-meta--revision', '🔔 CONCLUIDA — EN REVISION DEL LIDER') : null),
         pv.gestionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
@@ -1404,7 +1680,7 @@ async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
             if (!razon) return;
             delete v.conclusion;
             v.devolucion = { ts: db.marcaDeTiempo(), fecha: fechaClave(), razon, porId: yo ? yo.id : '', por: yo ? yo.nombre : '' };
-            const accion = await hojaNuevaAccion(v, await contactosDe(v.cliente, v.sede), await contactosGlobales());
+            const accion = await hojaNuevaAccion(v, await contactosDe(v), await contactosGlobales());
             if (accion) {
               v.historial.push({ ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo: 'estatus', texto: accion.texto, contacto: accion.contacto || '', compromiso: accion.fecha || '' });
               delete v.pendienteAccion;
@@ -1425,6 +1701,57 @@ async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
           h('p.venta-evento__cuerpo', h('span.venta-carta__etiqueta', 'Razon: '), v.devolucion.razon),
           h('div.venta-evento__fechas',
             h('span', 'Devuelta el ' + fechaBonita(v.devolucion.fecha) + (v.devolucion.por ? ' por ' + v.devolucion.por : '')))) : null,
+
+        // ESTATUS del objetivo (regla de Vale, 1 sep 2026): revisiones en
+        // fechas FIJAS que resuelve SOLO el lider — el % de arriba sale
+        // de aqui (formula del jefe). La pendiente muestra sus dias con
+        // el semaforo de la casa; las resueltas, su chip de resultado.
+        h('h3.venta-grupo', '📈 ESTATUS',
+          resueltos.length ? h('span.sem-dato',
+            resueltos.length + (resueltos.length === 1 ? ' revision' : ' revisiones')) : null),
+        pendiente ? h('div.venta-evento.venta-evento--plano',
+          h('p.venta-evento__cuerpo',
+            h('span.venta-carta__etiqueta', 'Proxima revision: '),
+            fechaBonita(pendiente.fechaRevision)),
+          h('div.venta-evento__fechas',
+            h('span.venta-fecha-cal', calendarioMini(pendiente.fechaRevision, true),
+              pendiente.por ? 'Agendada por ' + pendiente.por : 'Revision agendada'),
+            !v.cerrada && !enRevision(v)
+              ? h('span', 'Dias para la revision: ', chipDias(diasPara(pendiente.fechaRevision)))
+              : null)) : null,
+        pendiente && pv.gestionar ? h('button.btn.btn--primario.venta-btn', {
+          type: 'button',
+          onclick: async () => {
+            if (await hojaResolverEstatus(v, pendiente)) { pinta(); alCambiar(); }
+          },
+        }, '📈  ACTUALIZAR ESTATUS') : null,
+        pendiente && !pv.gestionar && !v.cerrada && !enRevision(v)
+          ? h('p.pista', 'El estatus lo actualiza el lider en la fecha agendada.') : null,
+        !pendiente && !resueltos.length
+          ? h('p.pista', 'Sin revisiones de estatus agendadas.') : null,
+        !pendiente && pv.gestionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
+          type: 'button',
+          onclick: async () => {
+            const fecha = await hojaAgendarRevision();
+            if (!fecha) return;
+            if (!v.estatus) v.estatus = [];
+            v.estatus.push({ ts: db.marcaDeTiempo(), fechaRevision: fecha, porId: yo ? yo.id : '', por: yo ? yo.nombre : '' });
+            await db.ventaGuardar(v);
+            pinta();
+            alCambiar();
+          },
+        }, '🗓  AGENDAR REVISION DE ESTATUS') : null,
+        ...resueltos.slice().reverse().map(s => h('div.venta-evento.venta-evento--plano',
+          h('p.venta-evento__cuerpo',
+            h('span.venta-carta__etiqueta', 'Estatus: '), s.resultado.texto),
+          h('div.venta-evento__fechas',
+            h('span', 'Revision del ' + fechaBonita(s.fechaRevision)),
+            s.resultado.tipo === 'completado'
+              ? h('span.venta-estado-chip.venta-estado-chip--verde', '✔ Objetivo completado')
+              : h('span.venta-estado-chip.venta-estado-chip--rojo', '✕ Sin completar')),
+          h('div.venta-evento__fechas',
+            h('span', 'Resuelta el ' + fechaBonita(s.resultado.fecha) +
+              (s.resultado.por ? ' por ' + s.resultado.por : ''))))),
 
         // Solo ACCIONES: ni los atrasos (su presentacion esta por definirse
         // con Vale) ni el "Oportunidad creada" legado se listan aqui —
@@ -1447,7 +1774,7 @@ async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
         pv.accionar ? h('button.btn.btn--primario.venta-btn', {
           type: 'button',
           onclick: async () => {
-            const accion = await hojaNuevaAccion(v, await contactosDe(v.cliente, v.sede), await contactosGlobales());
+            const accion = await hojaNuevaAccion(v, await contactosDe(v), await contactosGlobales());
             if (!accion) return;
             v.historial.push({ ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo: 'estatus', texto: accion.texto, contacto: accion.contacto || '', compromiso: accion.fecha || '' });
             await db.ventaGuardar(v);
@@ -1840,7 +2167,7 @@ function tarjetaVenta(v, veTodas, permisos, alCambiar) {
         : h('span'),
       h('span.venta-cal-solo.' + claseCal(cal), cal + '%')),
     h('div.venta-carta__f2',
-      h('span.venta-carta__cliente', v.cliente + (sedeBonita(v.sede) ? ' ' + sedeBonita(v.sede) : '')),
+      h('span.venta-carta__cliente', etiquetaEntidad(v)),
       // Abiertas: estatus contra HOY. Cerradas (historial): estatus
       // CONGELADO al dia del cierre (si cerro en tiempo, ahi se queda).
       comp && (!v.cerrada || v.cerrado)
@@ -2052,12 +2379,20 @@ export async function render(contenedor, refrescar, params = {}) {
     // (boton al pie), asi que filtros y conteos salen de las abiertas.
     const abiertas = ventas.filter(v => !v.cerrada);
 
-    const clientes = [...new Set(abiertas.map(v => v.cliente))].sort((a, b) => a.localeCompare(b));
+    // El filtro lista clientes Y proyectos (los proyectos con su emoji);
+    // el valor lleva prefijo para no confundir un cliente y un proyecto
+    // con el mismo nombre.
+    const entidades = [...new Map(abiertas
+      .filter(v => nombreEntidad(v))
+      .map(v => [(esProyecto(v) ? 'p:' : 'c:') + nombreEntidad(v).toLowerCase(),
+        { clave: (esProyecto(v) ? 'p:' : 'c:') + nombreEntidad(v).toLowerCase(),
+          texto: esProyecto(v) ? '📁 ' + v.proyecto : v.cliente }]))
+      .values()].sort((a, b) => a.texto.localeCompare(b.texto, 'es'));
 
-    // Filtro por cliente + alta (solo lider/admin)
+    // Filtro por cliente/proyecto + alta (solo lider/admin)
     const selFiltro = h('select.org-select.venta-filtro',
-      h('option', { value: '' }, 'Todos los clientes'),
-      ...clientes.map(c => h('option', { value: c, selected: filtroCliente === c }, c)));
+      h('option', { value: '' }, 'Todos los clientes y proyectos'),
+      ...entidades.map(e => h('option', { value: e.clave, selected: filtroCliente === e.clave }, e.texto)));
     selFiltro.onchange = () => { filtroCliente = selFiltro.value; pintar(); };
     cont.append(h('div.gd-nav',
       selFiltro,
@@ -2074,23 +2409,28 @@ export async function render(contenedor, refrescar, params = {}) {
             vendedores = [{ id: yo.id, nombre: yo.nombre },
               ...equipo.map(u => ({ id: u.id, nombre: u.nombre }))];
           }
-          const datos = await hojaNuevaOportunidad(await clientesGlobales(), vendedores);
+          const datos = await hojaNuevaOportunidad(await clientesGlobales(), await proyectosAbiertos(), vendedores);
           if (!datos) return;
           // Se guarda de inmediato (sin forzar la primera accion) y la
-          // oportunidad queda ABIERTA con su boton ✚ para agregarla.
-          const { prioridadLetra, vendedor, ...restoDatos } = datos;
+          // oportunidad queda ABIERTA con su boton ✚ para agregarla. La
+          // PRIMERA revision de estatus queda agendada desde aqui.
+          const { prioridadLetra, vendedor, primeraRevision, ...restoDatos } = datos;
           const dueno = vendedor || (yo ? { id: yo.id, nombre: yo.nombre } : { id: '', nombre: '' });
           const v = {
             id: db.nuevoId(), ...restoDatos, prioridad: '', cerrada: false, creado: db.marcaDeTiempo(),
             duenoId: dueno.id, dueno: dueno.nombre,
             anotaciones: [],
             historial: [],
+            estatus: [{ ts: db.marcaDeTiempo(), fechaRevision: primeraRevision, porId: yo ? yo.id : '', por: yo ? yo.nombre : '' }],
           };
           await db.ventaGuardar(v);
           // La letra elegida toma el siguiente numero libre de su fila.
           if (prioridadLetra) await asignarPrioridad(v, prioridadLetra);
           // cliente y sede nuevos → al catalogo global de toda la app
-          try { await db.maquinaRecordar({ cliente: datos.cliente, planta: datos.sede }); } catch (e) { /* opcional */ }
+          // (los PROYECTOS no: no son clientes y no van a catalogos).
+          if (datos.cliente) {
+            try { await db.maquinaRecordar({ cliente: datos.cliente, planta: datos.sede }); } catch (e) { /* opcional */ }
+          }
           await pintar();
           hojaDetalle(v, permisos, pintar);
         },
@@ -2159,7 +2499,8 @@ export async function render(contenedor, refrescar, params = {}) {
       }
     }
 
-    let lista = abiertas.filter(v => !enRevision(v) && (!filtroCliente || v.cliente === filtroCliente));
+    let lista = abiertas.filter(v => !enRevision(v) &&
+      (!filtroCliente || (esProyecto(v) ? 'p:' : 'c:') + nombreEntidad(v).toLowerCase() === filtroCliente));
     if (veTodas && filtroVendedor) {
       lista = lista.filter(v => filtroVendedor === '__sin__' ? !v.dueno : v.dueno === filtroVendedor);
     }
@@ -2222,7 +2563,9 @@ export async function render(contenedor, refrescar, params = {}) {
       const ICONO_GRUPO = { vendedor: '🧑‍🔧 ', cliente: '🏢 ', prioridad: '🎯 ' };
       const claveDe = (v) => {
         if (agruparPor === 'cliente') {
-          return ((v.cliente || 'Sin cliente') + (sedeBonita(v.sede) ? ' ' + sedeBonita(v.sede) : '')).toUpperCase();
+          // Los proyectos agrupan por su nombre (ya traen su 📁).
+          return esProyecto(v) ? etiquetaEntidad(v).toUpperCase()
+            : ((v.cliente || 'Sin cliente') + (sedeBonita(v.sede) ? ' ' + sedeBonita(v.sede) : '')).toUpperCase();
         }
         if (agruparPor === 'prioridad') {
           return prioridadValida(v.prioridad) ? 'Prioridad ' + v.prioridad[0] : 'Sin prioridad';
@@ -2240,7 +2583,8 @@ export async function render(contenedor, refrescar, params = {}) {
       for (const nombre of nombres) {
         const suyas = grupos.get(nombre);
         const promG = Math.round(suyas.reduce((s, v) => s + calificacion(v), 0) / suyas.length);
-        const cabGrupo = h('h3.venta-grupo', ICONO_GRUPO[agruparPor] + nombre,
+        // Los grupos de proyecto ya traen su 📁: sin doble emoji.
+        const cabGrupo = h('h3.venta-grupo', (nombre.startsWith('📁') ? '' : ICONO_GRUPO[agruparPor]) + nombre,
           h('span.sem-dato', suyas.length + ' abierta' + (suyas.length === 1 ? '' : 's') + ' · ' + promG + '%'));
         // El gafete flotante lee de aqui QUE es el grupo (para poner el
         // avatar del vendedor con sus iniciales, pedido de Vale).

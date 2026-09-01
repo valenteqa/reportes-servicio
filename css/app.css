@@ -953,6 +953,13 @@ button { font-family: inherit; font-size: inherit; }
   display: flex; align-items: center; gap: .45rem;
   margin: 0; font-size: .9rem; color: var(--tinta-suave);
 }
+/* Lineas de TEXTO de la cabecera del detalle (descripcion y objetivo,
+   1 sep 2026): mismo cuerpo que la linea de creacion pero fluyen en
+   varios renglones. */
+.venta-linea-texto {
+  margin: 0; font-size: .9rem; color: var(--tinta);
+  overflow-wrap: break-word;
+}
 .venta-calmini--chico { width: 32px; border-radius: 4px; }
 .venta-calmini--chico .venta-calmini__mes { font-size: .5rem; padding: .06rem .12rem .04rem; letter-spacing: .04em; }
 .venta-calmini--chico .venta-calmini__dia { font-size: .8rem; line-height: 1.15; padding: 0 .12rem .05rem; }
