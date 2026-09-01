@@ -1,11 +1,13 @@
 // Ventas: aqui NO hay diario. El tablero es GLOBAL, por cliente (o
-// PROYECTO interno), SEDE y oportunidad de venta.
-// Cada oportunidad lleva su OBJETIVO (con fecha compromiso FIJA, que no
-// se modifica) y sus REVISIONES DE ESTATUS en fechas agendadas: el lider
-// las resuelve (objetivo completado / sin completar) y agenda la
+// PROYECTO interno), SEDE y OBJETIVO de venta.
+// El TITULO del objetivo ES el objetivo (regla de Vale, 1 sep 2026: eran
+// lo mismo y el campo aparte se fue); lleva su fecha compromiso FIJA
+// (no se modifica) y sus REVISIONES DE ESTATUS en fechas agendadas: el
+// lider las resuelve (objetivo completado / sin completar) y agenda la
 // siguiente. CALIFICACION de la venta = 1 / numero de estatus resueltos
 // (la formula del Excel del jefe). Las ACCIONES son aparte: el dia a dia
 // con su propia fecha compromiso, semaforo y atrasos automaticos.
+// TERMINOLOGIA UI: "objetivo de venta" (antes "oportunidad").
 //
 // Permisos: VER el tablero = solo depto Ventas (o admin); crear/cerrar =
 // lider de Ventas o admin; acciones y anotaciones = depto Ventas o admin.
@@ -417,8 +419,8 @@ async function registrarAtrasos(ventas) {
 // vendedores: null para un vendedor (la oportunidad es suya), o la lista
 // [{id,nombre}] con EL PRIMERO siendo quien crea (lider/admin) para que
 // pueda ASIGNARLA a cualquiera del equipo (pedido de Vale).
-function hojaNuevaOportunidad(clientes, proyectos, vendedores) {
-  return hoja('💲  Nueva oportunidad', (cerrar) => {
+function hojaNuevoObjetivo(clientes, proyectos, vendedores) {
+  return hoja('💲  Nuevo objetivo', (cerrar) => {
     const sel = { tipo: '', cliente: '', sede: '', proyecto: '' };
     let vendedorElegido = vendedores ? vendedores[0] : null;
     let sedes = [];
@@ -487,7 +489,7 @@ function hojaNuevaOportunidad(clientes, proyectos, vendedores) {
         // dentro de Ventas, pero diferenciado.)
         const elegirTipo = (tipo) => { sel.tipo = tipo; i = 1; pintarPaso(); };
         poner(
-          cabeza('¿De que es la oportunidad?'),
+          cabeza('¿De que es el objetivo?'),
           h('button.btn.btn--fantasma.venta-btn', { type: 'button', onclick: () => elegirTipo('cliente') }, '🏢  DE UN CLIENTE'),
           h('button.btn.btn--fantasma.venta-btn', { type: 'button', onclick: () => elegirTipo('proyecto') }, '📁  DE UN PROYECTO'),
           h('div.hoja__acciones',
@@ -547,12 +549,12 @@ function hojaNuevaOportunidad(clientes, proyectos, vendedores) {
         return;
       }
 
-      // Paso final: los datos. La fecha compromiso del OBJETIVO se fija
-      // aqui y NO se vuelve a modificar (regla del jefe); la primera
-      // fecha de revision del estatus la agenda quien crea (el lider) y
-      // tampoco se cambia. Las acciones traen su propia fecha aparte.
-      const cTitulo = campo('Oportunidad', { maxLength: 160, placeholder: 'p. ej. Refacciones para H400' });
-      const cObjetivo = campo('Objetivo final', { maxLength: 240, placeholder: 'p. ej. Vender el paquete de refacciones' });
+      // Paso final: los datos. El TITULO es el objetivo (regla de Vale:
+      // eran lo mismo). Su fecha compromiso se fija aqui y NO se vuelve
+      // a modificar (regla del jefe); la primera fecha de revision del
+      // estatus la agenda quien crea (el lider) y tampoco se cambia.
+      // Las acciones traen su propia fecha aparte.
+      const cTitulo = campo('Objetivo', { maxLength: 160, placeholder: 'p. ej. Vender el paquete de refacciones' });
       const cCompObj = campo('Fecha compromiso del objetivo', { type: 'date', value: '' });
       const cDescripcion = campoArea('Descripcion (opcional)', { maxLength: 400 });
       const cRev1 = campo('Primera fecha de revision del estatus', { type: 'date', value: '' });
@@ -578,9 +580,8 @@ function hojaNuevaOportunidad(clientes, proyectos, vendedores) {
       }
 
       poner(
-        cabeza('La oportunidad'),
+        cabeza('El objetivo'),
         cTitulo,
-        cObjetivo,
         cCompObj,
         h('p.pista', 'La fecha compromiso del objetivo queda FIJA: ya no se podra cambiar.'),
         cDescripcion,
@@ -593,16 +594,14 @@ function hojaNuevaOportunidad(clientes, proyectos, vendedores) {
             type: 'button',
             onclick: () => {
               const titulo = cTitulo.querySelector('input').value.trim();
-              if (!titulo) { aviso('Describe la oportunidad.', 'error'); return; }
-              const objetivo = cObjetivo.querySelector('input').value.trim();
-              if (!objetivo) { aviso('Escribe el objetivo final.', 'error'); return; }
+              if (!titulo) { aviso('Describe el objetivo.', 'error'); return; }
               const objetivoCompromiso = cCompObj.querySelector('input').value;
               if (!objetivoCompromiso) { aviso('Elige la fecha compromiso del objetivo.', 'error'); return; }
               const primeraRevision = cRev1.querySelector('input').value;
               if (!primeraRevision) { aviso('Elige la primera fecha de revision del estatus.', 'error'); return; }
               cerrar({
                 cliente: sel.cliente, sede: sel.sede, proyecto: sel.proyecto, titulo,
-                objetivo, objetivoCompromiso,
+                objetivoCompromiso,
                 descripcion: cDescripcion.querySelector('textarea, input').value.trim(),
                 primeraRevision,
                 prioridadLetra: botonesPrio.valorPrio(),
@@ -867,7 +866,7 @@ function hojaElegirEntidad(clientes, proyectos) {
       if (i === 0) {
         const elegirTipo = (tipo) => { sel.tipo = tipo; i = 1; pintarPaso(); };
         poner(
-          cabeza('¿De que es la oportunidad?'),
+          cabeza('¿De que es el objetivo?'),
           h('button.btn.btn--fantasma.venta-btn', { type: 'button', onclick: () => elegirTipo('cliente') }, '🏢  DE UN CLIENTE'),
           h('button.btn.btn--fantasma.venta-btn', { type: 'button', onclick: () => elegirTipo('proyecto') }, '📁  DE UN PROYECTO'),
           h('div.hoja__acciones',
@@ -922,14 +921,14 @@ function hojaElegirEntidad(clientes, proyectos) {
   });
 }
 
-async function hojaEditarOportunidad(v) {
+async function hojaEditarObjetivo(v) {
   // El lider tambien puede REASIGNAR la oportunidad a otro vendedor.
   const org = await organizacion();
   const equipoVentas = org.usuarios.filter(u => u.depto === 'Ventas');
   const clientes = await clientesGlobales();
   const proyectos = await proyectosAbiertos();
 
-  return hoja('✎  Editar oportunidad', (cerrar) => {
+  return hoja('✎  Editar objetivo', (cerrar) => {
     // Cliente/proyecto y sede NO se teclean a mano (regla de Vale): el
     // boton con vestido de select abre su submenu de cuadriculas.
     const sel = { cliente: v.cliente || '', sede: v.sede || '', proyecto: v.proyecto || '' };
@@ -946,10 +945,9 @@ async function hojaEditarOportunidad(v) {
         valorCliSede.textContent = textoEntidad();
       },
     }, valorCliSede, h('span', '▾'));
-    const cTitulo = campo('Oportunidad', { maxLength: 160, value: v.titulo || '' });
-    const cObjetivo = campo('Objetivo final', { maxLength: 240, value: v.objetivo || '' });
+    const cTitulo = campo('Objetivo', { maxLength: 160, value: v.titulo || '' });
     // La fecha compromiso del objetivo es FIJA (regla del jefe): si ya
-    // existe solo se muestra; si falta (oportunidad vieja) se pone aqui
+    // existe solo se muestra; si falta (objetivo viejo) se pone aqui
     // UNA unica vez.
     const cCompObj = v.objetivoCompromiso
       ? null
@@ -966,7 +964,6 @@ async function hojaEditarOportunidad(v) {
       h('label.campo', h('span.campo__etiqueta', 'Vendedor asignado'), selVendedor),
       h('label.campo', h('span.campo__etiqueta', 'Cliente o proyecto'), btnCliSede),
       cTitulo,
-      cObjetivo,
       v.objetivoCompromiso
         ? h('p.pista', '🔒 Fecha compromiso del objetivo: ' + fechaBonita(v.objetivoCompromiso) + ' (fija, no se modifica).')
         : cCompObj,
@@ -984,14 +981,13 @@ async function hojaEditarOportunidad(v) {
           type: 'button',
           onclick: () => {
             const titulo = cTitulo.querySelector('input').value.trim();
-            if ((!sel.cliente && !sel.proyecto) || !titulo) { aviso('El cliente (o proyecto) y la oportunidad no pueden quedar vacios.', 'error'); return; }
+            if ((!sel.cliente && !sel.proyecto) || !titulo) { aviso('El cliente (o proyecto) y el objetivo no pueden quedar vacios.', 'error'); return; }
             const dueno = equipoVentas.find(u => u.id === selVendedor.value);
             const datos = {
               cliente: sel.cliente,
               sede: sel.sede,
               proyecto: sel.proyecto,
               titulo,
-              objetivo: cObjetivo.querySelector('input').value.trim(),
               descripcion: cDescripcion.querySelector('textarea, input').value.trim(),
               prioridadLetra: botonesPrio.valorPrio(),
               duenoId: dueno ? dueno.id : '',
@@ -1019,7 +1015,7 @@ function hojaPrioridades(letra) {
     const pinta = async () => {
       fila = filaDePrioridad(await db.ventasTodas(), letra);
       if (!fila.length) {
-        listaEl.replaceChildren(h('p.pista', 'No hay oportunidades abiertas con prioridad ' + letra + '.'));
+        listaEl.replaceChildren(h('p.pista', 'No hay objetivos abiertos con prioridad ' + letra + '.'));
         return;
       }
       listaEl.replaceChildren(...fila.map((v, idx) => {
@@ -1656,18 +1652,13 @@ async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
               ? h('span.venta-prio-badge.venta-prio-badge--' + COLOR_PRIO[v.prioridad[0]], v.prioridad)
               : h('span'),
             h('span.venta-cal-solo.' + claseCal(cal), cal + '%')),
-          h('p.venta-linea-creada',
-            calendarioMini(claveCreada, true),
-            h('span.venta-carta__etiqueta', 'Fecha de creacion: '),
-            h('span.venta-carta__pie-fecha', fechaCorta(claveCreada))),
-          // La DESCRIPCION va debajo de la linea de creacion (pedido de
-          // Vale, 1 sep 2026); el OBJETIVO con su fecha compromiso FIJA
-          // enseguida — es la columna madre del Excel del jefe.
+          // Fecha de creacion CHIQUITA y sin calendarito (pedido de
+          // Vale, 1 sep 2026); la DESCRIPCION debajo, y la fecha
+          // compromiso del objetivo (el TITULO es el objetivo) con su
+          // calendarito — la columna G del Excel del jefe.
+          h('p.venta-meta', 'Fecha de creacion: ' + fechaCorta(claveCreada)),
           v.descripcion ? h('p.venta-linea-texto',
             h('span.venta-carta__etiqueta', 'Descripcion: '), v.descripcion) : null,
-          h('p.venta-linea-texto',
-            h('span.venta-carta__etiqueta', '🎯 Objetivo: '),
-            v.objetivo || h('span.venta-carta__alerta', 'SIN OBJETIVO')),
           v.objetivoCompromiso ? h('p.venta-linea-creada',
             calendarioMini(v.objetivoCompromiso, true),
             h('span.venta-carta__etiqueta', 'Fecha compromiso: '),
@@ -1677,7 +1668,7 @@ async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
         pv.gestionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
           type: 'button',
           onclick: async () => {
-            const datos = await hojaEditarOportunidad(v);
+            const datos = await hojaEditarObjetivo(v);
             if (!datos) return;
             const { prioridadLetra, ...resto } = datos;
             Object.assign(v, resto);
@@ -1686,7 +1677,7 @@ async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
             pinta();
             alCambiar();
           },
-        }, '✎  EDITAR OPORTUNIDAD') : null,
+        }, '✎  EDITAR OBJETIVO') : null,
 
         // Modo CANDADO: SOLO estas dos salidas (regla de Vale) — el resto
         // de la hoja es consulta de contexto.
@@ -1873,20 +1864,20 @@ async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
         permisos.gestionar && !v.cerrada && !enRevision(v) ? h('button.btn.btn--fantasma.venta-btn', {
           type: 'button',
           onclick: async () => {
-            if (!(await confirmar('¿Cerrar la oportunidad "' + v.titulo + '"? Su calificacion queda en ' + calificacion(v) + '%.', { textoOk: 'Cerrar', peligro: false }))) return;
+            if (!(await confirmar('¿Cerrar el objetivo "' + v.titulo + '"? Su calificacion queda en ' + calificacion(v) + '%.', { textoOk: 'Cerrar', peligro: false }))) return;
             v.cerrada = true;
             v.cerrado = db.marcaDeTiempo();   // para ordenar el historial
             await db.ventaGuardar(v);
             pinta();
             alCambiar();
           },
-        }, '✔  CERRAR OPORTUNIDAD') : null,
+        }, '✔  CERRAR OBJETIVO') : null,
         // En el HISTORIAL lo unico vivo es REACTIVAR (solo el lider o el
         // admin): la oportunidad regresa al tablero de abiertas.
         permisos.gestionar && v.cerrada ? h('button.btn.btn--fantasma.venta-btn', {
           type: 'button',
           onclick: async () => {
-            if (!(await confirmar('¿Reactivar la oportunidad "' + v.titulo + '"? Regresa al tablero de abiertas.', { textoOk: 'Reactivar', peligro: false }))) return;
+            if (!(await confirmar('¿Reactivar el objetivo "' + v.titulo + '"? Regresa al tablero de abiertos.', { textoOk: 'Reactivar', peligro: false }))) return;
             v.cerrada = false;
             delete v.cerrado;
             await db.ventaGuardar(v);
@@ -1900,7 +1891,7 @@ async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
             pinta();
             alCambiar();
           },
-        }, '↺  REACTIVAR OPORTUNIDAD') : null,
+        }, '↺  REACTIVAR OBJETIVO') : null,
       ];
       vaciar(cuerpo).append(...partes.filter(Boolean));
       actualizarGafete();
@@ -2253,7 +2244,7 @@ async function renderHistorial(contenedor) {
 
   if (!veTablero(yo)) {
     cont.append(h('div.diario-carta', h('p.pista',
-      'Las oportunidades de venta solo las ve el equipo de Ventas. El estatus del depto esta en 🏢 Organizacion.')));
+      'Los objetivos de venta solo los ve el equipo de Ventas. El estatus del depto esta en 🏢 Organizacion.')));
     return;
   }
 
@@ -2270,12 +2261,12 @@ async function renderHistorial(contenedor) {
 
     if (!cerradas.length) {
       cont.append(h('div.diario-carta', h('p.pista',
-        'Aun no hay oportunidades cerradas. Cuando se cierre una, aqui queda guardada.')));
+        'Aun no hay objetivos cerrados. Cuando se cierre uno, aqui queda guardado.')));
       return;
     }
 
     const prom = Math.round(cerradas.reduce((s, v) => s + calificacion(v), 0) / cerradas.length);
-    cont.append(h('p.sem-total', cerradas.length + ' cerrada' + (cerradas.length === 1 ? '' : 's') + ' · calificacion promedio ' + prom + '%'));
+    cont.append(h('p.sem-total', cerradas.length + ' cerrado' + (cerradas.length === 1 ? '' : 's') + ' · calificacion promedio ' + prom + '%'));
     // COMPLETADAS (cerradas con su conclusion aprobada: venta ganada con
     // evidencia) separadas de las CANCELADAS (cerradas sin venta) —
     // pedido de Vale.
@@ -2318,7 +2309,7 @@ async function renderRevision(contenedor) {
 
   if (!veTablero(yo)) {
     cont.append(h('div.diario-carta', h('p.pista',
-      'Las oportunidades de venta solo las ve el equipo de Ventas.')));
+      'Los objetivos de venta solo los ve el equipo de Ventas.')));
     return;
   }
 
@@ -2362,7 +2353,7 @@ export async function render(contenedor, refrescar, params = {}) {
 
   contenedor.append(h('header.cabecera',
     h('div.cabecera__fila',
-      h('h1', '💲 Ventas'),
+      h('h1', '💲 Objetivos de Ventas'),
       // El directorio vive en la cabecera (pedido de Vale); el letrero de
       // "cajas" se fue — el filtro por vendedor ya cuenta esa historia.
       veDirectorio(yo) ? h('button.btn.btn--fantasma.btn--pequeno.cabecera__accion', {
@@ -2378,7 +2369,7 @@ export async function render(contenedor, refrescar, params = {}) {
   // porcentajes del depto siguen siendo publicos en Organizacion.
   if (!veTablero(yo)) {
     cont.append(h('div.diario-carta', h('p.pista',
-      'Las oportunidades de venta solo las ve el equipo de Ventas. El estatus del depto esta en 🏢 Organizacion.')));
+      'Los objetivos de venta solo los ve el equipo de Ventas. El estatus del depto esta en 🏢 Organizacion.')));
     return;
   }
 
@@ -2450,7 +2441,7 @@ export async function render(contenedor, refrescar, params = {}) {
             vendedores = [{ id: yo.id, nombre: yo.nombre },
               ...equipo.map(u => ({ id: u.id, nombre: u.nombre }))];
           }
-          const datos = await hojaNuevaOportunidad(await clientesGlobales(), await proyectosAbiertos(), vendedores);
+          const datos = await hojaNuevoObjetivo(await clientesGlobales(), await proyectosAbiertos(), vendedores);
           if (!datos) return;
           // Se guarda de inmediato (sin forzar la primera accion) y la
           // oportunidad queda ABIERTA con su boton ✚ para agregarla. La
@@ -2582,18 +2573,18 @@ export async function render(contenedor, refrescar, params = {}) {
     if (!lista.length) {
       const hayFiltro = filtroCliente || filtroVendedor || soloVencidas || soloPorVencer;
       cont.append(h('div.diario-carta', h('p.pista', hayFiltro
-        ? 'Sin oportunidades abiertas con estos filtros.'
+        ? 'Sin objetivos abiertos con estos filtros.'
         : (ventas.length
-          ? 'Sin oportunidades abiertas; las cerradas viven en el historial.'
+          ? 'Sin objetivos abiertos; los cerrados viven en el historial.'
           : (permisos.crear
-            ? 'Aun no hay oportunidades de venta. Crea la primera con ✚ NUEVA.'
-            : 'Aun no hay oportunidades de venta. Las crea el lider de Ventas.')))));
+            ? 'Aun no hay objetivos de venta. Crea el primero con ✚ NUEVA.'
+            : 'Aun no hay objetivos de venta. Los crea el lider de Ventas.')))));
       cont.append(btnHistorial);
       return;
     }
 
     const prom = Math.round(lista.reduce((s, v) => s + calificacion(v), 0) / lista.length);
-    cont.append(h('p.sem-total', lista.length + ' abierta' + (lista.length === 1 ? '' : 's') + ' · calificacion promedio ' + prom + '%'));
+    cont.append(h('p.sem-total', lista.length + ' abierto' + (lista.length === 1 ? '' : 's') + ' · calificacion promedio ' + prom + '%'));
 
     // Sin agrupar (vendedor, o lider con "Sin agrupar"): lista corrida.
     if (!veTodas || !agruparPor) {
@@ -2626,7 +2617,7 @@ export async function render(contenedor, refrescar, params = {}) {
         const promG = Math.round(suyas.reduce((s, v) => s + calificacion(v), 0) / suyas.length);
         // Los grupos de proyecto ya traen su 📁: sin doble emoji.
         const cabGrupo = h('h3.venta-grupo', (nombre.startsWith('📁') ? '' : ICONO_GRUPO[agruparPor]) + nombre,
-          h('span.sem-dato', suyas.length + ' abierta' + (suyas.length === 1 ? '' : 's') + ' · ' + promG + '%'));
+          h('span.sem-dato', suyas.length + ' abierto' + (suyas.length === 1 ? '' : 's') + ' · ' + promG + '%'));
         // El gafete flotante lee de aqui QUE es el grupo (para poner el
         // avatar del vendedor con sus iniciales, pedido de Vale).
         cabGrupo.dataset.tipo = agruparPor;
