@@ -38,32 +38,19 @@ export function ajustarRolAlDepto(u) {
 export const AVISO_SOLO_LIDER =
   'Pide a tu lider de area que apruebe y haga el cambio: solo el puede hacerlo.';
 
-// Padron inicial dictado por Vale (los deptos los asigna el admin en ⚙).
-const SEMILLA = [
-  { nombre: 'Usuario',   rol: 'admin' },
-  { nombre: 'Usuario2', rol: 'usuario' },
-  { nombre: 'Usuario3',   rol: 'usuario' },
-  { nombre: 'Usuario4',       rol: 'usuario' },
-  { nombre: 'Usuario5',     rol: 'usuario' },
-  { nombre: 'Usuario6',   rol: 'usuario' },
-  { nombre: 'Usuario7',     rol: 'usuario' },
-  { nombre: 'Usuario8',  rol: 'usuario' },
-];
+// Sin padron precargado: el administrador da de alta a cada persona en ⚙.
+// Los nombres del equipo NO van en el codigo: el repositorio es publico.
+const SEMILLA = [];
 
 export async function organizacion() {
   let org = await ajusteLeer('organizacion');
-  if (!org || !Array.isArray(org.usuarios) || !org.usuarios.length) {
+  if (!org || !Array.isArray(org.usuarios)) {
     org = { usuarios: SEMILLA.map(u => ({ id: nuevoId(), depto: '', ...u })) };
     await ajusteGuardar('organizacion', org);
   }
-  // Migracion v2: Usuario2 es el LIDER de VENTAS (dictado por Vale). Solo
-  // se aplica si el admin no lo ha movido a otra cosa a mano.
+  // Migracion v2 (historica): ya corrio en todos los telefonos; solo se
+  // conserva el numero de version para que las siguientes apliquen.
   if (!org.v || org.v < 2) {
-    const juan = org.usuarios.find(u => u.nombre === 'Usuario2');
-    if (juan) {
-      if (!juan.depto) juan.depto = 'Ventas';
-      if (juan.rol === 'usuario') juan.rol = 'lider';
-    }
     org.v = 2;
     await ajusteGuardar('organizacion', org);
   }
@@ -74,15 +61,11 @@ export async function organizacion() {
     org.v = 3;
     await ajusteGuardar('organizacion', org);
   }
-  // Migracion v4: PERMISOS ESPECIALES por usuario (dictado de Vale, 31 ago
-  // 2026): Usuario2 y Fredy pueden editar contactos del directorio. Solo
-  // se siembra una vez; despues manda lo que el admin ajuste en ⚙.
+  // Migracion v4 (historica): PERMISOS ESPECIALES por usuario. Ya corrio en
+  // todos los telefonos; los permisos los ajusta el admin en ⚙.
   if (org.v < 4) {
     for (const u of org.usuarios) {
       if (!u.permisos) u.permisos = {};
-      if (u.nombre === 'Usuario2' || u.nombre === 'Usuario5') {
-        u.permisos.contactos = true;
-      }
     }
     org.v = 4;
     await ajusteGuardar('organizacion', org);

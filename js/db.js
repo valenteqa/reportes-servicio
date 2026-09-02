@@ -169,7 +169,7 @@ export function servicioNuevo(datos) {
     titulo:      datos.titulo      || '',   // pruebas de laboratorio y general solo llevan titulo
     cliente:     datos.cliente     || '',
     planta:      datos.planta      || '',
-    marca:       datos.marca       || '',   // "Tipo de Maquina" en el reporte (HUSKY)
+    marca:       datos.marca       || '',   // "Tipo de Maquina" en el reporte (fabricante)
     modelo:      datos.modelo      || '',
     noMaquina:   datos.noMaquina   || '',   // linea de produccion o numero de maquina (opcional)
     serie:       datos.serie       || '',

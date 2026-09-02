@@ -54,7 +54,7 @@ de la lista de trabajos, p. ej. `v2.0` — así se comprueba que llegó.
 Al crear, primero eliges el **tipo**: 🔧 Servicio (pide cliente, planta, modelo,
 serie y descripción de la falla), 🧪 Pruebas de laboratorio o 📋 General (estos
 dos solo piden un título). El técnico no se pregunta: es el usuario de la app
-(ajuste `usuario`, hoy "Usuario").
+(ajuste `usuario`, que se captura en ⚙ → Nombre del tecnico).
 
 La vista del trabajo es **un árbol** (estilo skill tree): el tronco es el
 trabajo, cada rama es una **actividad** y de cada rama cuelgan sus registros en

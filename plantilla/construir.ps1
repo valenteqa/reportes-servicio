@@ -10,11 +10,17 @@
 #   powershell -ExecutionPolicy Bypass -File plantilla/construir.ps1 -Origen "ruta\al\reporte.docx"
 
 param(
-  [string]$Origen = "C:\Users\Vale\OneDrive\5 SER PRO DRIVE\SERVICIO\Reportes\CLIENTE REPORTE SERVICIO FALLA DRIVE RCVQ-251024-0.docx"
+  [string]$Origen = ''
 )
 
 $ErrorActionPreference = 'Stop'
 $aqui = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+# Los literales del Word de referencia (ruta, cliente, planta, marca, modelo,
+# serie y tecnico) viven en plantilla/construir.local.ps1, FUERA del repo:
+# el repositorio es publico y ningun dato de cliente o persona va en el codigo.
+. (Join-Path $aqui 'construir.local.ps1')
+if (-not $Origen) { $Origen = $OrigenLocal }
 $tmp = Join-Path $env:TEMP ("plantilla-" + [guid]::NewGuid().ToString('N').Substring(0,8))
 New-Item -ItemType Directory -Path $tmp | Out-Null
 
@@ -38,13 +44,10 @@ $iniSect = $doc.LastIndexOf('<w:sectPr')
 $cola = $doc.Substring($iniSect)
 
 # Tokens simples (texto contiguo en el original)
-$cabeza = $cabeza.Replace('CLIENTE', '{{CLIENTE}}')
-$cabeza = $cabeza.Replace('HUSKY', '{{MARCA}}')
-$cabeza = $cabeza.Replace('H400 RS65/60', '{{MODELO}}')
-$cabeza = $cabeza.Replace('0000000', '{{SERIE}}')
-# Literales con acentos armados por codigo: PowerShell 5.1 lee el .ps1 sin BOM
-# como ANSI y corrompe los caracteres UTF-8 escritos directamente.
-$nombreTecnico = 'Jos' + [char]0xE9 + ' Usuario'
+$cabeza = $cabeza.Replace($clienteOriginal, '{{CLIENTE}}')
+$cabeza = $cabeza.Replace($marcaOriginal, '{{MARCA}}')
+$cabeza = $cabeza.Replace($modeloOriginal, '{{MODELO}}')
+$cabeza = $cabeza.Replace($serieOriginal, '{{SERIE}}')
 $cabeza = $cabeza.Replace($nombreTecnico, '{{TECNICO}}')
 
 # Celdas con texto fragmentado en varios runs: se vacia el primer parrafo de la

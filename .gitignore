@@ -5,3 +5,12 @@
 *.xlsm
 *.docx
 Excel/
+
+# Material privado que vive SOLO en esta PC (fotos de cameos, sonidos crudos,
+# documentacion interna, nombre del tecnico): nunca al repo publico.
+Cameos-fuente/
+Goofy sounds/
+cameos/
+NUBE.md
+plantilla/construir.local.ps1
+_preview-*.html

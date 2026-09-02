@@ -42,19 +42,10 @@ export async function abrirConfiguracion() {
   await hojaConfiguracion();
 }
 
-// Catalogo precargado: clientes y maquinas conocidos aunque el telefono aun
-// no tenga historial propio. El primero es el del reporte de referencia.
-// El historial real siempre tiene prioridad sobre esto.
-const PRECARGADOS = [
-  {
-    cliente: 'CLIENTE',
-    planta: 'PLANTA',
-    marca: 'HUSKY',
-    modelo: 'H400 RS65/60',
-    serie: '0000000',
-    noMaquina: '',
-  },
-];
+// Catalogo precargado: vacio a proposito. Los clientes y maquinas salen del
+// historial real del telefono y del catalogo administrable en ⚙; ningun
+// dato de cliente va en el codigo (el repositorio es publico).
+const PRECARGADOS = [];
 
 const norm = (x) => (x || '').trim().toLowerCase();
 
@@ -366,17 +357,10 @@ async function hojaUsuarios() {
 }
 
 async function hojaProbador() {
-  const cam = await import('../cameos.js');
   await hoja('🎬  Probador de animaciones', (cerrar) => h('div',
     h('div.lista-acciones',
       h('button.lista-acciones__item', { type: 'button', onclick: () => ensayoDeMarca() },
         '✨  Ensayo del logo (animaciones y sonidos)')
-    ),
-    h('p.pista', 'Cameos (se asoman por abajo):'),
-    h('div.lista-acciones',
-      cam.CAMEOS.map(c =>
-        h('button.lista-acciones__item', { type: 'button', onclick: () => cam.mostrarCameo(c) },
-          '🎭  ' + c.nombre))
     )
   ));
 }
@@ -497,7 +481,7 @@ async function hojaDiagnostico() {
 
 // Cada telefono tiene su tecnico: es quien firma los reportes nuevos.
 async function hojaTecnico() {
-  const actual = await db.ajusteLeer('usuario', 'Usuario');
+  const actual = await db.ajusteLeer('usuario', '');
   await hoja('👤  Nombre del tecnico', (cerrar) => {
     const cNombre = campo('Nombre completo', { value: actual });
     return h('div',
@@ -912,7 +896,7 @@ export async function nuevoServicio() {
     return;
   }
 
-  const usuario = await db.ajusteLeer('usuario', 'Usuario');
+  const usuario = await db.ajusteLeer('usuario', '');
   const trabajo = await db.servicioNuevo(Object.assign({ tipo, tecnico: usuario }, datos));
   if (conMaquina(tipo)) db.maquinaRecordar(trabajo);   // alimenta las sugerencias
   location.hash = '#/s/' + trabajo.id;

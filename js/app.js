@@ -136,16 +136,9 @@ window.addEventListener('error', (ev) => {
 });
 
 // Al instalarse, pedir que Android no borre los datos por falta de espacio.
-// De paso, dejar registrado el usuario de la app (es el tecnico de los reportes).
 async function protegerDatos() {
   try {
-    const { pedirPersistencia, estadoAlmacenamiento, ajusteLeer, ajusteGuardar } = await import('./db.js');
-    // Nombre completo: es el que se imprime como Tecnico en el reporte.
-    // (Tambien actualiza el "Usuario" corto que sembraron versiones previas.)
-    const usuario = await ajusteLeer('usuario');
-    if (!usuario || usuario === 'Usuario') {
-      await ajusteGuardar('usuario', 'Usuario');
-    }
+    const { pedirPersistencia, estadoAlmacenamiento } = await import('./db.js');
     const info = await estadoAlmacenamiento();
     if (info.soportado && !info.persistente) await pedirPersistencia();
   } catch (e) { /* sin soporte */ }
@@ -230,5 +223,3 @@ cargarModoPrueba().catch(() => {})
 protegerDatos();
 registrarServiceWorker();
 
-// Cameos sorpresa (aparecen al azar tras acciones, con enfriamiento).
-import('./cameos.js').then(m => m.instalarCameos()).catch(() => {});
