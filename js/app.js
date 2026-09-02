@@ -102,7 +102,6 @@ async function pintarBarraTest() {
       const dv = await import('./vistas/diario.js');
       window.dispatchEvent(new Event('hashchange'));
       dv.revisarCandado();
-      vistaVentas.revisarCandadoVentas();
     };
 
     const inpFecha = h('input.barra-test__campo', { type: 'date', value: est.fecha || '' });
@@ -111,7 +110,6 @@ async function pintarBarraTest() {
       const dv = await import('./vistas/diario.js');
       window.dispatchEvent(new Event('hashchange'));
       dv.revisarCandado();
-      vistaVentas.revisarCandadoVentas();
     };
 
     barra.replaceChildren(
@@ -215,15 +213,20 @@ aplicarTema(temaActual());   // sincroniza meta theme-color con lo aplicado al a
 
 // La fecha/usuario del MODO PRUEBA se cargan ANTES del primer pintado y
 // del candado del Diario, para que toda la app viva ya en ese estado.
-cargarModoPrueba().catch(() => {}).finally(() => {
-  pintar();
-  // Candado del Diario: un dia anterior con actividades sin evaluar
-  // bloquea la app hasta marcarlas (revisa al abrir y al volver a verse).
-  vistaDiario.instalarCandado(pintar);
-  // Candado de Ventas: una accion cerrada sin su SIGUIENTE bloquea al
-  // implicado hasta registrarla (o concluir la venta con evidencia).
-  vistaVentas.instalarCandadoVentas(pintar);
-});
+// La NUBE (Excel en OneDrive) cierra primero una conexion pendiente con
+// Microsoft (?code= en la URL) y luego se engancha para sincronizar sola;
+// si su modulo fallara, la app arranca igual.
+cargarModoPrueba().catch(() => {})
+  .then(() => import('./nube.js'))
+  .then(m => m.terminarConexion().catch(() => {}).then(() => m))
+  .catch(() => null)
+  .then((nube) => {
+    pintar();
+    // Candado del Diario: un dia anterior con actividades sin evaluar
+    // bloquea la app hasta marcarlas (revisa al abrir y al volver a verse).
+    vistaDiario.instalarCandado(pintar);
+    if (nube) nube.instalarNube();
+  });
 protegerDatos();
 registrarServiceWorker();
 

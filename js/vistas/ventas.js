@@ -14,7 +14,7 @@
 // El DIRECTORIO de clientes lo ven Ventas, Administracion y el admin.
 // Los porcentajes del depto siguen siendo publicos en Organizacion.
 
-import { h, aviso, vaciar, confirmar, hoja, campo, campoArea, ocupado, libre } from '../ui.js';
+import { h, aviso, vaciar, confirmar, hoja, campo, campoArea, campoLista, ocupado, libre } from '../ui.js';
 import * as db from '../db.js';
 import * as media from '../media.js';
 import { organizacion, quienSoy, puedeCrearVentas, puedeAccionarVentas, puedeGestionarVentas, veTodasLasVentas, puedeEditarContactos, fechaSimulada } from '../organizacion.js';
@@ -27,7 +27,7 @@ import { clientesConocidos } from './servicios.js';
 // Los valores viejos (alta/media/baja) simplemente no pasan el patron
 // y se muestran como "sin prioridad".
 const RE_PRIORIDAD = /^[ABC][1-9]\d*$/;
-function prioridadValida(p) { return typeof p === 'string' && RE_PRIORIDAD.test(p); }
+export function prioridadValida(p) { return typeof p === 'string' && RE_PRIORIDAD.test(p); }
 
 // Clave ordenable: A antes que B/C, numero con ceros; sin prioridad al final.
 function clavePrio(v) {
@@ -201,7 +201,7 @@ async function contactosGlobales() {
 
 // El registro "Oportunidad creada" de ventas viejas NO cuenta como accion
 // (regla de Vale): ni en la calificacion ni en las listas.
-function esCreacionLegada(e) {
+export function esCreacionLegada(e) {
   return e.tipo === 'estatus' && e.texto === 'Oportunidad creada';
 }
 
@@ -209,11 +209,29 @@ function esCreacionLegada(e) {
 // una oportunidad es de un cliente (con sede) O de un proyecto interno
 // sin cliente. El proyecto vive en v.proyecto (v.cliente queda vacio):
 // asi los proyectos NO entran a catalogos, directorio ni fichas.
-function esProyecto(v) { return !!v.proyecto; }
-function nombreEntidad(v) { return v.proyecto || v.cliente || ''; }
+export function esProyecto(v) { return !!v.proyecto; }
+export function nombreEntidad(v) { return v.proyecto || v.cliente || ''; }
+
+// TEMA (columna del Excel del jefe, 1 sep 2026): etiqueta LIBRE y opcional
+// que agrupa objetivos ("Venta Refacciones", "Visita Colombia"…). Se
+// sugieren los temas ya usados para no escribirlos distinto cada vez.
+async function temasConocidos() {
+  const vistos = new Map();
+  for (const v of await db.ventasTodas()) {
+    const t = (v.tema || '').trim();
+    if (t && !vistos.has(t.toLowerCase())) vistos.set(t.toLowerCase(), t);
+  }
+  return [...vistos.values()].sort((a, b) => a.localeCompare(b, 'es'));
+}
+
+function campoTema(valor) {
+  const c = campoLista('Tema (opcional, agrupa objetivos)', { maxLength: 60, value: valor || '' },
+    { opciones: temasConocidos });
+  return c;
+}
 // Etiqueta de tarjeta/cabecera: proyecto con su emoji; cliente con su
 // sede SEGUIDA sin punto, como siempre.
-function etiquetaEntidad(v) {
+export function etiquetaEntidad(v) {
   return esProyecto(v) ? '📁 ' + v.proyecto
     : (v.cliente || '') + (sedeBonita(v.sede) ? ' ' + sedeBonita(v.sede) : '');
 }
@@ -242,11 +260,11 @@ async function proyectosAbiertos() {
 // completar (y agenda la siguiente). Viven en v.estatus = [{ts,
 // fechaRevision, por, porId, resultado?: {tipo, texto, fecha, ts, por,
 // porId}}]; a lo mas UNA pendiente: la ultima sin resultado.
-function estatusResueltos(v) {
+export function estatusResueltos(v) {
   return (v.estatus || []).filter(s => s.resultado);
 }
 
-function estatusPendiente(v) {
+export function estatusPendiente(v) {
   const lista = v.estatus || [];
   const ult = lista[lista.length - 1];
   return ult && !ult.resultado ? ult : null;
@@ -256,7 +274,7 @@ function estatusPendiente(v) {
 // 100% si el objetivo salio en la primera revision, 50% en la segunda...
 // Evalua ESTATUS, ya no acciones (regla de Vale, 1 sep 2026); el % del
 // historial de acciones (a tiempo) es aparte y se queda como estaba.
-function calificacion(v) {
+export function calificacion(v) {
   const n = estatusResueltos(v).length || 1;
   return Math.round(100 / n);
 }
@@ -265,7 +283,7 @@ function calificacion(v) {
 // importar por cuantos dias): CANCELADA = no completada; completada
 // (o legada con siguiente) = A TIEMPO si llego en o antes del
 // compromiso, VENCIDA si despues; sin datos = NO COMPLETADA.
-function estadoDe(e, sig) {
+export function estadoDe(e, sig) {
   if (e.cierre && e.cierre.tipo === 'cancelada') {
     return { clase: 'rojo', texto: '✕ No completada', aTiempo: false };
   }
@@ -283,7 +301,7 @@ function estatusActual(v) {
 
 // El contacto "vigente" es el de la accion mas reciente que tenga uno
 // (las ventas viejas con contacto de oportunidad tambien cuentan).
-function contactoVigente(v) {
+export function contactoVigente(v) {
   const hist = v.historial || [];
   for (let k = hist.length - 1; k >= 0; k--) {
     if (hist[k].contacto) return hist[k].contacto;
@@ -294,7 +312,7 @@ function contactoVigente(v) {
 // La FECHA COMPROMISO es POR ACCION (regla de Vale): la vigente de la
 // oportunidad es la de su ultima accion (los atrasos automaticos no
 // cuentan como accion). Ventas viejas caen a su fechaSeguimiento legada.
-function compromisoVigente(v) {
+export function compromisoVigente(v) {
   const hist = v.historial || [];
   for (let k = hist.length - 1; k >= 0; k--) {
     if (hist[k].tipo === 'estatus') return hist[k].compromiso || '';
@@ -370,41 +388,11 @@ function fechaCorta(clave) {
   return clave.slice(8, 10) + '/' + clave.slice(5, 7) + '/' + clave.slice(2, 4);
 }
 
-// Toda accion DEBE llevar fecha compromiso (regla de Vale, 31 ago 2026):
-// el formulario ya no deja guardar sin ella, y a las acciones viejas que
-// quedaron sin fecha se les asigna una AL AZAR (2 a 10 dias despues de la
-// creacion de la accion). Si la de la accion vigente cae ya vencida,
-// registrarAtrasos anota su atraso en la misma pasada — flujo normal.
-async function asignarCompromisosFaltantes(ventas) {
-  for (const v of ventas) {
-    let cambio = false;
-    for (const e of (v.historial || [])) {
-      if (e.tipo !== 'estatus' || esCreacionLegada(e) || e.compromiso) continue;
-      const base = new Date((e.fecha || fechaClave()) + 'T12:00:00');
-      base.setDate(base.getDate() + 2 + Math.floor(Math.random() * 9));
-      e.compromiso = fechaClave(base);
-      cambio = true;
-    }
-    if (cambio) await db.ventaGuardar(v);
-  }
-}
-
-// Un ATRASO automatico por cada fecha compromiso vencida sin accion nueva.
-async function registrarAtrasos(ventas) {
-  const hoy = fechaClave();
-  for (const v of ventas) {
-    if (v.cerrada) continue;
-    const comp = compromisoVigente(v);
-    if (!comp || comp >= hoy) continue;
-    const ya = (v.historial || []).some(e => e.tipo === 'atraso' && e.porFecha === comp);
-    if (ya) continue;
-    v.historial.push({
-      ts: db.marcaDeTiempo(), fecha: hoy, tipo: 'atraso', porFecha: comp,
-      texto: 'ATRASO: fecha compromiso vencida el ' + fechaBonita(comp),
-    });
-    await db.ventaGuardar(v);
-  }
-}
+// (El ciclo de ACCIONES — fecha compromiso por accion, atrasos
+// automaticos, siguiente accion obligatoria y su candado — se retiro el
+// 1 sep 2026 por regla de Vale: el dia a dia vive en las ACTIVIDADES
+// DIARIAS del diario, ligadas opcionalmente a un objetivo. Las acciones
+// ya registradas quedan solo en consulta.)
 
 /* ---------------------------------------------------------------- */
 /* Formularios                                                       */
@@ -557,6 +545,7 @@ function hojaNuevoObjetivo(clientes, proyectos, vendedores) {
       const cTitulo = campo('Objetivo', { maxLength: 160, placeholder: 'p. ej. Vender el paquete de refacciones' });
       const cCompObj = campo('Fecha compromiso del objetivo', { type: 'date', value: '' });
       const cDescripcion = campoArea('Descripcion (opcional)', { maxLength: 400 });
+      const cTema = campoTema('');
       const cRev1 = campo('Primera fecha de revision del estatus', { type: 'date', value: '' });
       const botonesPrio = botoneraPrioridad('');
 
@@ -585,6 +574,7 @@ function hojaNuevoObjetivo(clientes, proyectos, vendedores) {
         cCompObj,
         h('p.pista', 'La fecha compromiso del objetivo queda FIJA: ya no se podra cambiar.'),
         cDescripcion,
+        cTema,
         cRev1,
         h('label.campo', h('span.campo__etiqueta', 'Prioridad (opcional)'), botonesPrio),
         filaVendedores,
@@ -603,6 +593,7 @@ function hojaNuevoObjetivo(clientes, proyectos, vendedores) {
                 cliente: sel.cliente, sede: sel.sede, proyecto: sel.proyecto, titulo,
                 objetivoCompromiso,
                 descripcion: cDescripcion.querySelector('textarea, input').value.trim(),
+                tema: cTema.entrada.value.trim(),
                 primeraRevision,
                 prioridadLetra: botonesPrio.valorPrio(),
                 vendedor: vendedorElegido ? { id: vendedorElegido.id, nombre: vendedorElegido.nombre } : null,
@@ -954,6 +945,7 @@ async function hojaEditarObjetivo(v) {
       : campo('Fecha compromiso del objetivo (se fija una sola vez)', { type: 'date', value: '' });
     const cDescripcion = campoArea('Descripcion (opcional)', { maxLength: 400 });
     cDescripcion.querySelector('textarea, input').value = v.descripcion || '';
+    const cTema = campoTema(v.tema || '');
     const letraActual = prioridadValida(v.prioridad) ? v.prioridad[0] : '';
     const botonesPrio = botoneraPrioridad(letraActual);
     const selVendedor = h('select.org-select',
@@ -968,6 +960,7 @@ async function hojaEditarObjetivo(v) {
         ? h('p.pista', '🔒 Fecha compromiso del objetivo: ' + fechaBonita(v.objetivoCompromiso) + ' (fija, no se modifica).')
         : cCompObj,
       cDescripcion,
+      cTema,
       h('label.campo', h('span.campo__etiqueta', 'Prioridad' + (prioridadValida(v.prioridad) ? ' (actual: ' + v.prioridad + ')' : '')), botonesPrio),
       // El orden dentro de la letra se cambia ARRASTRANDO en su hoja
       // (fila GLOBAL: el lider ve todas, de todos los vendedores).
@@ -989,6 +982,7 @@ async function hojaEditarObjetivo(v) {
               proyecto: sel.proyecto,
               titulo,
               descripcion: cDescripcion.querySelector('textarea, input').value.trim(),
+              tema: cTema.entrada.value.trim(),
               prioridadLetra: botonesPrio.valorPrio(),
               duenoId: dueno ? dueno.id : '',
               dueno: dueno ? dueno.nombre : '',
@@ -1294,90 +1288,6 @@ async function resolverConAccion(v) {
   return true;
 }
 
-// Tras COMPLETAR o CANCELAR la accion vigente es OBLIGATORIO dejar la
-// siguiente accion (o concluir la venta con evidencia): este menu se
-// repite hasta resolverse (regla de Vale); si el usuario se sale de la
-// app, el CANDADO lo trae de vuelta al volver a entrar.
-async function resolverPendiente(v) {
-  for (;;) {
-    const opcion = await hoja('⏭  ¿Que sigue?', (cerrar) => h('div',
-      h('p.pista', 'La accion vigente de "' + v.titulo + '" (' + nombreEntidad(v) + ') quedo cerrada: registra la SIGUIENTE accion, o marca la venta como completada con su evidencia.'),
-      h('button.btn.btn--primario.venta-btn', { type: 'button', onclick: () => cerrar('accion') }, '✚  REGISTRAR SIGUIENTE ACCION'),
-      h('button.btn.btn--fantasma.venta-btn', { type: 'button', onclick: () => cerrar('venta') }, '💰  VENTA COMPLETADA')));
-    if (opcion === 'accion' && await resolverConAccion(v)) return true;
-    if (opcion === 'venta' && await flujoVentaCompletada(v)) return true;
-  }
-}
-
-/* ---------------------------------------------------------------- */
-/* Candado de ventas: siguiente accion pendiente                     */
-/* ---------------------------------------------------------------- */
-
-// Calco del candado del Diario: si quedo una accion cerrada SIN su
-// siguiente (v.pendienteAccion), la app se BLOQUEA para el implicado
-// (quien la cerro, o el dueño de la venta) hasta resolverla. La capa va
-// BAJO las hojas (z50): las del propio flujo se abren encima, y el back
-// las cierra pero NUNCA brinca la capa.
-let capaCandadoVentas = null;
-let _revisarCandadoVentas = null;
-
-function mostrarCandadoVentas(v, alTerminar) {
-  const cuerpo = h('div.candado-cuerpo');
-  capaCandadoVentas = h('div.candado-diario.candado-diario--ventas', cuerpo);
-  document.body.appendChild(capaCandadoVentas);
-  // Se abre la PAGINA de la oportunidad (pedido de Vale): el vendedor
-  // revisa el contexto en solo lectura y ahi mismo resuelve — registrar
-  // la siguiente accion o marcar la venta completada. Nada mas.
-  const VISTA = { crear: false, accionar: false, gestionar: false };
-  let abriendo = false;
-  const resolver = async () => {
-    if (abriendo) return;
-    abriendo = true;
-    const r = await hojaDetalle(v, VISTA, () => {}, { candado: true });
-    abriendo = false;
-    if (r !== 'resuelto') return;   // se cerro con back: la capa sigue
-    if (capaCandadoVentas) { capaCandadoVentas.remove(); capaCandadoVentas = null; }
-    if (alTerminar) alTerminar();
-    revisarCandadoVentas();   // por si hay OTRA venta pendiente
-  };
-  // Primero el MENSAJE (pedido de Vale: le dice al vendedor que le
-  // falto); la pagina de la oportunidad se abre hasta tocar el boton.
-  cuerpo.append(
-    h('div.candado-tarjeta',
-      h('div.candado-icono', '💲'),
-      h('h2', 'Falta la siguiente accion'),
-      h('p.pista', 'Cerraste la accion vigente de "' + v.titulo + '" (' + nombreEntidad(v) + ') sin dejar la siguiente. Registrala — o marca la venta como completada — para seguir usando la app.'),
-      h('button.btn.btn--primario.candado-btn', { type: 'button', onclick: resolver },
-        '✚  REGISTRAR SIGUIENTE ACCION')));
-}
-
-export function instalarCandadoVentas(alTerminar) {
-  const revisar = async () => {
-    try {
-      const yo = await quienSoy();
-      if (!yo) return;
-      const pend = (await db.ventasTodas()).find(x => !x.cerrada && x.pendienteAccion &&
-        (x.pendienteAccion.porId === yo.id || x.duenoId === yo.id));
-      if (capaCandadoVentas) {
-        // Test Mode puede cambiar de usuario: si ya no aplica, se quita.
-        if (!pend) { capaCandadoVentas.remove(); capaCandadoVentas = null; }
-        return;
-      }
-      if (pend) mostrarCandadoVentas(pend, alTerminar);
-    } catch (e) { /* sin datos aun */ }
-  };
-  _revisarCandadoVentas = revisar;
-  revisar();
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') revisar();
-  });
-}
-
-// Para el Test Mode (cambio de usuario al momento) y los flujos vivos.
-export function revisarCandadoVentas() {
-  if (_revisarCandadoVentas) _revisarCandadoVentas();
-}
-
 // Detalle COMPLETO de una accion: PANTALLA COMPLETA con el estilo de la
 // casa (pedido de Vale). Aqui viven COMPLETADO / CANCELADO — cierran la
 // accion vigente con su texto obligatorio y piden la siguiente — y el
@@ -1387,23 +1297,8 @@ async function hojaDetalleAccion(e, esVigente, v, permisos, alCambiar) {
   await hoja('📄  Detalle de la accion', () => {
     const cuerpo = h('div');
     const pinta = () => {
+      // Solo consulta (las acciones se retiraron): sin COMPLETADO/CANCELADO.
       const viva = esVigente && !v.cerrada && !enRevision(v) && !e.cierre;
-      // COMPLETADO / CANCELADO: texto obligatorio, se guarda el cierre y
-      // queda PENDIENTE la siguiente accion (candado si se sale sin ella).
-      const cerrarAccion = async (tipo) => {
-        const texto = await hojaMotivo(
-          tipo === 'completada' ? '✔  Accion completada' : '✕  Accion cancelada',
-          tipo === 'completada' ? 'Resultado de la accion' : 'Motivo de cancelacion');
-        if (!texto) return;
-        e.cierre = { tipo, texto, fecha: fechaClave(), ts: db.marcaDeTiempo(), porId: yo ? yo.id : '', por: yo ? yo.nombre : '' };
-        v.pendienteAccion = { ts: db.marcaDeTiempo(), porId: yo ? yo.id : '' };
-        await db.ventaGuardar(v);
-        pinta();
-        alCambiar();
-        await resolverPendiente(v);
-        pinta();
-        alCambiar();
-      };
       cuerpo.replaceChildren(...[
         h('h3.venta-grupo', '⚡ LA ACCION',
           viva && e.compromiso ? chipEstadoCompromiso(e.compromiso, '', true) : null,
@@ -1421,9 +1316,6 @@ async function hojaDetalleAccion(e, esVigente, v, permisos, alCambiar) {
           h('p.venta-evento__cuerpo', e.cierre.texto),
           h('div.venta-evento__fechas',
             h('span', 'Cerrada el ' + fechaBonita(e.cierre.fecha) + (e.cierre.por ? ' por ' + e.cierre.por : '')))) : null,
-        viva && permisos.accionar ? h('div.venta-cierre-fila',
-          h('button.btn.btn--primario', { type: 'button', onclick: () => cerrarAccion('completada') }, '✔  COMPLETADO'),
-          h('button.btn.btn--peligro', { type: 'button', onclick: () => cerrarAccion('cancelada') }, '✕  CANCELADO')) : null,
         permisos.gestionar ? h('button.btn.btn--fantasma.venta-btn-mini', {
           type: 'button',
           onclick: async () => {
@@ -1491,8 +1383,14 @@ function hojaHistorialAcciones(v, pv, alCambiar) {
     const cuerpo = h('div');
     const pinta = () => {
       const acciones = (v.historial || []).filter(e => e.tipo === 'estatus' && !esCreacionLegada(e));
-      const anteriores = acciones.slice(0, -1)
-        .map((e, i) => ({ e, estado: estadoDe(e, acciones[i + 1]) }))
+      // TODAS las acciones (la ultima, si sigue abierta, como vigente).
+      const anteriores = acciones
+        .map((e, i) => ({
+          e,
+          estado: (i === acciones.length - 1 && !e.cierre)
+            ? { clase: 'ambar', texto: '⚡ Vigente', aTiempo: false }
+            : estadoDe(e, acciones[i + 1]),
+        }))
         .reverse();
       const aTiempo = anteriores.filter(x => x.estado.aTiempo).length;
       const pctATiempo = anteriores.length ? Math.round(100 * aTiempo / anteriores.length) : 0;
@@ -1559,11 +1457,12 @@ function seccionEvidencia(v) {
     rejilla);
 }
 
-// opciones.candado: la abre el CANDADO de siguiente accion — todo en solo
-// lectura (para revisar el contexto) y SOLO los dos botones de resolucion;
-// la hoja resuelve 'resuelto' cuando se registro la accion o la venta.
-async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
-  const modoCandado = !!opciones.candado;
+const SOLO_VISTA = { crear: false, accionar: false, gestionar: false };
+
+async function hojaDetalle(v, permisos, alCambiar) {
+  // Actividades del diario ligadas a este objetivo (se leen al abrir: se
+  // editan en su propia pagina, no aqui).
+  const actividades = await actividadesDeObjetivo(v.id);
   // En la CABECERA de la hoja van el TITULO (con su efecto) y el CLIENTE
   // en lugar de la ✕ (pedido de Vale): la hoja se cierra con el atras
   // del telefono, como todas las capas. El header lo construye hoja(),
@@ -1603,11 +1502,8 @@ async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
       // En el HISTORIAL (cerradas) TODO es de solo lectura: estos
       // permisos "de vista" apagan editar/agregar; lo unico vivo es
       // REACTIVAR, que usa los permisos reales (regla de Vale).
-      // Cerrada, en revision del lider o abierta por el CANDADO: solo
-      // lectura (permisos de vista).
-      const pv = (v.cerrada || enRevision(v) || modoCandado)
-        ? { crear: false, accionar: false, gestionar: false }
-        : permisos;
+      // Cerrada o en revision del lider: solo lectura (permisos de vista).
+      const pv = (v.cerrada || enRevision(v)) ? SOLO_VISTA : permisos;
       const cal = calificacion(v);
       const resueltos = estatusResueltos(v);
       const pendiente = estatusPendiente(v);
@@ -1620,21 +1516,11 @@ async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
       }
       // Semaforo y dias: contra HOY en abiertas; en cerradas CONGELADOS
       // al dia del cierre (null = cerrada legada sin fecha: sin semaforo).
-      const refCierre = v.cerrada ? (v.cerrado ? fechaClave(new Date(v.cerrado)) : null) : '';
+      // Las ACCIONES ya no viven en esta pagina (regla de Vale, 1 sep
+      // 2026: van a su propia pagina); las registradas antes siguen
+      // consultables en su hoja de historial.
       const acciones = (v.historial || []).filter(e => e.tipo === 'estatus' && !esCreacionLegada(e));
-      const vigente = acciones[acciones.length - 1] || null;
-      // Las anteriores viven en SU HOJA (boton HISTORIAL DE ACCIONES);
-      // aqui solo se cuentan para el letrero del boton.
-      const anteriores = acciones.slice(0, -1);
-      const eventoEl = (e, esVigente, datoDer) =>
-        eventoAccionEl(e, esVigente, datoDer, v, pv, () => { pinta(); alCambiar(); });
-      // Vigente ya CERRADA (esperando su siguiente): el chip del cierre
-      // sustituye al semaforo y a los dias.
-      const cierreVig = vigente && vigente.cierre;
-      const hayEstatus = vigente && vigente.compromiso && refCierre !== null && !cierreVig;
-      const datoDias = hayEstatus
-        ? h('span', 'Dias para vencimiento: ', chipDias(diasPara(vigente.compromiso, refCierre)))
-        : (cierreVig ? chipCierre(vigente.cierre) : null);
+      const ultimo = resueltos[resueltos.length - 1] || null;
       // OJO: append(null) pinta el texto "null" (h() si filtra nulos);
       // aqui los condicionales entregan null, se filtran antes de anexar.
       const claveCreada = fechaClave(new Date(v.creado));
@@ -1679,18 +1565,6 @@ async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
           },
         }, '✎  EDITAR OBJETIVO') : null,
 
-        // Modo CANDADO: SOLO estas dos salidas (regla de Vale) — el resto
-        // de la hoja es consulta de contexto.
-        modoCandado ? h('p.pista', 'Esta venta espera su SIGUIENTE accion: revisa el contexto y resuelve aqui.') : null,
-        modoCandado ? h('button.btn.btn--primario.venta-btn', {
-          type: 'button',
-          onclick: async () => { if (await resolverConAccion(v)) cerrar('resuelto'); },
-        }, '✚  REGISTRAR SIGUIENTE ACCION') : null,
-        modoCandado ? h('button.btn.btn--fantasma.venta-btn', {
-          type: 'button',
-          onclick: async () => { if (await flujoVentaCompletada(v)) cerrar('resuelto'); },
-        }, '💰  VENTA COMPLETADA') : null,
-
         // EVIDENCIA de la venta completada (arriba: es lo que el lider
         // viene a revisar); tras aprobarse queda visible en el historial.
         v.conclusion ? h('h3.venta-grupo', '📎 EVIDENCIA DE VENTA',
@@ -1709,24 +1583,17 @@ async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
             alCambiar();
           },
         }, '✔  APROBAR Y CERRAR VENTA') : null,
-        // DEVOLVER (regla de Vale): razon OBLIGATORIA + el lider puede
-        // dejar puesta la nueva accion actual; si no la deja, el candado
-        // se la pide al vendedor. El vendedor recibe el aviso (portada,
-        // tablero y esta hoja) de que su evidencia no fue aceptada.
+        // DEVOLVER (regla de Vale): razon OBLIGATORIA. El vendedor recibe
+        // el aviso (portada, tablero y esta hoja) de que su evidencia no
+        // fue aceptada y vuelve a concluir cuando tenga la evidencia.
         enRevision(v) && permisos.gestionar ? h('button.btn.btn--fantasma.venta-btn', {
           type: 'button',
           onclick: async () => {
             const razon = await hojaMotivo('↩  Devolver al vendedor', 'Razon de la devolucion');
             if (!razon) return;
             delete v.conclusion;
+            delete v.pendienteAccion;
             v.devolucion = { ts: db.marcaDeTiempo(), fecha: fechaClave(), razon, porId: yo ? yo.id : '', por: yo ? yo.nombre : '' };
-            const accion = await hojaNuevaAccion(v, await contactosDe(v), await contactosGlobales());
-            if (accion) {
-              v.historial.push({ ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo: 'estatus', texto: accion.texto, contacto: accion.contacto || '', compromiso: accion.fecha || '' });
-              delete v.pendienteAccion;
-            } else {
-              v.pendienteAccion = { ts: db.marcaDeTiempo(), porId: v.duenoId || '' };
-            }
             await db.ventaGuardar(v);
             aviso('Devuelta al vendedor.', 'ok');
             pinta();
@@ -1748,6 +1615,19 @@ async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
         // el semaforo de la casa; las resueltas viven en su hoja (boton
         // HISTORIAL, pedido de Vale: no saturar la pagina).
         h('h3.venta-grupo', '📈 ESTATUS'),
+        // El ULTIMO ESTATUS resuelto (lo que antes era la accion actual).
+        h('div.venta-evento.venta-evento--plano',
+          h('p.venta-evento__cuerpo',
+            h('span.venta-carta__etiqueta', 'Ultimo estatus: '),
+            ultimo ? ultimo.resultado.texto : h('span.venta-carta__alerta', 'SIN ESTATUS REGISTRADO')),
+          ultimo ? h('div.venta-evento__fechas',
+            h('span', 'Revision del ' + fechaBonita(ultimo.fechaRevision)),
+            ultimo.resultado.tipo === 'completado'
+              ? h('span.venta-estado-chip.venta-estado-chip--verde', '✔ Objetivo completado')
+              : h('span.venta-estado-chip.venta-estado-chip--rojo', '✕ Sin completar')) : null,
+          ultimo ? h('div.venta-evento__fechas',
+            h('span', 'Resuelto el ' + fechaBonita(ultimo.resultado.fecha) +
+              (ultimo.resultado.por ? ' por ' + ultimo.resultado.por : ''))) : null),
         pendiente ? h('div.venta-evento.venta-evento--plano',
           h('p.venta-evento__cuerpo',
             h('span.venta-carta__etiqueta', 'Proxima revision: '),
@@ -1785,35 +1665,24 @@ async function hojaDetalle(v, permisos, alCambiar, opciones = {}) {
           onclick: () => hojaHistorialEstatus(v),
         }, '📜  HISTORIAL DE ESTATUS (' + resueltos.length + ')') : null,
 
-        // Solo ACCIONES: ni los atrasos (su presentacion esta por definirse
-        // con Vale) ni el "Oportunidad creada" legado se listan aqui —
-        // ambos siguen contando para la calificacion segun sus reglas.
-        // Titulos de seccion con el MISMO formato de grupo del tablero.
-        // ACCION ACTUAL lleva su ESTATUS a la derecha (sin los dias: esos
-        // van aparte, en "Dias para vencimiento" — regla de Vale).
-        h('h3.venta-grupo', '⚡ ACCION ACTUAL',
-          hayEstatus ? chipEstadoCompromiso(vigente.compromiso, refCierre, true) : null,
-          cierreVig ? chipCierre(vigente.cierre) : null),
-        vigente
-          ? h('div.venta-historial', eventoEl(vigente, true, datoDias))
-          : h('p.pista', 'Aun no hay acciones. Agrega la primera.'),
-        pv.accionar ? h('button.btn.btn--primario.venta-btn', {
+        // ACTIVIDADES DIARIAS ligadas a este objetivo (viven en el diario;
+        // aqui solo se consultan).
+        h('button.btn.btn--fantasma.venta-btn', {
           type: 'button',
-          onclick: async () => {
-            const accion = await hojaNuevaAccion(v, await contactosDe(v), await contactosGlobales());
-            if (!accion) return;
-            v.historial.push({ ts: db.marcaDeTiempo(), fecha: fechaClave(), tipo: 'estatus', texto: accion.texto, contacto: accion.contacto || '', compromiso: accion.fecha || '' });
-            await db.ventaGuardar(v);
-            pinta();
-            alCambiar();
-          },
-        }, '✚  AGREGAR ACCION') : null,
-        // El historial de acciones (con su % a tiempo) vive en su hoja
-        // (boton, pedido de Vale: no saturar la pagina del detalle).
-        anteriores.length ? h('button.btn.btn--fantasma.venta-btn', {
+          onclick: () => hojaActividadesObjetivo(v, actividades),
+        }, '📋  ACTIVIDADES (' + actividades.length + ')'),
+        // Acciones registradas ANTES del cambio a actividades diarias:
+        // solo consulta, en su hoja (desaparece cuando no hay ninguna).
+        acciones.length ? h('button.btn.btn--fantasma.venta-btn', {
           type: 'button',
-          onclick: () => hojaHistorialAcciones(v, pv, () => { pinta(); alCambiar(); }),
-        }, '📜  HISTORIAL DE ACCIONES (' + anteriores.length + ')') : null,
+          onclick: () => hojaHistorialAcciones(v, SOLO_VISTA, () => { pinta(); alCambiar(); }),
+        }, '📜  ACCIONES ANTERIORES (' + acciones.length + ')') : null,
+        // VENTA COMPLETADA (con evidencia en foto) la registra el vendedor
+        // desde el objetivo (antes salia del cierre de una accion).
+        pv.accionar && !v.conclusion ? h('button.btn.btn--primario.venta-btn', {
+          type: 'button',
+          onclick: async () => { if (await flujoVentaCompletada(v)) { pinta(); alCambiar(); } },
+        }, '💰  VENTA COMPLETADA (con evidencia)') : null,
 
         // Acciones y anotaciones son DOS cosas distintas: el subrayado
         // del titulo de grupo (como en el tablero) marca la frontera.
@@ -1944,7 +1813,7 @@ async function directorioClientes() {
 // dice en QUE grupo vas cuando su titulo ya no esta a la vista. Lo usan
 // el tablero (vendedor con su avatar, cliente, prioridad), el directorio
 // y el detalle de la oportunidad (enHoja: cabecera y z-index de la hoja).
-function montarGafete(contenedor, cont, enHoja) {
+export function montarGafete(contenedor, cont, enHoja) {
   const gafete = h('div.rama-flotante.rama-flotante--ventas' + (enHoja ? '.rama-flotante--hoja' : ''),
     { style: { display: 'none' } });
   contenedor.append(gafete);
@@ -2173,23 +2042,29 @@ function sinApellido(nombre) {
 
 // Avatar del vendedor: PLACEHOLDER con iniciales por ahora — aqui ira su
 // FOTO cuando la organizacion la tenga.
-function avatarVendedor(nombre) {
+export function avatarVendedor(nombre) {
   const partes = (nombre || '').trim().split(/\s+/);
   const ini = partes.length >= 2
     ? partes[0][0] + partes[partes.length - 1][0]
     : (partes[0] || '?').slice(0, 2);
   return h('span.venta-avatar', ini.toUpperCase());
 }
+// La tarjeta del OBJETIVO (regla de Vale, 1 sep 2026): sin acciones. El
+// TEMA va hasta arriba, centrado y en grande; debajo la fila de vendedor
+// | prioridad | %; el semaforo y el pie miran la FECHA COMPROMISO DEL
+// OBJETIVO (fija) y en lugar de la accion actual va el ULTIMO ESTATUS
+// resuelto por el lider, con la proxima revision agendada.
 function tarjetaVenta(v, veTodas, permisos, alCambiar) {
-  const comp = compromisoVigente(v);
-  // La ACCION ACTUAL (misma regla que el detalle): ultima accion real.
-  const acciones = (v.historial || []).filter(e => e.tipo === 'estatus' && !esCreacionLegada(e));
-  const vigente = acciones[acciones.length - 1] || null;
+  const comp = v.objetivoCompromiso || '';
+  const resueltos = estatusResueltos(v);
+  const ultimo = resueltos[resueltos.length - 1] || null;
+  const pendiente = estatusPendiente(v);
   const cal = calificacion(v);
   return h('button.venta-carta' + (v.cerrada ? '.venta-carta--cerrada' : ''), {
     type: 'button',
     onclick: () => hojaDetalle(v, permisos, alCambiar),
   },
+    v.tema ? h('p.venta-carta__tema', v.tema) : null,
     h('div.venta-carta__f1',
       veTodas && v.dueno
         ? h('p.venta-dueno', avatarVendedor(v.dueno), h('span.venta-dueno__nombre', sinApellido(v.dueno)))
@@ -2207,15 +2082,20 @@ function tarjetaVenta(v, veTodas, permisos, alCambiar) {
         : null),
     h('p.venta-carta__titulo', v.titulo),
     h('p.venta-carta__accion',
-      h('span.venta-carta__etiqueta', 'Accion Actual: '),
-      vigente ? vigente.texto : h('span.venta-carta__alerta', 'SIN ACCIONES REGISTRADAS')),
+      h('span.venta-carta__etiqueta', 'Ultimo estatus: '),
+      ultimo ? ultimo.resultado.texto : h('span.venta-carta__alerta', 'SIN ESTATUS REGISTRADO')),
+    h('p.venta-carta__accion',
+      h('span.venta-carta__etiqueta', 'Proxima revision: '),
+      pendiente
+        ? h('span.venta-carta__pie-fecha', fechaCorta(pendiente.fechaRevision))
+        : h('span.venta-carta__alerta', v.cerrada ? '—' : 'SIN REVISION AGENDADA')),
     h('div.venta-carta__pie',
       // Etiqueta y fecha en un mismo flujo: la etiqueta es indivisible
       // (nowrap) y si el ancho no da, la fecha baja COMPLETA al segundo
       // renglon en vez de partir la etiqueta a media palabra.
       comp
         ? h('span.venta-carta__pie-texto',
-          h('span.venta-carta__etiqueta', 'Ultima fecha compromiso: '),
+          h('span.venta-carta__etiqueta', 'Fecha compromiso: '),
           h('span.venta-carta__pie-fecha', fechaCorta(comp)))
         : h('span.venta-carta__pie-texto',
           h('span.venta-carta__alerta', 'SIN FECHA COMPROMISO')),
@@ -2251,10 +2131,8 @@ async function renderHistorial(contenedor) {
   const pintar = async () => {
     vaciar(cont);
     // Misma caja cerrada del tablero: el vendedor solo ve SU historial;
-    // la mas recientemente cerrada va primero. (Y la misma migracion de
-    // fechas compromiso, por si se recarga directo en el historial.)
+    // la mas recientemente cerrada va primero.
     const todas = await db.ventasTodas();
-    await asignarCompromisosFaltantes(todas);
     const cerradas = todas
       .filter(v => v.cerrada && (veTodas || (yo && v.duenoId === yo.id)))
       .sort((a, b) => (b.cerrado || b.creado || 0) - (a.cerrado || a.creado || 0));
@@ -2333,6 +2211,78 @@ async function renderRevision(contenedor) {
 }
 
 /* ---------------------------------------------------------------- */
+/* Actividades diarias ligadas a un objetivo (viven en el diario)     */
+/* ---------------------------------------------------------------- */
+
+// Objetivos ABIERTOS que `yo` puede ligar a una actividad: los suyos, o
+// todos si ve todas las cajas (lider/admin). En orden de prioridad.
+export async function objetivosParaActividades(yo) {
+  const veTodas = veTodasLasVentas(yo);
+  return (await db.ventasTodas())
+    .filter(v => !v.cerrada && (veTodas || (yo && v.duenoId === yo.id)))
+    .sort((a, b) => {
+      const pa = clavePrio(a);
+      const pb = clavePrio(b);
+      return pa < pb ? -1 : pa > pb ? 1 : nombreEntidad(a).localeCompare(nombreEntidad(b), 'es');
+    });
+}
+
+// Etiqueta corta de un objetivo para las actividades: "📁 PROYECTO · Objetivo".
+export function etiquetaObjetivo(v) {
+  return etiquetaEntidad(v) + ' · ' + (v.titulo || '');
+}
+
+// Selector de objetivo (cuadricula como la del asistente). Resuelve el
+// objetivo elegido, '' para "Sin objetivo" y null si se cancela.
+export function hojaElegirObjetivo(lista, actualId) {
+  return hoja('💲  ¿De que objetivo de venta?', (cerrar) => h('div.asistente',
+    h('p.pista', 'Opcional: liga la actividad a un objetivo de venta abierto.'),
+    h('div.asistente__rejilla',
+      h('button.asistente__op' + (!actualId ? '.asistente__op--actual' : ''),
+        { type: 'button', onclick: () => cerrar('') }, '— Sin objetivo'),
+      ...lista.map(v => h('button.asistente__op' + (v.id === actualId ? '.asistente__op--actual' : ''),
+        { type: 'button', onclick: () => cerrar(v) },
+        h('span.venta-carta__etiqueta', etiquetaEntidad(v)), h('br'), v.titulo))),
+    lista.length ? null : h('p.pista', 'No hay objetivos de venta abiertos para ti.'),
+    h('div.hoja__acciones',
+      h('button.btn.btn--fantasma', { type: 'button', onclick: () => cerrar(null) }, 'Cancelar'))),
+  { altura: 'alta' });
+}
+
+// Actividades del diario (las de este telefono) ligadas a un objetivo,
+// de la mas reciente a la mas vieja.
+export async function actividadesDeObjetivo(ventaId) {
+  const lista = [];
+  for (const d of await db.diasTodos()) {
+    for (const a of (d.actividades || [])) {
+      if (a.ventaId !== ventaId) continue;
+      lista.push({ fecha: d.fecha, texto: a.texto, hecha: !!a.hecha, cerrado: !!d.evaluado, usuario: d.usuario || '' });
+    }
+  }
+  return lista.sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
+}
+
+export function hojaActividadesObjetivo(v, actividades) {
+  const hechas = actividades.filter(a => a.hecha).length;
+  const pct = actividades.length ? Math.round(100 * hechas / actividades.length) : 0;
+  return hoja('📋  Actividades del objetivo', () => h('div',
+    h('p.pista', migaEntidad(v) + ' · ' + v.titulo),
+    actividades.length
+      ? h('p.sem-total', actividades.length + (actividades.length === 1 ? ' actividad' : ' actividades') + ' · completadas: ',
+        h('span.venta-cal-solo.' + claseCal(pct), pct + '%'))
+      : h('p.pista', 'Sin actividades ligadas a este objetivo. Se ligan al anotarlas en 📋 Actividades diarias.'),
+    h('div.venta-historial', ...actividades.map(a => h('div.venta-evento.venta-evento--plano',
+      h('p.venta-evento__cuerpo', (a.hecha ? '✔ ' : '○ ') + a.texto),
+      h('div.venta-evento__fechas',
+        h('span', fechaBonita(a.fecha) + (a.usuario ? ' · ' + a.usuario : '')),
+        a.hecha
+          ? h('span.venta-estado-chip.venta-estado-chip--verde', '✔ Completada')
+          : h('span.venta-estado-chip.venta-estado-chip--' + (a.cerrado ? 'rojo' : 'ambar'),
+            a.cerrado ? '✕ No completada' : '○ Pendiente')))))),
+  { altura: 'completa' });
+}
+
+/* ---------------------------------------------------------------- */
 /* Tablero                                                           */
 /* ---------------------------------------------------------------- */
 
@@ -2385,6 +2335,7 @@ export async function render(contenedor, refrescar, params = {}) {
     ['vendedor', 'Vendedor'],
     ['cliente', 'Cliente'],
     ['prioridad', 'Prioridad'],
+    ['tema', 'Tema'],
     ['', 'Sin agrupar'],
   ];
   // Filtros por estado del compromiso (checkboxes): prendidos los dos
@@ -2401,8 +2352,6 @@ export async function render(contenedor, refrescar, params = {}) {
 
   const pintar = async () => {
     const todasLasVentas = await db.ventasTodas();
-    await asignarCompromisosFaltantes(todasLasVentas);
-    await registrarAtrasos(todasLasVentas);
     vaciar(cont);
 
     // Filtrado de caja: lo visible para quien mira.
@@ -2540,7 +2489,7 @@ export async function render(contenedor, refrescar, params = {}) {
     // (sin fecha compromiso no entra en ninguno de los dos).
     if (soloVencidas || soloPorVencer) {
       lista = lista.filter(v => {
-        const comp = compromisoVigente(v);
+        const comp = v.objetivoCompromiso || '';
         if (!comp) return false;
         const dias = diasPara(comp);
         return (soloVencidas && dias < 0) || (soloPorVencer && dias >= 0 && dias < 3);
@@ -2550,9 +2499,11 @@ export async function render(contenedor, refrescar, params = {}) {
     // Orden segun el criterio elegido (lider); los vendedores conservan
     // el clasico: fecha compromiso y luego prioridad.
     const criterio = veTodas ? ordenarPor : 'compromiso';
+    // Orden y filtros por la FECHA COMPROMISO DEL OBJETIVO (las acciones
+    // ya no viven en esta pagina).
     const porCompromiso = (a, b) => {
-      const fa = compromisoVigente(a) || '9999';
-      const fb = compromisoVigente(b) || '9999';
+      const fa = a.objetivoCompromiso || '9999';
+      const fb = b.objetivoCompromiso || '9999';
       return fa < fb ? -1 : fa > fb ? 1 : 0;
     };
     const porPrioridad = (a, b) => {
@@ -2592,8 +2543,9 @@ export async function render(contenedor, refrescar, params = {}) {
     } else {
       // Vista del lider: AGRUPADAS por el criterio elegido (los "sin"
       // siempre al final; con prioridad el orden A, B, C sale solo).
-      const ICONO_GRUPO = { vendedor: '🧑‍🔧 ', cliente: '🏢 ', prioridad: '🎯 ' };
+      const ICONO_GRUPO = { vendedor: '🧑‍🔧 ', cliente: '🏢 ', prioridad: '🎯 ', tema: '🏷 ' };
       const claveDe = (v) => {
+        if (agruparPor === 'tema') return (v.tema || '').trim() || 'Sin tema';
         if (agruparPor === 'cliente') {
           // Los proyectos agrupan por su nombre (ya traen su 📁).
           return esProyecto(v) ? etiquetaEntidad(v).toUpperCase()

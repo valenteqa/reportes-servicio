@@ -152,6 +152,8 @@ export async function hojaConfiguracion() {
           '👤  Nombre del tecnico'),
         h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('usuarios') },
           '👥  Usuarios y deptos'),
+        h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('nube') },
+          '☁  Nube OneDrive (Excel)'),
         h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('catalogo') },
           '🗂  Clientes y datos de maquina'),
         h('button.lista-acciones__item', { type: 'button', onclick: () => cerrar('tablas') },
@@ -169,6 +171,7 @@ export async function hojaConfiguracion() {
   });
   if (accion === 'tecnico') await hojaTecnico();
   if (accion === 'usuarios') await hojaUsuarios();
+  if (accion === 'nube') await (await import('./nube.js')).hojaNube();
   if (accion === 'catalogo') await hojaCampoCatalogo();
   if (accion === 'tablas') await hojaTablasPredeterminadas();
   if (accion === 'zoom') await hojaZoom();

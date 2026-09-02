@@ -565,9 +565,26 @@ export function contactoFicha(clave) {
   return tx(s, 'readonly', st => pedir(st[s].get(clave)));
 }
 
+// Todo guardado de venta o contacto lleva marca `actualizado` (con ella la
+// nube decide que copia es la mas nueva entre telefonos) y avisa a la app
+// con el evento 'datos-guardados' para que la sincronizacion se agende.
+function marcarYAvisar(registro, tipo) {
+  registro.actualizado = marcaDeTiempo();
+  try {
+    window.dispatchEvent(new CustomEvent('datos-guardados', { detail: { tipo, test: sandboxTest } }));
+  } catch (e) { /* sin window (pruebas) */ }
+}
+
 export function contactoFichaGuardar(ficha) {
   const s = stContactos();
+  marcarYAvisar(ficha, 'contacto');
   return tx(s, 'readwrite', st => { st[s].put(ficha); });
+}
+
+// Escritura CRUDA en un almacen real (nunca el sandbox), sin marca ni
+// aviso: la usa la nube al bajar registros de otros telefonos.
+export function guardarCrudo(nombre, registro) {
+  return tx(nombre, 'readwrite', st => { st[nombre].put(registro); });
 }
 
 export function contactosFichasTodas() {
@@ -592,6 +609,7 @@ export function diasTodos() {
 
 export function ventaGuardar(venta) {
   const s = stVentas();
+  marcarYAvisar(venta, 'venta');
   return tx(s, 'readwrite', st => { st[s].put(venta); });
 }
 

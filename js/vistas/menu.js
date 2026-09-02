@@ -130,4 +130,6 @@ export async function render(contenedor, refrescar) {
   bannerActualizacion().then(b => { if (b) pantalla.prepend(b); }).catch(() => {});
   // Avisos de ventas (revision del lider / evidencia devuelta).
   bannersVentas().then(bs => { for (const b of bs) pantalla.prepend(b); }).catch(() => {});
+  // Aviso de la nube (conectar / volver a conectar OneDrive).
+  import('./nube.js').then(m => m.bannerNube()).then(b => { if (b) pantalla.prepend(b); }).catch(() => {});
 }
